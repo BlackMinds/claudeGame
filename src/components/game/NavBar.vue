@@ -174,12 +174,12 @@ export default {
       colorPresets: [
         { name: 'default', label: '默认深蓝', gradient: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 100%)' },
         { name: 'dark', label: '纯黑', gradient: 'linear-gradient(180deg, #000000 0%, #1a1a1a 100%)' },
+        { name: 'light', label: '白底黑字', gradient: 'linear-gradient(180deg, #ffffff 0%, #f0f0f5 100%)', isLight: true },
         { name: 'purple', label: '紫色', gradient: 'linear-gradient(180deg, #1a0a2e 0%, #2d1b4e 100%)' },
         { name: 'green', label: '深绿', gradient: 'linear-gradient(180deg, #0a1a0a 0%, #1a3a1a 100%)' },
         { name: 'red', label: '暗红', gradient: 'linear-gradient(180deg, #1a0a0a 0%, #3a1a1a 100%)' },
         { name: 'brown', label: '古铜', gradient: 'linear-gradient(180deg, #1a1408 0%, #2d2315 100%)' },
-        { name: 'ocean', label: '海洋', gradient: 'linear-gradient(180deg, #0a1520 0%, #152535 100%)' },
-        { name: 'sunset', label: '日落', gradient: 'linear-gradient(180deg, #1a1020 0%, #2a1530 100%)' }
+        { name: 'ocean', label: '海洋', gradient: 'linear-gradient(180deg, #0a1520 0%, #152535 100%)' }
       ],
       qualityOptions: [
         { key: 'white', name: '普通', color: '#ffffff' },
@@ -200,7 +200,7 @@ export default {
         this.customColor1 = data.color1
         this.customColor2 = data.color2
       }
-      this.applyBgColor(data.gradient)
+      this.applyBgColor(data.gradient, data.isLight || false)
     }
   },
   computed: {
@@ -247,28 +247,35 @@ export default {
       const preset = this.colorPresets.find(p => p.name === presetName)
       if (preset) {
         this.currentBgColor = presetName
-        this.applyBgColor(preset.gradient)
+        this.applyBgColor(preset.gradient, preset.isLight)
         localStorage.setItem('xiuxianBgColor', JSON.stringify({
           name: presetName,
-          gradient: preset.gradient
+          gradient: preset.gradient,
+          isLight: preset.isLight || false
         }))
       }
     },
     applyCustomColor() {
       const gradient = `linear-gradient(180deg, ${this.customColor1} 0%, ${this.customColor2} 100%)`
       this.currentBgColor = 'custom'
-      this.applyBgColor(gradient)
+      this.applyBgColor(gradient, false)
       localStorage.setItem('xiuxianBgColor', JSON.stringify({
         name: 'custom',
         gradient: gradient,
         color1: this.customColor1,
-        color2: this.customColor2
+        color2: this.customColor2,
+        isLight: false
       }))
     },
-    applyBgColor(gradient) {
+    applyBgColor(gradient, isLight = false) {
       const gameContainer = document.querySelector('.game-container')
       if (gameContainer) {
         gameContainer.style.background = gradient
+        if (isLight) {
+          gameContainer.classList.add('light-theme')
+        } else {
+          gameContainer.classList.remove('light-theme')
+        }
       }
     },
     handleExport() {

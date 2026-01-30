@@ -55,6 +55,7 @@ export default {
   background: linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 100%);
   display: flex;
   flex-direction: column;
+  transition: background 0.3s;
 }
 
 .game-content {
@@ -111,5 +112,199 @@ export default {
   .right-panel {
     width: 100%;
   }
+}
+</style>
+
+<!-- 浅色主题全局样式 -->
+<style>
+.game-container.light-theme {
+  color: #1a1a2e;
+}
+
+.game-container.light-theme .navbar {
+  background: linear-gradient(135deg, #e8e8f0 0%, #d0d0e0 100%);
+  border-bottom-color: #b0b0c0;
+}
+
+.game-container.light-theme .nav-brand h1 {
+  color: #8b6914;
+  text-shadow: none;
+}
+
+.game-container.light-theme .subtitle {
+  color: #666;
+}
+
+.game-container.light-theme .info-item .label {
+  color: #666;
+}
+
+.game-container.light-theme .info-item .value {
+  color: #333;
+}
+
+.game-container.light-theme .info-item .value.level {
+  color: #c77800;
+}
+
+.game-container.light-theme .info-item .value.realm {
+  color: #2980b9;
+}
+
+.game-container.light-theme .info-item .value.gold {
+  color: #b8860b;
+}
+
+.game-container.light-theme .nav-btn {
+  border-color: #b0b0c0;
+}
+
+.game-container.light-theme .attribute-panel,
+.game-container.light-theme .battle-panel,
+.game-container.light-theme .equipment-panel {
+  background: linear-gradient(135deg, #f5f5fa 0%, #e8e8f0 100%);
+  border-color: #c0c0d0;
+  color: #333;
+}
+
+.game-container.light-theme .panel-header h3 {
+  color: #8b6914;
+}
+
+.game-container.light-theme .stat-row,
+.game-container.light-theme .stat-item {
+  color: #333;
+}
+
+.game-container.light-theme .stat-label {
+  color: #666;
+}
+
+.game-container.light-theme .equip-slot {
+  background: #e0e0ea;
+  border-color: #c0c0d0;
+}
+
+.game-container.light-theme .equip-slot.equipped {
+  background: #d8f0d8;
+  border-color: #5a9a5a;
+}
+
+.game-container.light-theme .inventory-item {
+  background: #e0e0ea;
+  border-color: #c0c0d0;
+}
+
+.game-container.light-theme .inventory-item:hover {
+  background: #d0d0e0;
+}
+
+.game-container.light-theme .filter-section {
+  background: #e0e0ea;
+}
+
+.game-container.light-theme .filter-tabs button {
+  background: #f5f5fa;
+  border-color: #c0c0d0;
+  color: #666;
+}
+
+.game-container.light-theme .filter-tabs button.active {
+  background: #d0d0e0;
+  color: #333;
+}
+
+.game-container.light-theme .map-selector,
+.game-container.light-theme .monster-info,
+.game-container.light-theme .battle-log {
+  background: #e0e0ea;
+  border-color: #c0c0d0;
+}
+
+.game-container.light-theme .battle-log {
+  color: #333;
+}
+
+.game-container.light-theme .log-entry {
+  border-bottom-color: #d0d0e0;
+}
+
+.game-container.light-theme .hp-bar-bg {
+  background: #c0c0d0;
+}
+
+.game-container.light-theme .settings-panel {
+  background: linear-gradient(135deg, #f5f5fa 0%, #e8e8f0 100%);
+  border-color: #c0c0d0;
+}
+
+.game-container.light-theme .settings-panel h3 {
+  color: #8b6914;
+}
+
+.game-container.light-theme .setting-item label {
+  color: #2980b9;
+}
+
+.game-container.light-theme .loot-filter-settings {
+  background: #e0e0ea;
+}
+
+.game-container.light-theme .filter-hint {
+  background: #f5f5fa;
+  color: #666;
+}
+
+.game-container.light-theme .item-detail-modal .item-detail,
+.game-container.light-theme .item-detail-modal .enhance-panel {
+  background: linear-gradient(135deg, #f5f5fa 0%, #e8e8f0 100%);
+}
+
+.game-container.light-theme .detail-stats,
+.game-container.light-theme .enhance-stats,
+.game-container.light-theme .enhance-details {
+  background: #e0e0ea;
+}
+
+.game-container.light-theme .stat-name {
+  color: #666;
+}
+
+.game-container.light-theme .item-tooltip {
+  background: #f5f5fa;
+  border-color: #c0c0d0;
+}
+
+.game-container.light-theme .tooltip-quality,
+.game-container.light-theme .tooltip-req {
+  color: #666;
+}
+
+.game-container.light-theme .tooltip-stats {
+  background: #e0e0ea;
+}
+
+.game-container.light-theme .modal-content,
+.game-container.light-theme .skill-panel,
+.game-container.light-theme .pet-panel {
+  background: linear-gradient(135deg, #f5f5fa 0%, #e8e8f0 100%);
+  border-color: #c0c0d0;
+  color: #333;
+}
+
+.game-container.light-theme .skill-item,
+.game-container.light-theme .pet-item {
+  background: #e0e0ea;
+  border-color: #c0c0d0;
+}
+
+.game-container.light-theme .skill-item:hover,
+.game-container.light-theme .pet-item:hover {
+  background: #d0d0e0;
+}
+
+.game-container.light-theme .auto-save-hint {
+  background: rgba(39, 174, 96, 0.15);
+  color: #1e7e34;
 }
 </style>
