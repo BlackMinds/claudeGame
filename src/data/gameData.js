@@ -771,7 +771,8 @@ export function getEnhanceDropLevels(enhanceLevel) {
 
 // 计算强化后的属性加成（每级+5%）
 export function getEnhanceBonus(enhanceLevel) {
-  return enhanceLevel * 0.05 // 每级5%加成
+  // +1=5%, +2=10%, +3=15%, ..., +10=50%
+  return enhanceLevel * 0.05
 }
 
 // 计算强化后的实际属性值
