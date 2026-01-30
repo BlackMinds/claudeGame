@@ -36,9 +36,9 @@ function decrypt(encryptedData) {
   }
 }
 
-// 计算升级所需经验（提升40%难度）
+// 计算升级所需经验（大幅提升难度）
 function getExpForLevel(level) {
-  return Math.floor(70 * level * (1 + level * 0.1))
+  return Math.floor(120 * level * (1 + level * 0.15))
 }
 
 // 生成新手装备
@@ -861,8 +861,8 @@ export function battleRound() {
     skillMultiplier = selectedSkill.damageMultiplier
     useSkill(selectedSkill)
 
-    // 给已装备的技能增加经验
-    addSkillExp(selectedSkill.id, 15)
+    // 给已装备的技能增加经验（降低获取量）
+    addSkillExp(selectedSkill.id, 8)
 
     // 处理技能特效
     if (selectedSkill.effect === 'pen') extraPenetration = selectedSkill.effectValue
@@ -1021,16 +1021,16 @@ export function battleRound() {
 
           // 奖励
           gameState.player.exp += targetMonster.exp
-          gameState.player.realmExp += Math.floor(targetMonster.exp / 2)
+          gameState.player.realmExp += Math.floor(targetMonster.exp / 4) // 修为获取降低
           gameState.player.gold += targetMonster.gold
 
-          // 给所有已装备的主动技能增加经验
+          // 给所有已装备的主动技能增加经验（降低获取量）
           for (const skillId of gameState.player.equippedActiveSkills) {
-            addSkillExp(skillId, Math.floor(targetMonster.exp / 5))
+            addSkillExp(skillId, Math.floor(targetMonster.exp / 8))
           }
-          // 给所有已装备的被动技能增加经验
+          // 给所有已装备的被动技能增加经验（降低获取量）
           for (const skillId of gameState.player.equippedPassiveSkills) {
-            addSkillExp(skillId, Math.floor(targetMonster.exp / 5))
+            addSkillExp(skillId, Math.floor(targetMonster.exp / 8))
           }
 
           addBattleLog(`击败 ${targetMonster.name}！+${targetMonster.exp}经验 +${targetMonster.gold}灵石`, 'success')

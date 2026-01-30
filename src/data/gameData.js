@@ -1,14 +1,14 @@
 // 修仙境界
 export const realms = [
   { id: 1, name: '凡人', minExp: 0, statBonus: 1 },
-  { id: 2, name: '练气期', minExp: 700, statBonus: 1.3 },
-  { id: 3, name: '筑基期', minExp: 2800, statBonus: 1.7 },
-  { id: 4, name: '金丹期', minExp: 11200, statBonus: 2.2 },
-  { id: 5, name: '元婴期', minExp: 42000, statBonus: 3 },
-  { id: 6, name: '化神期', minExp: 140000, statBonus: 4 },
-  { id: 7, name: '合体期', minExp: 490000, statBonus: 5.5 },
-  { id: 8, name: '大乘期', minExp: 1400000, statBonus: 7.5 },
-  { id: 9, name: '渡劫期', minExp: 4200000, statBonus: 10 }
+  { id: 2, name: '练气期', minExp: 1500, statBonus: 1.3 },
+  { id: 3, name: '筑基期', minExp: 6000, statBonus: 1.7 },
+  { id: 4, name: '金丹期', minExp: 25000, statBonus: 2.2 },
+  { id: 5, name: '元婴期', minExp: 100000, statBonus: 3 },
+  { id: 6, name: '化神期', minExp: 350000, statBonus: 4 },
+  { id: 7, name: '合体期', minExp: 1200000, statBonus: 5.5 },
+  { id: 8, name: '大乘期', minExp: 4000000, statBonus: 7.5 },
+  { id: 9, name: '渡劫期', minExp: 12000000, statBonus: 10 }
 ]
 
 // 装备品质
@@ -707,7 +707,7 @@ const rarityExpMultiplier = {
 }
 
 export function getSkillExpForLevel(level, rarity = 'common') {
-  const baseExp = Math.floor(120 * level * (1 + level * 0.35))
+  const baseExp = Math.floor(200 * level * (1 + level * 0.45))
   const multiplier = rarityExpMultiplier[rarity] || 1
   return Math.floor(baseExp * multiplier)
 }
