@@ -1,0 +1,628 @@
+<template>
+  <div class="battle-panel">
+    <div class="panel-header">
+      <h3>战斗</h3>
+      <div class="kill-count">击杀: {{ killCount }}</div>
+    </div>
+
+    <!-- 地图选择 -->
+    <div class="map-select">
+      <div class="map-select-row">
+        <select v-model="selectedMapId" :disabled="isAutoBattle">
+          <option v-for="map in maps" :key="map.id" :value="map.id">
+            {{ map.name }} (Lv.{{ map.requiredLevel }}+)
+            {{ player.level < map.requiredLevel ? '🔒' : '' }}
+          </option>
+        </select>
+        <button class="drop-table-btn" @click="showDropTable = true">掉落表</button>
+      </div>
+      <div class="map-desc" v-if="selectedMap">
+        {{ selectedMap.description }}
+        <span class="level-range">怪物等级: {{ selectedMap.levelRange[0] }}-{{ selectedMap.levelRange[1] }}</span>
+      </div>
+    </div>
+
+    <!-- 战斗控制 -->
+    <div class="battle-control">
+      <button
+        v-if="!isAutoBattle"
+        @click="handleStartBattle"
+        class="battle-btn start"
+        :disabled="player.level < selectedMap.requiredLevel"
+      >
+        开始挂机
+      </button>
+      <button
+        v-else
+        @click="handleStopBattle"
+        class="battle-btn stop"
+      >
+        停止挂机
+      </button>
+    </div>
+
+    <!-- 战斗状态 -->
+    <div class="battle-status" v-if="isInBattle && monsters.length > 0">
+      <!-- 怪物列表 -->
+      <div class="monsters-container">
+        <div
+          v-for="(monster, index) in monsters"
+          :key="index"
+          class="combatant monster-side"
+          :class="{ dead: monster.currentHp <= 0 }"
+        >
+          <div class="combatant-name">
+            <span class="monster-index">{{ index + 1 }}.</span>
+            Lv.{{ monster.level }} {{ monster.name }}
+            <span v-if="monster.skills.length > 0" class="skill-count">[{{ monster.skills.length }}技]</span>
+          </div>
+          <div class="hp-bar-wrap">
+            <div class="hp-bar monster" :style="{ width: getMonsterHpPercent(monster) + '%' }"></div>
+          </div>
+          <div class="hp-text">{{ monster.currentHp }} / {{ monster.hp }}</div>
+        </div>
+      </div>
+
+      <div class="vs">VS</div>
+
+      <div class="combatant player-side">
+        <div class="combatant-name">{{ player.name }}</div>
+        <div class="hp-bar-wrap">
+          <div class="hp-bar player" :style="{ width: playerHpPercent + '%' }"></div>
+        </div>
+        <div class="hp-text">{{ playerCurrentHp }} / {{ maxHp }}</div>
+      </div>
+    </div>
+
+    <!-- 战斗日志 -->
+    <div class="battle-log" ref="battleLog">
+      <div
+        v-for="(log, index) in battleLog"
+        :key="index"
+        class="log-line"
+        :class="log.type"
+      >
+        {{ log.message }}
+      </div>
+      <div v-if="battleLog.length === 0" class="log-empty">
+        选择地图后点击开始挂机...
+      </div>
+    </div>
+
+    <!-- 掉落表弹窗 -->
+    <div v-if="showDropTable" class="modal-overlay" @click.self="showDropTable = false">
+      <div class="drop-table-modal">
+        <div class="modal-header">
+          <h3>掉落表</h3>
+          <button class="modal-close" @click="showDropTable = false">×</button>
+        </div>
+        <div class="drop-table-content">
+          <div v-for="map in maps" :key="map.id" class="map-drop-section">
+            <div class="map-drop-header" :class="{ locked: player.level < map.requiredLevel }">
+              <span class="map-name">{{ map.name }}</span>
+              <span class="map-level">Lv.{{ map.requiredLevel }}+</span>
+            </div>
+            <div class="drop-list">
+              <!-- 装备掉落 -->
+              <div class="drop-category">装备</div>
+              <div class="drop-item equip-drop">
+                <span class="drop-name">Lv.{{ map.levelRange[0] }}-{{ map.levelRange[1] }}装备</span>
+                <span class="drop-rate">{{ getEquipDropRate(map) }}%</span>
+                <span class="drop-type">随机部位</span>
+              </div>
+              <!-- 技能书掉落 -->
+              <div class="drop-category">技能书</div>
+              <div v-if="getMapDrops(map.id).length === 0" class="no-drops">
+                无技能书掉落
+              </div>
+              <div
+                v-for="drop in getMapDrops(map.id)"
+                :key="drop.id"
+                class="drop-item"
+                :style="{ color: drop.color }"
+              >
+                <span class="drop-name">{{ drop.name }}</span>
+                <span class="drop-rate">{{ (drop.dropRate * 100).toFixed(1) }}%</span>
+                <span class="drop-type">{{ drop.type === 'passive' ? '被动' : '主动' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { maps, skills, skillRarityConfig } from '../../data/gameData'
+import {
+  gameState,
+  getPlayerStats,
+  startAutoBattle,
+  stopAutoBattle
+} from '../../store/gameStore'
+
+export default {
+  name: 'BattlePanel',
+  data() {
+    return {
+      maps,
+      showDropTable: false
+    }
+  },
+  computed: {
+    player() {
+      return gameState.player
+    },
+    isAutoBattle() {
+      return gameState.battle.isAutoBattle
+    },
+    isInBattle() {
+      return gameState.battle.isInBattle
+    },
+    monsters() {
+      return gameState.battle.currentMonsters
+    },
+    playerCurrentHp() {
+      return gameState.battle.playerCurrentHp
+    },
+    maxHp() {
+      return getPlayerStats().maxHp
+    },
+    battleLog() {
+      return gameState.battle.battleLog
+    },
+    killCount() {
+      return gameState.battle.killCount
+    },
+    selectedMapId: {
+      get() {
+        return gameState.battle.selectedMapId
+      },
+      set(val) {
+        gameState.battle.selectedMapId = val
+      }
+    },
+    selectedMap() {
+      return maps.find(m => m.id === this.selectedMapId)
+    },
+    playerHpPercent() {
+      return (this.playerCurrentHp / this.maxHp) * 100
+    }
+  },
+  watch: {
+    battleLog() {
+      this.$nextTick(() => {
+        if (this.$refs.battleLog) {
+          this.$refs.battleLog.scrollTop = this.$refs.battleLog.scrollHeight
+        }
+      })
+    }
+  },
+  beforeDestroy() {
+    stopAutoBattle()
+  },
+  methods: {
+    handleStartBattle() {
+      startAutoBattle()
+    },
+    handleStopBattle() {
+      stopAutoBattle()
+    },
+    getMonsterHpPercent(monster) {
+      if (!monster) return 0
+      return Math.max(0, (monster.currentHp / monster.hp) * 100)
+    },
+    getMapDrops(mapId) {
+      return skills
+        .filter(skill => skill.dropFromMaps && skill.dropFromMaps.includes(mapId) && skill.dropRate > 0)
+        .map(skill => ({
+          id: skill.id,
+          name: skill.name + '技能书',
+          type: skill.type,
+          dropRate: skill.dropRate,
+          color: skillRarityConfig[skill.rarity]?.color || '#ffffff',
+          rarity: skill.rarity
+        }))
+        .sort((a, b) => b.dropRate - a.dropRate)
+    },
+    getEquipDropRate(map) {
+      // 装备掉落率基于怪物等级: Math.min(25, 8 + lvl * 0.3)
+      const avgLevel = (map.levelRange[0] + map.levelRange[1]) / 2
+      return Math.min(25, 8 + avgLevel * 0.3).toFixed(1)
+    }
+  }
+}
+</script>
+
+<style scoped>
+.battle-panel {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid #4a4a6a;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.panel-header h3 {
+  margin: 0;
+  color: #ff6b6b;
+  font-size: 1.1em;
+}
+
+.kill-count {
+  color: #98fb98;
+  font-size: 0.9em;
+}
+
+.map-select {
+  margin-bottom: 12px;
+}
+
+.map-select select {
+  width: 100%;
+  padding: 10px;
+  background: #2a2a4a;
+  border: 1px solid #4a4a6a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.map-select select:disabled {
+  opacity: 0.6;
+}
+
+.map-desc {
+  margin-top: 6px;
+  color: #888;
+  font-size: 0.8em;
+}
+
+.level-range {
+  display: block;
+  color: #87ceeb;
+  margin-top: 2px;
+}
+
+.battle-control {
+  margin-bottom: 12px;
+}
+
+.battle-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.battle-btn.start {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+}
+
+.battle-btn.start:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.battle-btn.start:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
+
+.battle-btn.stop {
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: white;
+}
+
+.battle-btn.stop:hover {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.battle-status {
+  background: #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.monsters-container {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.combatant {
+  text-align: center;
+  margin-bottom: 8px;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.combatant:last-child {
+  margin-bottom: 0;
+}
+
+.combatant.dead {
+  opacity: 0.4;
+  background: #1a1a1a;
+}
+
+.combatant-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+  font-size: 0.9em;
+}
+
+.monster-index {
+  color: #ffd700;
+  margin-right: 4px;
+}
+
+.skill-count {
+  color: #f39c12;
+  font-size: 0.8em;
+  margin-left: 4px;
+}
+
+.monster-side .combatant-name {
+  color: #ff6b6b;
+}
+
+.player-side .combatant-name {
+  color: #54a0ff;
+}
+
+.player-side {
+  background: #1a1a3a;
+  border: 1px solid #4a4a6a;
+}
+
+.hp-bar-wrap {
+  height: 14px;
+  background: #1a1a2e;
+  border-radius: 7px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.hp-bar {
+  height: 100%;
+  transition: width 0.2s;
+}
+
+.hp-bar.monster {
+  background: linear-gradient(90deg, #c0392b, #e74c3c);
+}
+
+.hp-bar.player {
+  background: linear-gradient(90deg, #2980b9, #3498db);
+}
+
+.hp-text {
+  font-size: 0.75em;
+  color: #888;
+}
+
+.vs {
+  text-align: center;
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 0.9em;
+  margin: 6px 0;
+}
+
+.battle-log {
+  background: #0d0d1a;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  padding: 10px;
+  overflow-y: auto;
+  font-size: 0.8em;
+  height: 450px;
+  max-height: 450px;
+}
+
+.log-line {
+  padding: 2px 0;
+  border-bottom: 1px solid #1a1a2e;
+}
+
+.log-line.success { color: #2ecc71; }
+.log-line.danger { color: #e74c3c; }
+.log-line.warning { color: #f39c12; }
+.log-line.normal { color: #95a5a6; }
+
+.log-empty {
+  color: #555;
+  text-align: center;
+  padding: 20px;
+}
+
+.map-select-row {
+  display: flex;
+  gap: 8px;
+}
+
+.map-select-row select {
+  flex: 1;
+}
+
+.drop-table-btn {
+  padding: 8px 12px;
+  background: #4a4a6a;
+  border: 1px solid #6a6a8a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.85em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.drop-table-btn:hover {
+  background: #5a5a7a;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.drop-table-modal {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid #4a4a6a;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #4a4a6a;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #ffd700;
+  font-size: 1.1em;
+}
+
+.modal-close {
+  width: 28px;
+  height: 28px;
+  background: #e74c3c;
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 1.1em;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  background: #c0392b;
+}
+
+.drop-table-content {
+  padding: 15px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.map-drop-section {
+  margin-bottom: 15px;
+  background: #2a2a4a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-drop-section:last-child {
+  margin-bottom: 0;
+}
+
+.map-drop-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #3a3a5a;
+  font-weight: bold;
+}
+
+.map-drop-header.locked {
+  opacity: 0.5;
+}
+
+.map-name {
+  color: #87ceeb;
+}
+
+.map-level {
+  color: #f39c12;
+  font-size: 0.85em;
+}
+
+.drop-list {
+  padding: 8px 12px;
+}
+
+.no-drops {
+  color: #666;
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+.drop-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #3a3a5a;
+  font-size: 0.9em;
+}
+
+.drop-item:last-child {
+  border-bottom: none;
+}
+
+.drop-name {
+  flex: 1;
+  font-weight: bold;
+}
+
+.drop-rate {
+  color: #98fb98;
+  margin: 0 10px;
+  font-size: 0.85em;
+}
+
+.drop-type {
+  color: #888;
+  font-size: 0.8em;
+  background: #1a1a2e;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.drop-category {
+  color: #ffd700;
+  font-size: 0.8em;
+  font-weight: bold;
+  margin: 8px 0 4px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #4a4a6a;
+}
+
+.drop-category:first-child {
+  margin-top: 0;
+}
+
+.equip-drop {
+  color: #87ceeb !important;
+}
+</style>
