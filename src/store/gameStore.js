@@ -119,7 +119,11 @@ export const gameState = Vue.observable({
     // 宠物蛋每日领取记录 { 10: '2024-01-15', 100: '2024-01-15', 200: '2024-01-15' }
     petEggClaimedDates: {},
     // 资质丹每日领取记录 { 50: '2024-01-15', 150: '2024-01-15' }
-    aptitudePillClaimedDates: {}
+    aptitudePillClaimedDates: {},
+    // 额外被动技能栏位（锁妖塔50层奖励）
+    bonusPassiveSlots: 0,
+    // 额外背包格子（锁妖塔20/30/40层奖励）
+    bonusInventorySlots: 0
   },
   // 拾取筛选设置
   lootFilter: {
@@ -351,7 +355,12 @@ export function clearBattleLog() {
 }
 
 // 背包容量上限
-const INVENTORY_LIMIT = 50
+const BASE_INVENTORY_LIMIT = 50
+
+// 获取背包容量上限（包含额外格子）
+export function getInventoryLimit() {
+  return BASE_INVENTORY_LIMIT + (gameState.player.bonusInventorySlots || 0)
+}
 
 // 品质等级映射
 const qualityLevel = {
@@ -399,8 +408,9 @@ export function shouldPickupItem(item) {
 
 // 添加物品到背包（超出上限自动丢弃）
 export function addToInventory(item) {
-  if (gameState.player.inventory.length >= INVENTORY_LIMIT) {
-    addLog(`背包已满，【${item.name}】已自动丢弃`, 'warning')
+  const limit = getInventoryLimit()
+  if (gameState.player.inventory.length >= limit) {
+    addLog(`背包已满（${limit}格），【${item.name}】已自动丢弃`, 'warning')
     return false
   }
   gameState.player.inventory.push(item)
@@ -666,7 +676,12 @@ export function useSkillBook(inventoryIndex) {
   return true
 }
 
-// 装备技能（主动技能最多4个，被动技能最多2个）
+// 获取被动技能栏位上限
+export function getMaxPassiveSlots() {
+  return 2 + (gameState.player.bonusPassiveSlots || 0)
+}
+
+// 装备技能（主动技能最多4个，被动技能最多2个+额外栏位）
 export function equipSkill(skillId) {
   const skill = getSkillById(skillId)
   if (!skill) return false
@@ -694,8 +709,9 @@ export function equipSkill(skillId) {
       return false
     }
 
-    if (gameState.player.equippedPassiveSkills.length >= 2) {
-      addLog('最多只能装备2个被动技能', 'warning')
+    const maxPassive = getMaxPassiveSlots()
+    if (gameState.player.equippedPassiveSkills.length >= maxPassive) {
+      addLog(`最多只能装备${maxPassive}个被动技能`, 'warning')
       return false
     }
 
@@ -1188,6 +1204,31 @@ export async function towerFloorCleared() {
     }
   }
 
+  // 20/30/40层奖励：永久额外背包格子（一次性奖励，每层+10格）
+  if (floor === 20 || floor === 30 || floor === 40) {
+    const expectedSlots = floor === 20 ? 10 : (floor === 30 ? 20 : 30)
+    const currentSlots = gameState.player.bonusInventorySlots || 0
+    if (currentSlots < expectedSlots) {
+      gameState.player.bonusInventorySlots = expectedSlots
+      const gained = expectedSlots - currentSlots
+      addBattleLog(`🎉 获得永久奖励：背包格子+${gained}！`, 'success')
+      addLog(`锁妖塔第${floor}层奖励：背包格子+${gained}（现有${getInventoryLimit()}格）`, 'success')
+    } else {
+      addBattleLog(`已拥有第${floor}层背包扩容奖励`, 'normal')
+    }
+  }
+
+  // 50层奖励：永久额外被动技能栏位（一次性奖励）
+  if (floor === 50) {
+    if (!gameState.player.bonusPassiveSlots || gameState.player.bonusPassiveSlots === 0) {
+      gameState.player.bonusPassiveSlots = 1
+      addBattleLog(`🎉 获得永久奖励：额外被动技能栏位+1！`, 'success')
+      addLog(`锁妖塔第50层奖励：额外被动技能栏位+1（现可装备3个被动技能）`, 'success')
+    } else {
+      addBattleLog(`已拥有额外被动栏位奖励`, 'normal')
+    }
+  }
+
   // 更新最高层数
   if (floor >= gameState.battle.towerHighestFloor) {
     gameState.battle.towerHighestFloor = floor + 1
@@ -1196,6 +1237,36 @@ export async function towerFloorCleared() {
   // 进入下一层
   gameState.battle.towerFloor = floor + 1
   autoSave()
+}
+
+// 检查并补发锁妖塔永久奖励（用于老存档补发）
+function checkAndGrantTowerRewards() {
+  const highestFloor = gameState.battle.towerHighestFloor || 1
+  let rewarded = false
+
+  // 20/30/40层背包奖励
+  if (highestFloor > 20) {
+    const expectedSlots = highestFloor > 40 ? 30 : (highestFloor > 30 ? 20 : 10)
+    const currentSlots = gameState.player.bonusInventorySlots || 0
+    if (currentSlots < expectedSlots) {
+      gameState.player.bonusInventorySlots = expectedSlots
+      addLog(`补发锁妖塔奖励：背包格子+${expectedSlots - currentSlots}（现有${getInventoryLimit()}格）`, 'success')
+      rewarded = true
+    }
+  }
+
+  // 50层被动栏位奖励（到达50层即可）
+  if (highestFloor >= 50) {
+    if (!gameState.player.bonusPassiveSlots || gameState.player.bonusPassiveSlots === 0) {
+      gameState.player.bonusPassiveSlots = 1
+      addLog(`补发锁妖塔奖励：额外被动技能栏位+1（现可装备3个被动技能）`, 'success')
+      rewarded = true
+    }
+  }
+
+  if (rewarded) {
+    autoSave()
+  }
 }
 
 // 更新玩家buff持续时间
@@ -1974,6 +2045,13 @@ export function loadGame() {
       if (!data.player.aptitudePillClaimedDates) {
         data.player.aptitudePillClaimedDates = {}
       }
+      // 锁妖塔奖励兼容
+      if (data.player.bonusPassiveSlots === undefined) {
+        data.player.bonusPassiveSlots = 0
+      }
+      if (data.player.bonusInventorySlots === undefined) {
+        data.player.bonusInventorySlots = 0
+      }
       // 兼容旧宠物数据（添加资质）
       if (data.player.pets) {
         for (const pet of data.player.pets) {
@@ -2010,6 +2088,9 @@ export function loadGame() {
       gameState.battle.towerFloor = 1
       gameState.battle.towerStartFloor = 1
       gameState.battle.playerCurrentHp = getPlayerStats().maxHp
+
+      // 补发锁妖塔永久奖励（根据最高层数）
+      checkAndGrantTowerRewards()
 
       addLog('游戏已加载', 'success')
       return true
@@ -2103,6 +2184,13 @@ export function importSave(encryptedData) {
     if (!data.player.aptitudePillClaimedDates) {
       data.player.aptitudePillClaimedDates = {}
     }
+    // 锁妖塔奖励兼容
+    if (data.player.bonusPassiveSlots === undefined) {
+      data.player.bonusPassiveSlots = 0
+    }
+    if (data.player.bonusInventorySlots === undefined) {
+      data.player.bonusInventorySlots = 0
+    }
     // 兼容旧宠物数据（添加资质）
     if (data.player.pets) {
       for (const pet of data.player.pets) {
@@ -2181,7 +2269,10 @@ export function resetGame() {
     pets: [],
     activePetId: null,
     petEggClaimedDates: {},
-    aptitudePillClaimedDates: {}
+    aptitudePillClaimedDates: {},
+    // 锁妖塔奖励
+    bonusPassiveSlots: 0,
+    bonusInventorySlots: 0
   }
 
   gameState.battle = {

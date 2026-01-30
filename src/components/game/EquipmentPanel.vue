@@ -31,7 +31,7 @@
     <!-- 背包 -->
     <div class="inventory-section">
       <div class="inventory-header">
-        <h4>背包 ({{ inventory.length }}/50)</h4>
+        <h4>背包 ({{ inventory.length }}/{{ inventoryLimit }})</h4>
         <div class="header-actions">
           <button
             @click="showLootFilterSettings = !showLootFilterSettings"
@@ -367,7 +367,7 @@
 
 <script>
 import { equipSlots, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhancedStatValue } from '../../data/gameData'
-import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, enhanceItem, getEnhancedStats, getLootFilter, updateLootFilter } from '../../store/gameStore'
+import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, enhanceItem, getEnhancedStats, getLootFilter, updateLootFilter, getInventoryLimit } from '../../store/gameStore'
 
 export default {
   name: 'EquipmentPanel',
@@ -514,6 +514,9 @@ export default {
     },
     lootFilter() {
       return gameState.lootFilter
+    },
+    inventoryLimit() {
+      return getInventoryLimit()
     }
   },
   methods: {

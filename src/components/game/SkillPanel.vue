@@ -41,7 +41,7 @@
 
     <!-- 已装备被动技能栏 -->
     <div class="equipped-section passive-section">
-      <div class="section-title">被动技能 ({{ equippedPassiveSkills.length }}/2)</div>
+      <div class="section-title">被动技能 ({{ equippedPassiveSkills.length }}/{{ maxPassiveSlots }})</div>
       <div class="equipped-skills passive-skills">
         <div
           v-for="skill in equippedPassiveSkills"
@@ -55,7 +55,7 @@
           <span class="skill-bonus">{{ getPassiveBonusText(skill) }}</span>
         </div>
         <div
-          v-for="i in (2 - equippedPassiveSkills.length)"
+          v-for="i in (maxPassiveSlots - equippedPassiveSkills.length)"
           :key="'empty-passive-' + i"
           class="equipped-skill empty"
         >
@@ -233,7 +233,8 @@ import {
   useSkillBook,
   equipSkill,
   unequipSkill,
-  discardItem
+  discardItem,
+  getMaxPassiveSlots
 } from '../../store/gameStore'
 
 export default {
@@ -287,6 +288,9 @@ export default {
     },
     equippedPassiveSkills() {
       return getEquippedPassiveSkillsWithDetails()
+    },
+    maxPassiveSlots() {
+      return getMaxPassiveSlots()
     },
     skillBooks() {
       return gameState.player.inventory.filter(item => item.type === 'skillBook')
@@ -389,7 +393,7 @@ export default {
       if (skillType === 'active') {
         return this.equippedActiveSkills.length >= 4
       } else {
-        return this.equippedPassiveSkills.length >= 2
+        return this.equippedPassiveSkills.length >= this.maxPassiveSlots
       }
     },
     getPassiveBonusText(skill) {

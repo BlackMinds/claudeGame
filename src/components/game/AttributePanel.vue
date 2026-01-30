@@ -80,7 +80,7 @@
       </div>
 
       <div class="attr-group">
-        <h3>被动技能 ({{ equippedPassiveSkills.length }}/2)</h3>
+        <h3>被动技能 ({{ equippedPassiveSkills.length }}/{{ maxPassiveSlots }})</h3>
         <div v-if="equippedPassiveSkills.length === 0" class="no-skills">暂无装备</div>
         <div v-else class="equipped-skills-list">
           <div v-for="skill in equippedPassiveSkills" :key="skill.id" class="equipped-skill-item passive">
@@ -119,7 +119,7 @@
 </template>
 
 <script>
-import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm } from '../../store/gameStore'
+import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm, getMaxPassiveSlots } from '../../store/gameStore'
 import { skillRarityConfig } from '../../data/gameData'
 
 export default {
@@ -163,6 +163,9 @@ export default {
         ...skill,
         rarityColor: skillRarityConfig[skill.rarity]?.color || '#ffffff'
       }))
+    },
+    maxPassiveSlots() {
+      return getMaxPassiveSlots()
     },
     stats() {
       return getPlayerStats()

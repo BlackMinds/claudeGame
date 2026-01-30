@@ -16,7 +16,7 @@
       </div>
       <div class="info-item clickable" @click="showSkillPanel = true">
         <span class="label">技能</span>
-        <span class="value skill">{{ equippedActiveCount }}/4主动 · {{ equippedPassiveCount }}/2被动</span>
+        <span class="value skill">{{ equippedActiveCount }}/4主动 · {{ equippedPassiveCount }}/{{ maxPassiveSlots }}被动</span>
       </div>
       <div class="info-item clickable" @click="showPetPanel = true">
         <span class="label">宠物</span>
@@ -151,7 +151,7 @@
 </template>
 
 <script>
-import { gameState, getCurrentRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter } from '../../store/gameStore'
+import { gameState, getCurrentRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter, getMaxPassiveSlots } from '../../store/gameStore'
 import SkillPanel from './SkillPanel.vue'
 import PetPanel from './PetPanel.vue'
 
@@ -215,6 +215,9 @@ export default {
     },
     equippedPassiveCount() {
       return gameState.player.equippedPassiveSkills.length
+    },
+    maxPassiveSlots() {
+      return getMaxPassiveSlots()
     },
     activePetName() {
       const pet = getActivePet()
