@@ -5,9 +5,9 @@
 
     <!-- 主内容区域 -->
     <div class="game-content">
-      <!-- 左侧属性面板 -->
+      <!-- 左侧装备面板 -->
       <div class="left-panel">
-        <AttributePanel />
+        <EquipmentPanel />
       </div>
 
       <!-- 中间战斗面板 -->
@@ -15,9 +15,9 @@
         <BattlePanel />
       </div>
 
-      <!-- 右侧装备面板 -->
+      <!-- 右侧属性面板 -->
       <div class="right-panel">
-        <EquipmentPanel />
+        <AttributePanel />
       </div>
     </div>
   </div>
@@ -67,20 +67,20 @@ export default {
 }
 
 .left-panel {
-  width: 280px;
+  width: 738px;
   flex-shrink: 0;
   overflow-y: auto;
 }
 
 .center-panel {
   flex: 1;
-  min-width: 300px;
+  min-width: 280px;
   display: flex;
   flex-direction: column;
 }
 
 .right-panel {
-  width: 320px;
+  width: 260px;
   flex-shrink: 0;
   overflow-y: auto;
 }

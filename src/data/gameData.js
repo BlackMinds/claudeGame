@@ -284,6 +284,7 @@ export function generateTowerFloorMonsters(floor) {
       currentHp: Math.floor(baseHp * difficultyMult),
       skills: getRandomSkills(monsterLevel),
       buffs: {},
+      debuffs: {},
       reviveUsed: false
     })
   }
@@ -523,7 +524,7 @@ export const skills = [
   {
     id: 16,
     name: '蓄力一击',
-    description: '蓄力1回合，下回合对2个敌人造成400%伤害',
+    description: '蓄力1回合，下回合对4个敌人造成400%伤害，并使其易伤3回合（受伤+20%）',
     type: 'active',
     rarity: 'epic',
     maxLevel: 5,
@@ -531,7 +532,10 @@ export const skills = [
     levelBonusMultiplier: 0.5,
     cooldown: 6,
     effect: 'charge',
-    hitCount: 2,
+    hitCount: 4,
+    debuff: 'vulnerable',
+    debuffValue: 20,
+    debuffDuration: 3,
     shopPrice: 0,
     dropFromMaps: [6, 7, 8],
     dropRate: 0.005

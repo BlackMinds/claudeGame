@@ -163,8 +163,20 @@ function disableContextMenu(e) {
   return false
 }
 
+// 检查是否为开发环境（localhost）
+function isDevEnvironment() {
+  const hostname = window.location.hostname
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')
+}
+
 // 初始化安全防护
 export function initSecurity() {
+  // 开发环境下不启用安全限制
+  if (isDevEnvironment()) {
+    console.log('%c开发模式：安全限制已禁用', 'color: #27ae60; font-size: 14px;')
+    return
+  }
+
   // 禁用快捷键
   document.addEventListener('keydown', disableDevToolsShortcuts)
 

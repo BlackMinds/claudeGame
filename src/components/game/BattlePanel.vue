@@ -60,48 +60,68 @@
       </button>
     </div>
 
-    <!-- 战斗状态 -->
-    <div class="battle-status" v-if="isInBattle && monsters.length > 0">
-      <!-- 怪物列表 -->
-      <div class="monsters-container">
-        <div
-          v-for="(monster, index) in monsters"
-          :key="index"
-          class="combatant monster-side"
-          :class="{ dead: monster.currentHp <= 0 }"
-        >
-          <div class="combatant-name">
-            <span class="monster-index">{{ index + 1 }}.</span>
-            Lv.{{ monster.level }} {{ monster.name }}
-            <span v-if="monster.skills.length > 0" class="skill-count">[{{ monster.skills.length }}技]</span>
+    <!-- 战斗状态（固定高度） -->
+    <div class="battle-status">
+      <!-- 战斗中显示血量 -->
+      <div class="battle-layout" v-if="isInBattle && monsters.length > 0">
+        <!-- 左侧：怪物列表 -->
+        <div class="battle-left">
+          <div class="side-label">敌方</div>
+          <div class="monsters-container">
+            <div
+              v-for="(monster, index) in monsters"
+              :key="index"
+              class="combatant monster-side"
+              :class="{ dead: monster.currentHp <= 0 }"
+            >
+              <div class="combatant-name">
+                <span class="monster-index">{{ index + 1 }}.</span>
+                Lv.{{ monster.level }} {{ monster.name }}
+                <span v-if="monster.debuffs && monster.debuffs.vulnerable" class="debuff-icon" title="易伤">💔</span>
+              </div>
+              <div class="monster-debuffs" v-if="monster.debuffs && Object.keys(monster.debuffs).length > 0">
+                <span v-if="monster.debuffs.vulnerable" class="debuff-tag">易伤{{monster.debuffs.vulnerable.duration}}回合</span>
+              </div>
+              <div class="hp-bar-wrap">
+                <div class="hp-bar monster" :style="{ width: getMonsterHpPercent(monster) + '%' }"></div>
+              </div>
+              <div class="hp-text">{{ monster.currentHp }} / {{ monster.hp }}</div>
+            </div>
           </div>
-          <div class="hp-bar-wrap">
-            <div class="hp-bar monster" :style="{ width: getMonsterHpPercent(monster) + '%' }"></div>
+        </div>
+
+        <!-- 中间VS -->
+        <div class="vs">VS</div>
+
+        <!-- 右侧：玩家和宠物 -->
+        <div class="battle-right">
+          <div class="side-label">我方</div>
+          <div class="player-container">
+            <div class="combatant player-side">
+              <div class="combatant-name">{{ player.name }}</div>
+              <div class="hp-bar-wrap">
+                <div class="hp-bar player" :style="{ width: playerHpPercent + '%' }"></div>
+              </div>
+              <div class="hp-text">{{ playerCurrentHp }} / {{ maxHp }}</div>
+            </div>
+
+            <!-- 宠物状态 -->
+            <div v-if="activePet" class="combatant pet-side" :class="{ dead: activePet.currentHp <= 0 }">
+              <div class="combatant-name">
+                <span class="pet-icon">{{ activePet.icon }}</span>
+                {{ activePet.name }}
+              </div>
+              <div class="hp-bar-wrap">
+                <div class="hp-bar pet" :style="{ width: petHpPercent + '%' }"></div>
+              </div>
+              <div class="hp-text">{{ activePet.currentHp }} / {{ activePet.baseHp }}</div>
+            </div>
           </div>
-          <div class="hp-text">{{ monster.currentHp }} / {{ monster.hp }}</div>
         </div>
       </div>
-
-      <div class="vs">VS</div>
-
-      <div class="combatant player-side">
-        <div class="combatant-name">{{ player.name }}</div>
-        <div class="hp-bar-wrap">
-          <div class="hp-bar player" :style="{ width: playerHpPercent + '%' }"></div>
-        </div>
-        <div class="hp-text">{{ playerCurrentHp }} / {{ maxHp }}</div>
-      </div>
-
-      <!-- 宠物状态 -->
-      <div v-if="activePet" class="combatant pet-side" :class="{ dead: activePet.currentHp <= 0 }">
-        <div class="combatant-name">
-          <span class="pet-icon">{{ activePet.icon }}</span>
-          {{ activePet.name }}
-        </div>
-        <div class="hp-bar-wrap">
-          <div class="hp-bar pet" :style="{ width: petHpPercent + '%' }"></div>
-        </div>
-        <div class="hp-text">{{ activePet.currentHp }} / {{ activePet.baseHp }}</div>
+      <!-- 非战斗时显示占位 -->
+      <div class="battle-idle" v-else>
+        <div class="idle-text">等待战斗...</div>
       </div>
     </div>
 
@@ -433,11 +453,76 @@ export default {
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 12px;
+  min-height: 180px;
+  max-height: 180px;
+  overflow: hidden;
 }
 
-.monsters-container {
-  max-height: 180px;
+.battle-idle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 156px;
+}
+
+.idle-text {
+  color: #555;
+  font-size: 0.9em;
+}
+
+.battle-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.battle-left,
+.battle-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.side-label {
+  text-align: center;
+  font-size: 0.75em;
+  color: #888;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+.battle-left .side-label {
+  color: #ff6b6b;
+}
+
+.battle-right .side-label {
+  color: #54a0ff;
+}
+
+.monsters-container,
+.player-container {
+  min-height: 130px;
+  max-height: 130px;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.debuff-icon {
+  margin-left: 4px;
+  font-size: 0.9em;
+}
+
+.monster-debuffs {
+  margin-bottom: 2px;
+}
+
+.debuff-tag {
+  display: inline-block;
+  background: #8b0000;
+  color: #ffcccc;
+  font-size: 0.7em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-right: 2px;
 }
 
 .combatant {
@@ -445,7 +530,11 @@ export default {
   margin-bottom: 8px;
   padding: 6px;
   border-radius: 6px;
-  transition: all 0.3s;
+  transition: opacity 0.3s;
+}
+
+.monster-side {
+  min-height: 52px;
 }
 
 .combatant:last-child {
@@ -461,6 +550,9 @@ export default {
   font-weight: bold;
   margin-bottom: 4px;
   font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .monster-index {
@@ -485,6 +577,7 @@ export default {
 .player-side {
   background: #1a1a3a;
   border: 1px solid #4a4a6a;
+  min-height: 52px;
 }
 
 .hp-bar-wrap {
@@ -515,7 +608,7 @@ export default {
 .pet-side {
   background: #2a3a2a;
   border: 1px solid #4a6a4a;
-  margin-top: 6px;
+  min-height: 52px;
 }
 
 .pet-side .combatant-name {
@@ -529,14 +622,20 @@ export default {
 .hp-text {
   font-size: 0.75em;
   color: #888;
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
 }
 
 .vs {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #ffd700;
   font-weight: bold;
-  font-size: 0.9em;
-  margin: 6px 0;
+  font-size: 1em;
+  padding: 0 4px;
+  min-width: 30px;
+  align-self: center;
 }
 
 .battle-log {

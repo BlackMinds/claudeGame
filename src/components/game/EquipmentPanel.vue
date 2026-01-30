@@ -154,7 +154,7 @@
           v-for="item in filteredInventory"
           :key="item.id"
           class="inventory-item"
-          :style="{ borderColor: getItemBorderColor(item) }"
+          :style="{ borderColor: getItemBorderColor(item), backgroundColor: getItemBgColor(item) }"
           @click="selectedItem = item"
           @mouseenter="showTooltip($event, item)"
           @mouseleave="hideTooltip"
@@ -164,22 +164,10 @@
             locked: item.locked
           }"
         >
-          <div class="item-icon">{{ getItemIcon(item) }}</div>
-          <div class="item-info">
-            <div class="item-name" :style="{ color: getItemColor(item) }">{{ item.name }}</div>
-            <div class="item-level">
-              <template v-if="item.type === 'skillBook'">
-                [{{ getRarityName(item.rarity) }}] 技能书
-              </template>
-              <template v-else>
-                Lv.{{ item.level }} {{ item.qualityName }}
-                <span v-if="!canEquip(item)" class="req-level">(需{{ item.requiredLevel }}级)</span>
-              </template>
-            </div>
-          </div>
-          <div class="lock-icon" @click.stop="toggleLock(item)" :title="item.locked ? '点击解锁' : '点击锁定'">
-            {{ item.locked ? '🔒' : '🔓' }}
-          </div>
+          <div class="item-icon-large">{{ getItemIcon(item) }}</div>
+          <div class="item-enhance" v-if="item.enhanceLevel > 0">+{{ item.enhanceLevel }}</div>
+          <div class="item-level-badge">{{ item.level || '' }}</div>
+          <div class="lock-badge" v-if="item.locked">🔒</div>
         </div>
         <div v-if="filteredInventory.length === 0" class="empty-inventory">
           {{ currentFilter === 'all' ? '背包空空如也' : '该分类下没有物品' }}
@@ -254,6 +242,12 @@
             >
               {{ canEquip(selectedItem) ? '装备' : '等级不足' }}
             </button>
+            <button
+              @click="openEnhanceForInventory(selectedItem)"
+              class="enhance-btn"
+            >
+              强化
+            </button>
             <button @click="toggleLock(selectedItem)" class="lock-btn">
               {{ selectedItem.locked ? '解锁' : '锁定' }}
             </button>
@@ -271,23 +265,23 @@
     </div>
 
     <!-- 强化面板弹窗 -->
-    <div v-if="enhanceItem" class="item-detail-modal" @click.self="enhanceItem = null">
-      <div class="enhance-panel" :style="{ borderColor: enhanceItem.qualityColor }">
-        <div class="enhance-header" :style="{ color: enhanceItem.qualityColor }">
-          {{ enhanceItem.icon }} {{ enhanceItem.name }}
-          <span v-if="enhanceItem.enhanceLevel > 0" class="enhance-level">+{{ enhanceItem.enhanceLevel }}</span>
+    <div v-if="enhancingItem" class="item-detail-modal" @click.self="enhancingItem = null">
+      <div class="enhance-panel" :style="{ borderColor: enhancingItem.qualityColor }">
+        <div class="enhance-header" :style="{ color: enhancingItem.qualityColor }">
+          {{ enhancingItem.icon }} {{ enhancingItem.name }}
+          <span v-if="enhancingItem.enhanceLevel > 0" class="enhance-level">+{{ enhancingItem.enhanceLevel }}</span>
         </div>
 
         <div class="enhance-info">
-          <div class="enhance-quality">{{ enhanceItem.qualityName }} · Lv.{{ enhanceItem.level }}</div>
+          <div class="enhance-quality">{{ enhancingItem.qualityName }} · Lv.{{ enhancingItem.level }}</div>
 
           <!-- 强化属性预览 -->
           <div class="enhance-stats">
-            <div v-for="(value, stat) in enhanceItem.stats" :key="stat" class="enhance-stat-row">
+            <div v-for="(value, stat) in enhancingItem.stats" :key="stat" class="enhance-stat-row">
               <span class="stat-name">{{ statNames[stat] || stat }}</span>
               <span class="stat-base">{{ formatStat(stat, value) }}</span>
-              <span v-if="enhanceItem.enhanceLevel > 0" class="stat-enhanced">
-                ({{ formatStat(stat, getEnhancedValue(value, enhanceItem.enhanceLevel)) }})
+              <span v-if="enhancingItem.enhanceLevel > 0" class="stat-enhanced">
+                ({{ formatStat(stat, getEnhancedValue(value, enhancingItem.enhanceLevel)) }})
               </span>
             </div>
           </div>
@@ -296,7 +290,7 @@
           <div class="enhance-details">
             <div class="enhance-row">
               <span>当前强化等级</span>
-              <span class="enhance-current">+{{ enhanceItem.enhanceLevel || 0 }} / 10</span>
+              <span class="enhance-current">+{{ enhancingItem.enhanceLevel || 0 }} / 10</span>
             </div>
             <div class="enhance-row">
               <span>强化费用</span>
@@ -310,7 +304,7 @@
                 {{ getEnhanceRate() }}%
               </span>
             </div>
-            <div v-if="(enhanceItem.enhanceLevel || 0) >= 6" class="enhance-warning">
+            <div v-if="(enhancingItem.enhanceLevel || 0) >= 6" class="enhance-warning">
               ⚠️ +6以上强化失败会掉落1-3级
             </div>
           </div>
@@ -329,8 +323,9 @@
           >
             {{ getEnhanceButtonText() }}
           </button>
-          <button @click="handleUnequipFromEnhance" class="unequip-btn">卸下</button>
-          <button @click="enhanceItem = null" class="close-btn">关闭</button>
+          <button v-if="!enhanceFromInventory" @click="handleUnequipFromEnhance" class="unequip-btn">卸下</button>
+          <button v-if="enhanceFromInventory" @click="handleEquipFromEnhance" class="equip-btn">装备</button>
+          <button @click="enhancingItem = null" class="close-btn">关闭</button>
         </div>
       </div>
     </div>
@@ -372,7 +367,7 @@
 
 <script>
 import { equipSlots, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhancedStatValue } from '../../data/gameData'
-import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, getEnhancedStats, getLootFilter, updateLootFilter } from '../../store/gameStore'
+import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, enhanceItem, getEnhancedStats, getLootFilter, updateLootFilter } from '../../store/gameStore'
 
 export default {
   name: 'EquipmentPanel',
@@ -380,8 +375,9 @@ export default {
     return {
       equipSlots,
       selectedItem: null,
-      enhanceItem: null,
+      enhancingItem: null,
       enhanceSlotType: null,
+      enhanceFromInventory: false,
       enhanceResult: null,
       currentFilter: 'all',
       tooltipItem: null,
@@ -508,12 +504,12 @@ export default {
       return gameState.player.gold
     },
     canAffordEnhance() {
-      if (!this.enhanceItem) return false
+      if (!this.enhancingItem) return false
       return this.playerGold >= this.getEnhanceCostValue()
     },
     canEnhance() {
-      if (!this.enhanceItem) return false
-      if ((this.enhanceItem.enhanceLevel || 0) >= 10) return false
+      if (!this.enhancingItem) return false
+      if ((this.enhancingItem.enhanceLevel || 0) >= 10) return false
       return this.canAffordEnhance
     },
     lootFilter() {
@@ -561,10 +557,19 @@ export default {
     handleSlotClick(slotType) {
       if (this.equipment[slotType]) {
         // 打开强化面板
-        this.enhanceItem = this.equipment[slotType]
+        this.enhancingItem = this.equipment[slotType]
         this.enhanceSlotType = slotType
+        this.enhanceFromInventory = false
         this.enhanceResult = null
       }
+    },
+    openEnhanceForInventory(item) {
+      // 从背包打开强化面板
+      this.enhancingItem = item
+      this.enhanceSlotType = null
+      this.enhanceFromInventory = true
+      this.enhanceResult = null
+      this.selectedItem = null
     },
     handleEquip(item) {
       if (!this.canEquip(item)) return
@@ -654,6 +659,27 @@ export default {
     getRarityName(rarity) {
       return skillRarityConfig[rarity]?.name || '普通'
     },
+    getItemBgColor(item) {
+      // 根据品质返回淡色背景
+      const bgColors = {
+        white: 'rgba(255, 255, 255, 0.05)',
+        green: 'rgba(46, 204, 113, 0.15)',
+        blue: 'rgba(52, 152, 219, 0.15)',
+        purple: 'rgba(155, 89, 182, 0.15)',
+        orange: 'rgba(230, 126, 34, 0.15)'
+      }
+      if (item.type === 'skillBook') {
+        const rarityToQuality = {
+          common: 'white',
+          uncommon: 'green',
+          rare: 'blue',
+          epic: 'purple',
+          legendary: 'orange'
+        }
+        return bgColors[rarityToQuality[item.rarity]] || bgColors.white
+      }
+      return bgColors[item.quality] || bgColors.white
+    },
     formatStat(stat, value) {
       const percentStats = ['critRate', 'critResist', 'critDamage', 'dodge', 'hit', 'penetration', 'skillDamage', 'dropRate']
       if (percentStats.includes(stat)) {
@@ -696,12 +722,12 @@ export default {
       return getEnhancedStatValue(baseValue, enhanceLevel)
     },
     getEnhanceCostValue() {
-      if (!this.enhanceItem) return 0
-      return getEnhanceCost(this.enhanceItem.level, this.enhanceItem.enhanceLevel || 0)
+      if (!this.enhancingItem) return 0
+      return getEnhanceCost(this.enhancingItem.level, this.enhancingItem.enhanceLevel || 0)
     },
     getEnhanceRate() {
-      if (!this.enhanceItem) return 0
-      return getEnhanceSuccessRate(this.enhanceItem.enhanceLevel || 0)
+      if (!this.enhancingItem) return 0
+      return getEnhanceSuccessRate(this.enhancingItem.enhanceLevel || 0)
     },
     getSuccessRateClass() {
       const rate = this.getEnhanceRate()
@@ -710,17 +736,24 @@ export default {
       return 'rate-low'
     },
     getEnhanceButtonText() {
-      if (!this.enhanceItem) return '强化'
-      if ((this.enhanceItem.enhanceLevel || 0) >= 10) return '已满级'
+      if (!this.enhancingItem) return '强化'
+      if ((this.enhancingItem.enhanceLevel || 0) >= 10) return '已满级'
       if (!this.canAffordEnhance) return '灵石不足'
       return `强化 (${this.getEnhanceCostValue()} 灵石)`
     },
     handleEnhance() {
       if (!this.canEnhance) return
-      const result = enhanceEquipment(this.enhanceSlotType)
+      let result
+      if (this.enhanceFromInventory) {
+        // 从背包强化
+        result = enhanceItem(this.enhancingItem)
+      } else {
+        // 从装备栏强化
+        result = enhanceEquipment(this.enhanceSlotType)
+        // 刷新enhancingItem以更新显示
+        this.enhancingItem = this.equipment[this.enhanceSlotType]
+      }
       this.enhanceResult = result
-      // 刷新enhanceItem以更新显示
-      this.enhanceItem = this.equipment[this.enhanceSlotType]
       // 3秒后清除结果提示
       setTimeout(() => {
         this.enhanceResult = null
@@ -729,8 +762,15 @@ export default {
     handleUnequipFromEnhance() {
       if (this.enhanceSlotType) {
         unequipItem(this.enhanceSlotType)
-        this.enhanceItem = null
+        this.enhancingItem = null
         this.enhanceSlotType = null
+      }
+    },
+    handleEquipFromEnhance() {
+      if (this.enhancingItem && this.enhanceFromInventory) {
+        equipItem(this.enhancingItem)
+        this.enhancingItem = null
+        this.enhanceFromInventory = false
       }
     },
     // 拾取筛选相关方法
@@ -953,70 +993,84 @@ export default {
   flex: 1;
   overflow-y: auto;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: flex-start;
   gap: 6px;
-  max-height: 420px;
+  max-height: 520px;
+  padding: 4px;
 }
 
 .inventory-item {
+  position: relative;
+  width: 58px;
+  height: 58px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   background: #2a2a4a;
-  border: 1px solid #4a4a6a;
-  border-radius: 6px;
-  padding: 8px;
+  border: 2px solid #4a4a6a;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .inventory-item:hover,
 .inventory-item.selected {
-  background: #3a3a5a;
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.inventory-item.selected {
+  border-width: 3px;
 }
 
 .inventory-item.locked {
-  background: #2a2a3a;
   border-style: dashed;
 }
 
-.item-icon {
-  font-size: 1.2em;
-}
-
-.item-info {
-  flex: 1;
-}
-
-.item-info .item-name {
-  font-size: 0.85em;
-  font-weight: bold;
-}
-
-.item-info .item-level {
-  font-size: 0.7em;
-  color: #888;
-}
-
-.lock-icon {
-  font-size: 1em;
-  cursor: pointer;
+.inventory-item.cannot-equip {
   opacity: 0.6;
-  transition: opacity 0.2s;
 }
 
-.lock-icon:hover {
-  opacity: 1;
+.item-icon-large {
+  font-size: 1.8em;
 }
 
-.inventory-item.locked .lock-icon {
-  opacity: 1;
+.item-enhance {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #f39c12;
+  color: #000;
+  font-size: 0.65em;
+  font-weight: bold;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.item-level-badge {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 0.6em;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.lock-badge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 0.7em;
 }
 
 .empty-inventory {
+  grid-column: 1 / -1;
   color: #555;
   text-align: center;
-  padding: 20px;
+  padding: 40px 20px;
 }
 
 /* 物品详情弹窗 */
@@ -1156,6 +1210,15 @@ export default {
 .sell-btn:disabled {
   background: #555;
   cursor: not-allowed;
+}
+
+.detail-actions .enhance-btn {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  color: white;
+}
+
+.detail-actions .enhance-btn:hover {
+  background: linear-gradient(135deg, #a569bd, #9b59b6);
 }
 
 .close-btn {

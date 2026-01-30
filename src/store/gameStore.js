@@ -538,6 +538,69 @@ export function enhanceEquipment(slotType) {
   }
 }
 
+// 强化任意装备（包括背包中的）
+export function enhanceItem(item) {
+  if (!item) {
+    addLog('无效的物品', 'danger')
+    return { success: false, message: '无效的物品' }
+  }
+
+  // 初始化强化等级
+  if (item.enhanceLevel === undefined) {
+    item.enhanceLevel = 0
+  }
+
+  // 检查是否已满级
+  if (item.enhanceLevel >= 10) {
+    addLog(`【${item.name}】已达到最高强化等级`, 'warning')
+    return { success: false, message: '已达到最高强化等级' }
+  }
+
+  // 计算费用
+  const cost = getEnhanceCost(item.level, item.enhanceLevel)
+  if (gameState.player.gold < cost) {
+    addLog(`灵石不足！强化需要 ${cost} 灵石`, 'danger')
+    return { success: false, message: `灵石不足，需要 ${cost} 灵石` }
+  }
+
+  // 扣除费用
+  gameState.player.gold -= cost
+
+  // 计算成功率
+  const successRate = getEnhanceSuccessRate(item.enhanceLevel)
+  const roll = Math.random() * 100
+
+  if (roll < successRate) {
+    // 强化成功
+    item.enhanceLevel++
+    addLog(`【${item.name}】强化成功！+${item.enhanceLevel}`, 'success')
+    autoSave()
+    return {
+      success: true,
+      message: `强化成功！+${item.enhanceLevel}`,
+      newLevel: item.enhanceLevel
+    }
+  } else {
+    // 强化失败
+    const dropLevels = getEnhanceDropLevels(item.enhanceLevel)
+    const oldLevel = item.enhanceLevel
+    item.enhanceLevel = Math.max(0, item.enhanceLevel - dropLevels)
+
+    if (dropLevels > 0) {
+      addLog(`【${item.name}】强化失败！-${dropLevels}级 (${oldLevel} → ${item.enhanceLevel})`, 'danger')
+    } else {
+      addLog(`【${item.name}】强化失败！`, 'warning')
+    }
+    autoSave()
+    return {
+      success: false,
+      message: dropLevels > 0 ? `强化失败！-${dropLevels}级` : '强化失败！',
+      newLevel: item.enhanceLevel,
+      dropped: dropLevels
+    }
+  }
+}
+
 // 获取装备强化后的属性
 export function getEnhancedStats(item) {
   if (!item || !item.stats) return {}
@@ -993,6 +1056,7 @@ export function startBattle() {
       currentHp: baseMonster.hp,
       skills: getRandomSkills(baseMonster.level),
       buffs: {}, // 存储激活的buff
+      debuffs: {}, // 存储debuff（如易伤）
       reviveUsed: false // 不屈意志是否已使用
     }
     monsters.push(monster)
@@ -1159,6 +1223,30 @@ function getBuffName(buffType) {
   return names[buffType] || buffType
 }
 
+// 更新怪物debuff持续时间
+function updateMonsterDebuffs() {
+  const monsters = gameState.battle.currentMonsters
+  for (const monster of monsters) {
+    if (!monster.debuffs) continue
+    for (const debuffName of Object.keys(monster.debuffs)) {
+      if (monster.debuffs[debuffName].duration > 0) {
+        monster.debuffs[debuffName].duration--
+        if (monster.debuffs[debuffName].duration <= 0) {
+          delete monster.debuffs[debuffName]
+          addBattleLog(`${monster.name} 的【${getDebuffName(debuffName)}】效果已消失`, 'normal')
+        }
+      }
+    }
+  }
+}
+
+function getDebuffName(debuffType) {
+  const names = {
+    vulnerable: '易伤'
+  }
+  return names[debuffType] || debuffType
+}
+
 // 执行一回合战斗
 export function battleRound() {
   if (!gameState.battle.isInBattle) return null
@@ -1174,6 +1262,7 @@ export function battleRound() {
   gameState.battle.roundCount++
   updateCooldowns()
   updatePlayerBuffs()
+  updateMonsterDebuffs()
 
   const stats = getPlayerStats()
   const maxHp = stats.maxHp
@@ -1242,7 +1331,14 @@ export function battleRound() {
 
     // 蓄力技能：本回合不攻击，下回合伤害翻倍
     if (selectedSkill.effect === 'charge') {
-      gameState.battle.playerBuffs.charge = { value: skillMultiplier, duration: 1 }
+      gameState.battle.playerBuffs.charge = {
+        value: skillMultiplier,
+        hitCount: selectedSkill.hitCount || 2,
+        debuff: selectedSkill.debuff,
+        debuffValue: selectedSkill.debuffValue,
+        debuffDuration: selectedSkill.debuffDuration,
+        duration: 1
+      }
       addBattleLog(`使用【${selectedSkill.name}】开始蓄力...`, 'warning')
       skipAttack = true
     }
@@ -1311,10 +1407,19 @@ export function battleRound() {
   }
 
   // 应用蓄力加成
+  let chargeDebuff = null
   if (chargeBonus > 1) {
     skillMultiplier = chargeBonus
     isAoe = true
-    hitCount = 2
+    hitCount = chargeState.hitCount || 2
+    // 保存蓄力技能的debuff信息
+    if (chargeState.debuff) {
+      chargeDebuff = {
+        type: chargeState.debuff,
+        value: chargeState.debuffValue,
+        duration: chargeState.debuffDuration
+      }
+    }
   }
 
   // 确定攻击目标列表
@@ -1356,6 +1461,12 @@ export function battleRound() {
       // 应用技能倍率
       damage = Math.floor(damage * skillMultiplier)
 
+      // 检查敌人易伤debuff
+      if (targetMonster.debuffs && targetMonster.debuffs.vulnerable) {
+        const vulnerableBonus = targetMonster.debuffs.vulnerable.value / 100
+        damage = Math.floor(damage * (1 + vulnerableBonus))
+      }
+
       // 反伤护盾
       const reflectSkill = targetMonster.skills.find(s => s.effect === 'reflect')
       if (reflectSkill) {
@@ -1374,6 +1485,16 @@ export function battleRound() {
       }
 
       targetMonster.currentHp -= damage
+
+      // 应用蓄力技能的debuff（易伤等）
+      if (chargeDebuff && chargeDebuff.type === 'vulnerable') {
+        if (!targetMonster.debuffs) targetMonster.debuffs = {}
+        targetMonster.debuffs.vulnerable = {
+          value: chargeDebuff.value,
+          duration: chargeDebuff.duration
+        }
+        addBattleLog(`${targetMonster.name} 被施加【易伤】效果，受到伤害+${chargeDebuff.value}%，持续${chargeDebuff.duration}回合`, 'warning')
+      }
 
       // 吸血效果
       if (lifestealPercent > 0) {
