@@ -51,10 +51,10 @@ export const weaponTypes = {
   },
   staff: {
     name: '法杖',
-    description: '法力精深，功法增幅',
+    description: '法力精深，暴击致命',
     primaryStat: 'attack',
-    secondaryStat: 'skillDamage',
-    secondaryValue: 1,
+    secondaryStat: 'critDamage',
+    secondaryValue: 0.8,
     prefixes: ['灵木', '星辰', '月华', '日曜', '雷霆', '冰魄', '炎灵', '虚空', '混元', '太极']
   },
   hammer: {
@@ -81,7 +81,7 @@ export const equipTemplates = {
   armor: { hp: 15, defense: 2 },
   helmet: { hp: 10, critResist: 0.3 },
   ring: { attack: 1.5, critDamage: 0.8 },
-  necklace: { attack: 1, skillDamage: 0.6, dropRate: 0.3 }, // 项链增加掉落率
+  necklace: { attack: 1, critDamage: 0.5, dropRate: 0.3 }, // 项链增加暴击伤害和掉落率
   boots: { dodge: 0.2, hit: 0.3 },
   artifact: { hp: 5, attack: 1, defense: 0.5, critRate: 0.1, dropRate: 0.2 } // 法宝也增加掉落率
 }
