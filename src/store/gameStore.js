@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import { realms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig } from '../data/gameData'
+import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 加密密钥
 const ENCRYPT_KEY = 'xiuxian2024secret'
@@ -1097,6 +1098,17 @@ export function stopAutoBattle() {
 
 // 保存游戏（加密）
 export function saveGame(silent = false) {
+  // 数据合理性检查
+  const validation = validatePlayerData(gameState.player)
+  if (!validation.valid) {
+    console.warn('数据异常:', validation.errors)
+    // 如果数据异常，不保存并警告
+    if (!silent) {
+      addLog('存档失败：检测到数据异常！', 'danger')
+    }
+    return false
+  }
+
   const saveData = {
     player: gameState.player,
     battle: {
@@ -1104,7 +1116,8 @@ export function saveGame(silent = false) {
       killCount: gameState.battle.killCount
     },
     timestamp: Date.now(),
-    version: 5 // 版本号更新
+    version: 6, // 版本号更新
+    checksum: calculateChecksum(gameState.player) // 添加校验和
   }
   const encrypted = encrypt(saveData)
   if (encrypted) {
@@ -1112,7 +1125,9 @@ export function saveGame(silent = false) {
     if (!silent) {
       addLog('游戏已保存', 'success')
     }
+    return true
   }
+  return false
 }
 
 // 自动保存
@@ -1134,6 +1149,15 @@ export function loadGame() {
           data = JSON.parse(save)
         } catch (e) {
           console.error('存档格式无效')
+          return false
+        }
+      }
+
+      // 校验和验证（版本6及以上）
+      if (data.version >= 6 && data.checksum) {
+        if (!verifyChecksum(data.player, data.checksum)) {
+          console.warn('存档校验失败，可能被篡改')
+          addLog('存档校验失败，数据可能被篡改！', 'danger')
           return false
         }
       }
@@ -1166,6 +1190,14 @@ export function loadGame() {
       // 移除旧的功法字段
       delete data.player.techniqueId
       delete data.player.ownedTechniques
+
+      // 数据合理性验证
+      const validation = validatePlayerData(data.player)
+      if (!validation.valid) {
+        console.warn('存档数据异常:', validation.errors)
+        addLog(`存档数据异常：${validation.errors.join('、')}`, 'danger')
+        return false
+      }
 
       Object.assign(gameState.player, data.player)
 
