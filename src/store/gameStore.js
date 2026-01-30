@@ -1221,6 +1221,13 @@ export function loadGame() {
 
 // 导出存档（返回加密字符串）
 export function exportSave() {
+  // 数据合理性检查
+  const validation = validatePlayerData(gameState.player)
+  if (!validation.valid) {
+    console.warn('数据异常，无法导出:', validation.errors)
+    return null
+  }
+
   const saveData = {
     player: gameState.player,
     battle: {
@@ -1228,7 +1235,8 @@ export function exportSave() {
       killCount: gameState.battle.killCount
     },
     timestamp: Date.now(),
-    version: 5
+    version: 6,
+    checksum: calculateChecksum(gameState.player)
   }
   return encrypt(saveData)
 }
@@ -1240,6 +1248,14 @@ export function importSave(encryptedData) {
     if (!data || !data.player) {
       addLog('存档数据无效', 'danger')
       return false
+    }
+
+    // 校验和验证（版本6及以上）
+    if (data.version >= 6 && data.checksum) {
+      if (!verifyChecksum(data.player, data.checksum)) {
+        addLog('存档校验失败，数据可能被篡改！', 'danger')
+        return false
+      }
     }
 
     // 兼容旧存档
@@ -1270,6 +1286,13 @@ export function importSave(encryptedData) {
     // 移除旧的功法字段
     delete data.player.techniqueId
     delete data.player.ownedTechniques
+
+    // 数据合理性验证
+    const validation = validatePlayerData(data.player)
+    if (!validation.valid) {
+      addLog(`存档数据异常：${validation.errors.join('、')}`, 'danger')
+      return false
+    }
 
     Object.assign(gameState.player, data.player)
 
