@@ -38,7 +38,7 @@ export const weaponTypes = {
     description: '剑走轻灵，暴击致命',
     primaryStat: 'attack',
     secondaryStat: 'critRate',
-    secondaryValue: 0.5,
+    secondaryValue: 0.15,
     prefixes: ['青锋', '寒霜', '紫电', '赤焰', '玄铁', '破晓', '裂空', '斩龙', '诛仙', '灭世']
   },
   blade: {
@@ -46,7 +46,7 @@ export const weaponTypes = {
     description: '刀法霸道，无视防御',
     primaryStat: 'attack',
     secondaryStat: 'penetration',
-    secondaryValue: 0.4,
+    secondaryValue: 0.12,
     prefixes: ['狂风', '霸王', '血月', '裂天', '屠龙', '鬼煞', '修罗', '灭神', '天罚', '混沌']
   },
   staff: {
@@ -54,7 +54,7 @@ export const weaponTypes = {
     description: '法力精深，暴击致命',
     primaryStat: 'attack',
     secondaryStat: 'critDamage',
-    secondaryValue: 0.8,
+    secondaryValue: 0.3,
     prefixes: ['灵木', '星辰', '月华', '日曜', '雷霆', '冰魄', '炎灵', '虚空', '混元', '太极']
   },
   hammer: {
@@ -62,7 +62,7 @@ export const weaponTypes = {
     description: '重锤压制，防御加成',
     primaryStat: 'attack',
     secondaryStat: 'defense',
-    secondaryValue: 0.8,
+    secondaryValue: 0.5,
     prefixes: ['石锤', '铁锤', '钢锤', '玄铁', '镇山', '碎岳', '裂地', '天崩', '神锤', '开天']
   },
   shield: {
@@ -70,7 +70,7 @@ export const weaponTypes = {
     description: '盾卫己身，生命倍增',
     primaryStat: 'attack',
     secondaryStat: 'hp',
-    secondaryValue: 5,
+    secondaryValue: 3,
     prefixes: ['木盾', '铁盾', '钢盾', '玄盾', '金盾', '护心', '龙鳞', '天罡', '不朽', '永恒']
   }
 }
@@ -79,11 +79,11 @@ export const weaponTypes = {
 export const equipTemplates = {
   weapon: { attack: 3 },
   armor: { hp: 15, defense: 2 },
-  helmet: { hp: 10, critResist: 0.3 },
-  ring: { attack: 1.5, critDamage: 0.8 },
-  necklace: { attack: 1, critDamage: 0.5, dropRate: 0.3 }, // 项链增加暴击伤害和掉落率
-  boots: { dodge: 0.2, hit: 0.3 },
-  artifact: { hp: 5, attack: 1, defense: 0.5, critRate: 0.1, dropRate: 0.2 } // 法宝也增加掉落率
+  helmet: { hp: 10, critResist: 0.1 },
+  ring: { attack: 1.5, critDamage: 0.25 },
+  necklace: { attack: 1, critDamage: 0.15, dropRate: 0.15 },
+  boots: { dodge: 0.08, hit: 0.1 },
+  artifact: { hp: 5, attack: 1, defense: 0.5, critRate: 0.03, dropRate: 0.1 }
 }
 
 // 装备名称后缀

@@ -42,10 +42,10 @@
           </button>
           <button
             v-if="filteredInventory.length > 0"
-            @click="handleDiscardAll"
-            class="discard-all-btn"
+            @click="handleSellAll"
+            class="sell-all-btn"
           >
-            一键丢弃
+            一键出售
           </button>
         </div>
       </div>
@@ -215,11 +215,11 @@
               {{ selectedItem.locked ? '解锁' : '锁定' }}
             </button>
             <button
-              @click="handleDiscard(selectedItem)"
-              class="discard-btn"
+              @click="handleSell(selectedItem)"
+              class="sell-btn"
               :disabled="selectedItem.locked"
             >
-              丢弃
+              出售 {{ getSellPrice(selectedItem) }}💰
             </button>
             <button @click="selectedItem = null" class="close-btn">关闭</button>
           </div>
@@ -258,11 +258,11 @@
               {{ selectedItem.locked ? '解锁' : '锁定' }}
             </button>
             <button
-              @click="handleDiscard(selectedItem)"
-              class="discard-btn"
+              @click="handleSell(selectedItem)"
+              class="sell-btn"
               :disabled="selectedItem.locked"
             >
-              丢弃
+              出售 {{ getSellPrice(selectedItem) }}💰
             </button>
             <button @click="selectedItem = null" class="close-btn">关闭</button>
           </div>
@@ -571,24 +571,44 @@ export default {
       equipItem(item)
       this.selectedItem = null
     },
-    handleDiscard(item) {
+    getSellPrice(item) {
+      if (item.type === 'skillBook') {
+        const rarityPrice = { common: 10, uncommon: 25, rare: 60, epic: 150, legendary: 300 }
+        return rarityPrice[item.rarity] || 10
+      }
+      // 装备出售价格 = 装备等级 * 品质系数
+      const qualityMultiplier = { white: 1, green: 2, blue: 5, purple: 12, orange: 25 }
+      const basePrice = (item.level || 1) * (qualityMultiplier[item.quality] || 1)
+      // 强化等级额外加成
+      const enhanceBonus = (item.enhanceLevel || 0) * 5
+      return Math.floor(basePrice + enhanceBonus)
+    },
+    handleSell(item) {
       if (item.locked) {
-        alert('该物品已锁定，无法丢弃')
+        alert('该物品已锁定，无法出售')
         return
       }
-      if (confirm(`确定丢弃【${item.name}】吗？`)) {
+      const price = this.getSellPrice(item)
+      if (confirm(`确定出售【${item.name}】获得 ${price} 灵石吗？`)) {
+        gameState.player.gold += price
         discardItem(item)
         this.selectedItem = null
       }
     },
-    handleDiscardAll() {
+    handleSellAll() {
       const unlocked = this.filteredInventory.filter(item => !item.locked)
       if (unlocked.length === 0) {
-        alert('没有可丢弃的物品（所有物品已锁定）')
+        alert('没有可出售的物品（所有物品已锁定）')
         return
       }
+      // 计算总价
+      let totalPrice = 0
+      for (const item of unlocked) {
+        totalPrice += this.getSellPrice(item)
+      }
       const filterName = this.filters.find(f => f.key === this.currentFilter)?.name || '当前分类'
-      if (confirm(`确定丢弃【${filterName}】下所有未锁定的 ${unlocked.length} 件物品吗？`)) {
+      if (confirm(`确定出售【${filterName}】下所有未锁定的 ${unlocked.length} 件物品吗？\n预计获得 ${totalPrice} 灵石`)) {
+        gameState.player.gold += totalPrice
         for (const item of unlocked) {
           const index = gameState.player.inventory.findIndex(i => i.id === item.id)
           if (index > -1) {
@@ -833,9 +853,9 @@ export default {
   font-size: 0.95em;
 }
 
-.discard-all-btn {
+.sell-all-btn {
   padding: 4px 10px;
-  background: #c0392b;
+  background: #b8860b;
   border: none;
   border-radius: 4px;
   color: white;
@@ -843,8 +863,8 @@ export default {
   cursor: pointer;
 }
 
-.discard-all-btn:hover {
-  background: #e74c3c;
+.sell-all-btn:hover {
+  background: #daa520;
 }
 
 /* 筛选区域 */
@@ -1124,16 +1144,16 @@ export default {
   background: #f1c40f;
 }
 
-.discard-btn {
-  background: #c0392b;
+.sell-btn {
+  background: #b8860b;
   color: white;
 }
 
-.discard-btn:hover:not(:disabled) {
-  background: #e74c3c;
+.sell-btn:hover:not(:disabled) {
+  background: #daa520;
 }
 
-.discard-btn:disabled {
+.sell-btn:disabled {
   background: #555;
   cursor: not-allowed;
 }

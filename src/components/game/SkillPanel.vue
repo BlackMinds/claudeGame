@@ -67,12 +67,45 @@
     <!-- 已学习技能列表 -->
     <div v-if="activeTab === 'learned'" class="content-section">
       <div class="section-title">已学习的技能</div>
-      <div v-if="learnedSkills.length === 0" class="empty-hint">
-        暂无已学习的技能，击杀怪物可获得技能书
+
+      <!-- 筛选和排序 -->
+      <div class="filter-sort-section">
+        <div class="filter-row">
+          <span class="filter-label">分类:</span>
+          <div class="filter-buttons">
+            <button
+              v-for="f in skillFilters"
+              :key="f.key"
+              :class="{ active: currentFilter === f.key }"
+              @click="currentFilter = f.key"
+            >
+              {{ f.name }}
+              <span v-if="getFilterCount(f.key) > 0" class="filter-count">{{ getFilterCount(f.key) }}</span>
+            </button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">排序:</span>
+          <div class="filter-buttons">
+            <button
+              v-for="s in sortOptions"
+              :key="s.key"
+              :class="{ active: currentSort === s.key }"
+              @click="toggleSort(s.key)"
+            >
+              {{ s.name }}
+              <span v-if="currentSort === s.key" class="sort-arrow">{{ sortAsc ? '↑' : '↓' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="filteredLearnedSkills.length === 0" class="empty-hint">
+        {{ learnedSkills.length === 0 ? '暂无已学习的技能，击杀怪物可获得技能书' : '该分类下没有技能' }}
       </div>
       <div class="skill-list">
         <div
-          v-for="skill in learnedSkills"
+          v-for="skill in filteredLearnedSkills"
           :key="skill.id"
           class="skill-item"
           :class="{ passive: skill.type === 'passive' }"
@@ -209,6 +242,22 @@ export default {
     return {
       activeTab: 'learned',
       selectedSkill: null,
+      currentFilter: 'all',
+      currentSort: 'default',
+      sortAsc: false,
+      skillFilters: [
+        { key: 'all', name: '全部' },
+        { key: 'active', name: '主动' },
+        { key: 'passive', name: '被动' },
+        { key: 'equipped', name: '已装备' }
+      ],
+      sortOptions: [
+        { key: 'default', name: '默认' },
+        { key: 'level', name: '等级' },
+        { key: 'rarity', name: '稀有度' },
+        { key: 'name', name: '名称' }
+      ],
+      rarityOrder: { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 },
       statNames: {
         hp: '生命',
         attack: '攻击',
@@ -241,6 +290,35 @@ export default {
     },
     skillBooks() {
       return gameState.player.inventory.filter(item => item.type === 'skillBook')
+    },
+    filteredLearnedSkills() {
+      let result = [...this.learnedSkills]
+
+      // 分类筛选
+      if (this.currentFilter === 'active') {
+        result = result.filter(s => s.type === 'active')
+      } else if (this.currentFilter === 'passive') {
+        result = result.filter(s => s.type === 'passive')
+      } else if (this.currentFilter === 'equipped') {
+        result = result.filter(s => s.isEquipped)
+      }
+
+      // 排序
+      if (this.currentSort !== 'default') {
+        result.sort((a, b) => {
+          let compareValue = 0
+          if (this.currentSort === 'level') {
+            compareValue = a.currentLevel - b.currentLevel
+          } else if (this.currentSort === 'rarity') {
+            compareValue = (this.rarityOrder[a.rarity] || 0) - (this.rarityOrder[b.rarity] || 0)
+          } else if (this.currentSort === 'name') {
+            compareValue = a.name.localeCompare(b.name, 'zh-CN')
+          }
+          return this.sortAsc ? compareValue : -compareValue
+        })
+      }
+
+      return result
     }
   },
   methods: {
@@ -322,6 +400,26 @@ export default {
         texts.push(`${name}+${value}`)
       }
       return texts.join(' ')
+    },
+    getFilterCount(filterKey) {
+      if (filterKey === 'all') {
+        return this.learnedSkills.length
+      } else if (filterKey === 'active') {
+        return this.learnedSkills.filter(s => s.type === 'active').length
+      } else if (filterKey === 'passive') {
+        return this.learnedSkills.filter(s => s.type === 'passive').length
+      } else if (filterKey === 'equipped') {
+        return this.learnedSkills.filter(s => s.isEquipped).length
+      }
+      return 0
+    },
+    toggleSort(sortKey) {
+      if (this.currentSort === sortKey) {
+        this.sortAsc = !this.sortAsc
+      } else {
+        this.currentSort = sortKey
+        this.sortAsc = false
+      }
     }
   }
 }
@@ -467,6 +565,76 @@ export default {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+/* 筛选排序区域 */
+.filter-sort-section {
+  background: #2a2a4a;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.filter-label {
+  color: #888;
+  font-size: 0.75em;
+  min-width: 35px;
+  flex-shrink: 0;
+}
+
+.filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+
+.filter-buttons button {
+  padding: 3px 8px;
+  background: #1a1a2e;
+  border: 1px solid #4a4a6a;
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.7em;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.filter-buttons button:hover {
+  background: #3a3a5a;
+  color: #aaa;
+}
+
+.filter-buttons button.active {
+  background: #4a4a6a;
+  color: #fff;
+  border-color: #87ceeb;
+}
+
+.filter-count {
+  background: #5a5a7a;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.sort-arrow {
+  color: #87ceeb;
+  font-size: 0.9em;
 }
 
 .empty-hint {
