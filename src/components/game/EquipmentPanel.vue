@@ -18,7 +18,10 @@
         <div class="slot-icon">{{ slot.icon }}</div>
         <div class="slot-name">{{ slot.name }}</div>
         <div v-if="equipment[key]" class="equipped-item" :style="{ color: equipment[key].qualityColor }">
-          <div class="item-name">{{ equipment[key].name }}</div>
+          <div class="item-name">
+            {{ equipment[key].name }}
+            <span v-if="equipment[key].enhanceLevel > 0" class="enhance-tag">+{{ equipment[key].enhanceLevel }}</span>
+          </div>
           <div class="item-level">Lv.{{ equipment[key].level }}</div>
         </div>
         <div v-else class="empty-slot">空</div>
@@ -131,6 +134,7 @@
         <template v-else>
           <div class="detail-quality">
             {{ selectedItem.qualityName }} · Lv.{{ selectedItem.level }}
+            <span v-if="selectedItem.enhanceLevel > 0" class="enhance-tag">+{{ selectedItem.enhanceLevel }}</span>
             <span v-if="selectedItem.requiredLevel" :class="{ 'level-ok': canEquip(selectedItem), 'level-low': !canEquip(selectedItem) }">
               (需要 {{ selectedItem.requiredLevel }} 级)
             </span>
@@ -138,7 +142,12 @@
           <div class="detail-stats">
             <div v-for="(value, stat) in selectedItem.stats" :key="stat" class="stat-row">
               <span class="stat-name">{{ statNames[stat] || stat }}</span>
-              <span class="stat-value" :class="getStatClass(stat)">+{{ formatStat(stat, value) }}</span>
+              <span class="stat-value" :class="getStatClass(stat)">
+                +{{ formatStat(stat, value) }}
+                <span v-if="selectedItem.enhanceLevel > 0" class="enhanced-value">
+                  ({{ formatStat(stat, getEnhancedValue(value, selectedItem.enhanceLevel)) }})
+                </span>
+              </span>
             </div>
           </div>
           <div class="detail-actions">
@@ -166,6 +175,71 @@
       </div>
     </div>
 
+    <!-- 强化面板弹窗 -->
+    <div v-if="enhanceItem" class="item-detail-modal" @click.self="enhanceItem = null">
+      <div class="enhance-panel" :style="{ borderColor: enhanceItem.qualityColor }">
+        <div class="enhance-header" :style="{ color: enhanceItem.qualityColor }">
+          {{ enhanceItem.icon }} {{ enhanceItem.name }}
+          <span v-if="enhanceItem.enhanceLevel > 0" class="enhance-level">+{{ enhanceItem.enhanceLevel }}</span>
+        </div>
+
+        <div class="enhance-info">
+          <div class="enhance-quality">{{ enhanceItem.qualityName }} · Lv.{{ enhanceItem.level }}</div>
+
+          <!-- 强化属性预览 -->
+          <div class="enhance-stats">
+            <div v-for="(value, stat) in enhanceItem.stats" :key="stat" class="enhance-stat-row">
+              <span class="stat-name">{{ statNames[stat] || stat }}</span>
+              <span class="stat-base">{{ formatStat(stat, value) }}</span>
+              <span v-if="enhanceItem.enhanceLevel > 0" class="stat-enhanced">
+                ({{ formatStat(stat, getEnhancedValue(value, enhanceItem.enhanceLevel)) }})
+              </span>
+            </div>
+          </div>
+
+          <!-- 强化信息 -->
+          <div class="enhance-details">
+            <div class="enhance-row">
+              <span>当前强化等级</span>
+              <span class="enhance-current">+{{ enhanceItem.enhanceLevel || 0 }} / 10</span>
+            </div>
+            <div class="enhance-row">
+              <span>强化费用</span>
+              <span class="enhance-cost" :class="{ affordable: canAffordEnhance }">
+                {{ getEnhanceCostValue() }} 灵石
+              </span>
+            </div>
+            <div class="enhance-row">
+              <span>成功率</span>
+              <span class="enhance-rate" :class="getSuccessRateClass()">
+                {{ getEnhanceRate() }}%
+              </span>
+            </div>
+            <div v-if="(enhanceItem.enhanceLevel || 0) >= 6" class="enhance-warning">
+              ⚠️ +6以上强化失败会掉落1-3级
+            </div>
+          </div>
+
+          <!-- 强化结果提示 -->
+          <div v-if="enhanceResult" class="enhance-result" :class="enhanceResult.success ? 'success' : 'fail'">
+            {{ enhanceResult.message }}
+          </div>
+        </div>
+
+        <div class="enhance-actions">
+          <button
+            @click="handleEnhance"
+            class="enhance-btn"
+            :disabled="!canEnhance"
+          >
+            {{ getEnhanceButtonText() }}
+          </button>
+          <button @click="handleUnequipFromEnhance" class="unequip-btn">卸下</button>
+          <button @click="enhanceItem = null" class="close-btn">关闭</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 悬浮提示框 -->
     <div
       v-if="tooltipItem"
@@ -174,6 +248,7 @@
     >
       <div class="tooltip-header" :style="{ color: getItemColor(tooltipItem) }">
         {{ getItemIcon(tooltipItem) }} {{ tooltipItem.name }}
+        <span v-if="tooltipItem.enhanceLevel > 0" class="enhance-tag">+{{ tooltipItem.enhanceLevel }}</span>
       </div>
       <template v-if="tooltipItem.type === 'skillBook'">
         <div class="tooltip-quality">[{{ getRarityName(tooltipItem.rarity) }}] 技能书</div>
@@ -184,7 +259,12 @@
         <div class="tooltip-stats">
           <div v-for="(value, stat) in tooltipItem.stats" :key="stat" class="tooltip-stat">
             <span>{{ statNames[stat] || stat }}</span>
-            <span :class="getStatClass(stat)">+{{ formatStat(stat, value) }}</span>
+            <span :class="getStatClass(stat)">
+              +{{ formatStat(stat, value) }}
+              <template v-if="tooltipItem.enhanceLevel > 0">
+                ({{ formatStat(stat, getEnhancedValue(value, tooltipItem.enhanceLevel)) }})
+              </template>
+            </span>
           </div>
         </div>
         <div v-if="tooltipItem.requiredLevel" class="tooltip-req">
@@ -196,8 +276,8 @@
 </template>
 
 <script>
-import { equipSlots, skillRarityConfig } from '../../data/gameData'
-import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave } from '../../store/gameStore'
+import { equipSlots, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhancedStatValue } from '../../data/gameData'
+import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, getEnhancedStats } from '../../store/gameStore'
 
 export default {
   name: 'EquipmentPanel',
@@ -205,6 +285,9 @@ export default {
     return {
       equipSlots,
       selectedItem: null,
+      enhanceItem: null,
+      enhanceSlotType: null,
+      enhanceResult: null,
       currentFilter: 'all',
       tooltipItem: null,
       tooltipX: 0,
@@ -255,6 +338,18 @@ export default {
     },
     playerLevel() {
       return gameState.player.level
+    },
+    playerGold() {
+      return gameState.player.gold
+    },
+    canAffordEnhance() {
+      if (!this.enhanceItem) return false
+      return this.playerGold >= this.getEnhanceCostValue()
+    },
+    canEnhance() {
+      if (!this.enhanceItem) return false
+      if ((this.enhanceItem.enhanceLevel || 0) >= 10) return false
+      return this.canAffordEnhance
     }
   },
   methods: {
@@ -274,7 +369,10 @@ export default {
     },
     handleSlotClick(slotType) {
       if (this.equipment[slotType]) {
-        unequipItem(slotType)
+        // 打开强化面板
+        this.enhanceItem = this.equipment[slotType]
+        this.enhanceSlotType = slotType
+        this.enhanceResult = null
       }
     },
     handleEquip(item) {
@@ -381,6 +479,48 @@ export default {
     },
     hideTooltip() {
       this.tooltipItem = null
+    },
+    // 强化相关方法
+    getEnhancedValue(baseValue, enhanceLevel) {
+      return getEnhancedStatValue(baseValue, enhanceLevel)
+    },
+    getEnhanceCostValue() {
+      if (!this.enhanceItem) return 0
+      return getEnhanceCost(this.enhanceItem.level, this.enhanceItem.enhanceLevel || 0)
+    },
+    getEnhanceRate() {
+      if (!this.enhanceItem) return 0
+      return getEnhanceSuccessRate(this.enhanceItem.enhanceLevel || 0)
+    },
+    getSuccessRateClass() {
+      const rate = this.getEnhanceRate()
+      if (rate >= 80) return 'rate-high'
+      if (rate >= 50) return 'rate-mid'
+      return 'rate-low'
+    },
+    getEnhanceButtonText() {
+      if (!this.enhanceItem) return '强化'
+      if ((this.enhanceItem.enhanceLevel || 0) >= 10) return '已满级'
+      if (!this.canAffordEnhance) return '灵石不足'
+      return `强化 (${this.getEnhanceCostValue()} 灵石)`
+    },
+    handleEnhance() {
+      if (!this.canEnhance) return
+      const result = enhanceEquipment(this.enhanceSlotType)
+      this.enhanceResult = result
+      // 刷新enhanceItem以更新显示
+      this.enhanceItem = this.equipment[this.enhanceSlotType]
+      // 3秒后清除结果提示
+      setTimeout(() => {
+        this.enhanceResult = null
+      }, 3000)
+    },
+    handleUnequipFromEnhance() {
+      if (this.enhanceSlotType) {
+        unequipItem(this.enhanceSlotType)
+        this.enhanceItem = null
+        this.enhanceSlotType = null
+      }
     }
   }
 }
@@ -687,6 +827,11 @@ export default {
 .stat-value.skill-color { color: #00d2d3; }
 .stat-value.drop-color { color: #f39c12; }
 
+.stat-value .enhanced-value {
+  color: #ffd700;
+  margin-left: 4px;
+}
+
 .detail-actions {
   display: flex;
   flex-wrap: wrap;
@@ -839,5 +984,198 @@ export default {
   color: #f39c12;
   font-size: 0.75em;
   text-align: right;
+}
+
+/* 强化标签 */
+.enhance-tag {
+  color: #ffd700;
+  font-size: 0.85em;
+  margin-left: 2px;
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+/* 强化面板 */
+.enhance-panel {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid;
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 320px;
+  max-width: 400px;
+}
+
+.enhance-header {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.enhance-level {
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.enhance-info {
+  margin-bottom: 15px;
+}
+
+.enhance-quality {
+  color: #888;
+  font-size: 0.9em;
+  margin-bottom: 12px;
+}
+
+.enhance-stats {
+  background: #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.enhance-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 0.9em;
+}
+
+.enhance-stat-row .stat-name {
+  color: #aaa;
+  flex: 1;
+}
+
+.enhance-stat-row .stat-base {
+  color: #98fb98;
+  margin-right: 8px;
+}
+
+.enhance-stat-row .stat-enhanced {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.enhance-details {
+  background: #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.enhance-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 0.9em;
+  color: #aaa;
+}
+
+.enhance-current {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.enhance-cost {
+  color: #ff6b6b;
+}
+
+.enhance-cost.affordable {
+  color: #98fb98;
+}
+
+.enhance-rate {
+  font-weight: bold;
+}
+
+.enhance-rate.rate-high {
+  color: #2ecc71;
+}
+
+.enhance-rate.rate-mid {
+  color: #f39c12;
+}
+
+.enhance-rate.rate-low {
+  color: #e74c3c;
+}
+
+.enhance-warning {
+  color: #f39c12;
+  font-size: 0.8em;
+  text-align: center;
+  padding: 8px;
+  margin-top: 8px;
+  background: rgba(243, 156, 18, 0.1);
+  border-radius: 4px;
+}
+
+.enhance-result {
+  text-align: center;
+  padding: 10px;
+  border-radius: 6px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  animation: fadeIn 0.3s;
+}
+
+.enhance-result.success {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid #2ecc71;
+}
+
+.enhance-result.fail {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.enhance-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.enhance-actions button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+
+.enhance-btn {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  color: white;
+  font-weight: bold;
+}
+
+.enhance-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f1c40f, #f39c12);
+  box-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
+}
+
+.enhance-btn:disabled {
+  background: #555;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.unequip-btn {
+  background: #c0392b;
+  color: white;
+}
+
+.unequip-btn:hover {
+  background: #e74c3c;
 }
 </style>

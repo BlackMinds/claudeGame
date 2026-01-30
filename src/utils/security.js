@@ -86,6 +86,17 @@ export function validatePlayerData(player) {
     errors.push('被动技能数量异常')
   }
 
+  // 装备强化等级检查 (0-10)
+  if (player.equipment) {
+    for (const [slot, item] of Object.entries(player.equipment)) {
+      if (item && item.enhanceLevel !== undefined) {
+        if (item.enhanceLevel < 0 || item.enhanceLevel > 10) {
+          errors.push(`${slot}强化等级异常`)
+        }
+      }
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors

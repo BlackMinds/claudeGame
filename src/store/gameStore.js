@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { realms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig } from '../data/gameData'
+import { realms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue } from '../data/gameData'
 import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 加密密钥
@@ -117,7 +117,7 @@ export function getExpToNextLevel() {
   return getExpForLevel(gameState.player.level)
 }
 
-// 计算装备提供的属性加成
+// 计算装备提供的属性加成（包含强化加成）
 export function getEquipmentStats() {
   const stats = {
     hp: 0,
@@ -135,9 +135,11 @@ export function getEquipmentStats() {
 
   for (const equip of Object.values(gameState.player.equipment)) {
     if (equip && equip.stats) {
+      const enhanceLevel = equip.enhanceLevel || 0
       for (const [stat, value] of Object.entries(equip.stats)) {
         if (stats.hasOwnProperty(stat)) {
-          stats[stat] += value
+          // 应用强化加成
+          stats[stat] += getEnhancedStatValue(value, enhanceLevel)
         }
       }
     }
@@ -364,6 +366,90 @@ export function discardItem(item) {
     gameState.player.inventory.splice(index, 1)
     addLog(`丢弃了【${item.name}】`, 'normal')
   }
+}
+
+// ==================== 装备强化系统 ====================
+
+// 强化装备
+export function enhanceEquipment(slotType) {
+  const item = gameState.player.equipment[slotType]
+  if (!item) {
+    addLog('请先装备物品', 'danger')
+    return { success: false, message: '请先装备物品' }
+  }
+
+  // 初始化强化等级
+  if (item.enhanceLevel === undefined) {
+    item.enhanceLevel = 0
+  }
+
+  // 检查是否已满级
+  if (item.enhanceLevel >= 10) {
+    addLog(`【${item.name}】已达到最高强化等级`, 'warning')
+    return { success: false, message: '已达到最高强化等级' }
+  }
+
+  // 计算费用
+  const cost = getEnhanceCost(item.level, item.enhanceLevel)
+  if (gameState.player.gold < cost) {
+    addLog(`灵石不足！强化需要 ${cost} 灵石`, 'danger')
+    return { success: false, message: `灵石不足，需要 ${cost} 灵石` }
+  }
+
+  // 扣除费用
+  gameState.player.gold -= cost
+
+  // 计算成功率
+  const successRate = getEnhanceSuccessRate(item.enhanceLevel)
+  const roll = Math.random() * 100
+
+  if (roll < successRate) {
+    // 强化成功
+    item.enhanceLevel++
+    addLog(`【${item.name}】强化成功！+${item.enhanceLevel}`, 'success')
+    autoSave()
+    return {
+      success: true,
+      message: `强化成功！+${item.enhanceLevel}`,
+      newLevel: item.enhanceLevel
+    }
+  } else {
+    // 强化失败
+    const dropLevels = getEnhanceDropLevels(item.enhanceLevel)
+    const oldLevel = item.enhanceLevel
+    item.enhanceLevel = Math.max(0, item.enhanceLevel - dropLevels)
+
+    if (dropLevels > 0) {
+      addLog(`【${item.name}】强化失败！-${dropLevels}级 (${oldLevel} → ${item.enhanceLevel})`, 'danger')
+    } else {
+      addLog(`【${item.name}】强化失败！`, 'warning')
+    }
+    autoSave()
+    return {
+      success: false,
+      message: dropLevels > 0 ? `强化失败！-${dropLevels}级` : '强化失败！',
+      newLevel: item.enhanceLevel,
+      dropped: dropLevels
+    }
+  }
+}
+
+// 获取装备强化后的属性
+export function getEnhancedStats(item) {
+  if (!item || !item.stats) return {}
+
+  const enhanceLevel = item.enhanceLevel || 0
+  const enhancedStats = {}
+
+  for (const [stat, value] of Object.entries(item.stats)) {
+    enhancedStats[stat] = {
+      base: value,
+      enhanced: getEnhancedStatValue(value, enhanceLevel),
+      bonus: enhanceLevel > 0 ? getEnhancedStatValue(value, enhanceLevel) - value : 0
+    }
+  }
+
+  return enhancedStats
 }
 
 // ==================== 技能系统函数 ====================

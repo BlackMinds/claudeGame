@@ -733,6 +733,49 @@ export function generateEquipment(level, slotType, forceQuality = null) {
     qualityName: qualityData.name,
     qualityColor: qualityData.color,
     stats,
-    icon: slot.icon
+    icon: slot.icon,
+    enhanceLevel: 0 // 强化等级，默认0
   }
+}
+
+// ==================== 装备强化系统 ====================
+
+// 强化成功率（+6之后开始有失败概率）
+export function getEnhanceSuccessRate(enhanceLevel) {
+  if (enhanceLevel < 6) return 100
+  const rates = {
+    6: 80,   // +6 -> +7: 80%
+    7: 65,   // +7 -> +8: 65%
+    8: 50,   // +8 -> +9: 50%
+    9: 35    // +9 -> +10: 35%
+  }
+  return rates[enhanceLevel] || 0
+}
+
+// 强化费用（基于装备等级和当前强化等级）
+export function getEnhanceCost(equipLevel, enhanceLevel) {
+  // 基础费用 = 装备等级 * 50
+  // 每级强化费用倍增
+  const baseCost = equipLevel * 50
+  const levelMultiplier = Math.pow(1.5, enhanceLevel)
+  return Math.floor(baseCost * levelMultiplier)
+}
+
+// 强化失败时掉落的等级数（1-3）
+export function getEnhanceDropLevels(enhanceLevel) {
+  if (enhanceLevel <= 6) return 0
+  // +7及以上失败会掉1-3级
+  const maxDrop = Math.min(3, enhanceLevel - 5)
+  return Math.floor(Math.random() * maxDrop) + 1
+}
+
+// 计算强化后的属性加成（每级+5%）
+export function getEnhanceBonus(enhanceLevel) {
+  return enhanceLevel * 0.05 // 每级5%加成
+}
+
+// 计算强化后的实际属性值
+export function getEnhancedStatValue(baseValue, enhanceLevel) {
+  const bonus = getEnhanceBonus(enhanceLevel)
+  return baseValue * (1 + bonus)
 }
