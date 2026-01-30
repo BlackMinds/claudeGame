@@ -32,26 +32,121 @@
     <div class="inventory-section">
       <div class="inventory-header">
         <h4>背包 ({{ inventory.length }}/50)</h4>
-        <button
-          v-if="filteredInventory.length > 0"
-          @click="handleDiscardAll"
-          class="discard-all-btn"
-        >
-          一键丢弃
-        </button>
+        <div class="header-actions">
+          <button
+            @click="showLootFilterSettings = !showLootFilterSettings"
+            class="settings-btn"
+            :class="{ active: lootFilter.enabled }"
+          >
+            ⚙️ 拾取筛选
+          </button>
+          <button
+            v-if="filteredInventory.length > 0"
+            @click="handleDiscardAll"
+            class="discard-all-btn"
+          >
+            一键丢弃
+          </button>
+        </div>
+      </div>
+
+      <!-- 拾取筛选设置面板 -->
+      <div v-if="showLootFilterSettings" class="loot-filter-panel">
+        <div class="loot-filter-row">
+          <label class="filter-switch">
+            <input type="checkbox" v-model="lootFilter.enabled" @change="saveLootFilter">
+            <span class="switch-slider"></span>
+            启用拾取筛选
+          </label>
+        </div>
+
+        <div v-if="lootFilter.enabled" class="loot-filter-options">
+          <div class="loot-filter-row">
+            <span class="filter-option-label">最低拾取品质:</span>
+            <div class="quality-select">
+              <button
+                v-for="q in qualityOptions"
+                :key="q.key"
+                :class="{ active: lootFilter.minQuality === q.key }"
+                :style="{ color: q.color, borderColor: lootFilter.minQuality === q.key ? q.color : '' }"
+                @click="setMinQuality(q.key)"
+              >
+                {{ q.name }}
+              </button>
+            </div>
+          </div>
+
+          <div class="loot-filter-row">
+            <label class="filter-switch">
+              <input type="checkbox" v-model="lootFilter.autoSellFiltered" @change="saveLootFilter">
+              <span class="switch-slider"></span>
+              自动卖出过滤装备
+            </label>
+          </div>
+
+          <div class="loot-filter-row">
+            <label class="filter-switch">
+              <input type="checkbox" v-model="lootFilter.pickupSkillBooks" @change="saveLootFilter">
+              <span class="switch-slider"></span>
+              拾取技能书
+            </label>
+          </div>
+
+          <div class="loot-filter-hint">
+            {{ getLootFilterHint() }}
+          </div>
+        </div>
       </div>
 
       <!-- 分类筛选 -->
-      <div class="filter-tabs">
-        <button
-          v-for="filter in filters"
-          :key="filter.key"
-          :class="{ active: currentFilter === filter.key }"
-          @click="currentFilter = filter.key"
-        >
-          {{ filter.name }}
-          <span v-if="getFilterCount(filter.key) > 0" class="filter-count">{{ getFilterCount(filter.key) }}</span>
-        </button>
+      <div class="filter-section">
+        <!-- 槽位筛选 -->
+        <div class="filter-row">
+          <span class="filter-label">类型:</span>
+          <div class="filter-tabs">
+            <button
+              v-for="filter in filters"
+              :key="filter.key"
+              :class="{ active: currentFilter === filter.key }"
+              @click="currentFilter = filter.key"
+            >
+              {{ filter.name }}
+              <span v-if="getFilterCount(filter.key) > 0" class="filter-count">{{ getFilterCount(filter.key) }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 品质筛选 -->
+        <div class="filter-row">
+          <span class="filter-label">品质:</span>
+          <div class="filter-tabs quality-filters">
+            <button
+              v-for="quality in qualityFilters"
+              :key="quality.key"
+              :class="{ active: currentQuality === quality.key }"
+              :style="quality.key !== 'all' ? { color: quality.color, borderColor: currentQuality === quality.key ? quality.color : '' } : {}"
+              @click="currentQuality = quality.key"
+            >
+              {{ quality.name }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 排序选项 -->
+        <div class="filter-row">
+          <span class="filter-label">排序:</span>
+          <div class="filter-tabs sort-tabs">
+            <button
+              v-for="sort in sortOptions"
+              :key="sort.key"
+              :class="{ active: currentSort === sort.key }"
+              @click="toggleSort(sort.key)"
+            >
+              {{ sort.name }}
+              <span v-if="currentSort === sort.key" class="sort-arrow">{{ sortAsc ? '↑' : '↓' }}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="inventory-grid">
@@ -277,7 +372,7 @@
 
 <script>
 import { equipSlots, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhancedStatValue } from '../../data/gameData'
-import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, getEnhancedStats } from '../../store/gameStore'
+import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, getEnhancedStats, getLootFilter, updateLootFilter } from '../../store/gameStore'
 
 export default {
   name: 'EquipmentPanel',
@@ -302,6 +397,32 @@ export default {
         { key: 'boots', name: '鞋子' },
         { key: 'artifact', name: '法宝' },
         { key: 'skillBook', name: '技能书' }
+      ],
+      qualityFilters: [
+        { key: 'all', name: '全部', color: '#888' },
+        { key: 'white', name: '普通', color: '#ffffff' },
+        { key: 'green', name: '优秀', color: '#2ecc71' },
+        { key: 'blue', name: '精良', color: '#3498db' },
+        { key: 'purple', name: '史诗', color: '#9b59b6' },
+        { key: 'orange', name: '传说', color: '#e67e22' }
+      ],
+      sortOptions: [
+        { key: 'default', name: '默认' },
+        { key: 'level', name: '等级' },
+        { key: 'quality', name: '品质' },
+        { key: 'name', name: '名称' }
+      ],
+      currentQuality: 'all',
+      currentSort: 'default',
+      sortAsc: false,
+      qualityOrder: { white: 1, green: 2, blue: 3, purple: 4, orange: 5 },
+      showLootFilterSettings: false,
+      qualityOptions: [
+        { key: 'white', name: '普通', color: '#ffffff' },
+        { key: 'green', name: '优秀', color: '#2ecc71' },
+        { key: 'blue', name: '精良', color: '#3498db' },
+        { key: 'purple', name: '史诗', color: '#9b59b6' },
+        { key: 'orange', name: '传说', color: '#e67e22' }
       ],
       statNames: {
         hp: '生命值',
@@ -328,13 +449,57 @@ export default {
       return gameState.player.inventory
     },
     filteredInventory() {
-      if (this.currentFilter === 'all') {
-        return this.inventory
+      let result = [...this.inventory]
+
+      // 按类型筛选
+      if (this.currentFilter !== 'all') {
+        if (this.currentFilter === 'skillBook') {
+          result = result.filter(item => item.type === 'skillBook')
+        } else {
+          result = result.filter(item => item.slotType === this.currentFilter)
+        }
       }
-      if (this.currentFilter === 'skillBook') {
-        return this.inventory.filter(item => item.type === 'skillBook')
+
+      // 按品质筛选
+      if (this.currentQuality !== 'all') {
+        result = result.filter(item => {
+          if (item.type === 'skillBook') {
+            // 技能书使用rarity映射到品质
+            const rarityToQuality = {
+              common: 'white',
+              uncommon: 'green',
+              rare: 'blue',
+              epic: 'purple',
+              legendary: 'orange'
+            }
+            return rarityToQuality[item.rarity] === this.currentQuality
+          }
+          return item.quality === this.currentQuality
+        })
       }
-      return this.inventory.filter(item => item.slotType === this.currentFilter)
+
+      // 排序
+      if (this.currentSort !== 'default') {
+        result.sort((a, b) => {
+          let compareValue = 0
+
+          if (this.currentSort === 'level') {
+            const levelA = a.level || 0
+            const levelB = b.level || 0
+            compareValue = levelA - levelB
+          } else if (this.currentSort === 'quality') {
+            const qualityA = this.getItemQualityOrder(a)
+            const qualityB = this.getItemQualityOrder(b)
+            compareValue = qualityA - qualityB
+          } else if (this.currentSort === 'name') {
+            compareValue = a.name.localeCompare(b.name, 'zh-CN')
+          }
+
+          return this.sortAsc ? compareValue : -compareValue
+        })
+      }
+
+      return result
     },
     playerLevel() {
       return gameState.player.level
@@ -350,6 +515,9 @@ export default {
       if (!this.enhanceItem) return false
       if ((this.enhanceItem.enhanceLevel || 0) >= 10) return false
       return this.canAffordEnhance
+    },
+    lootFilter() {
+      return gameState.lootFilter
     }
   },
   methods: {
@@ -361,6 +529,29 @@ export default {
         return this.inventory.filter(item => item.type === 'skillBook').length
       }
       return this.inventory.filter(item => item.slotType === filterKey).length
+    },
+    toggleSort(sortKey) {
+      if (this.currentSort === sortKey) {
+        // 同一个排序选项，切换升降序
+        this.sortAsc = !this.sortAsc
+      } else {
+        // 新的排序选项，默认降序
+        this.currentSort = sortKey
+        this.sortAsc = false
+      }
+    },
+    getItemQualityOrder(item) {
+      if (item.type === 'skillBook') {
+        const rarityToQuality = {
+          common: 'white',
+          uncommon: 'green',
+          rare: 'blue',
+          epic: 'purple',
+          legendary: 'orange'
+        }
+        return this.qualityOrder[rarityToQuality[item.rarity]] || 0
+      }
+      return this.qualityOrder[item.quality] || 0
     },
     canEquip(item) {
       if (item.type === 'skillBook') return true
@@ -521,6 +712,28 @@ export default {
         this.enhanceItem = null
         this.enhanceSlotType = null
       }
+    },
+    // 拾取筛选相关方法
+    saveLootFilter() {
+      updateLootFilter(this.lootFilter)
+    },
+    setMinQuality(quality) {
+      this.lootFilter.minQuality = quality
+      this.saveLootFilter()
+    },
+    getLootFilterHint() {
+      const qualityNames = { white: '普通', green: '优秀', blue: '精良', purple: '史诗', orange: '传说' }
+      const minName = qualityNames[this.lootFilter.minQuality]
+      let hint = `当前设置：只拾取【${minName}】及以上品质的装备`
+      if (this.lootFilter.autoSellFiltered) {
+        hint += '，低品质装备自动卖出'
+      } else {
+        hint += '，低品质装备直接丢弃'
+      }
+      if (!this.lootFilter.pickupSkillBooks) {
+        hint += '，不拾取技能书'
+      }
+      return hint
     }
   }
 }
@@ -634,17 +847,43 @@ export default {
   background: #e74c3c;
 }
 
+/* 筛选区域 */
+.filter-section {
+  background: #2a2a4a;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.filter-label {
+  color: #888;
+  font-size: 0.75em;
+  min-width: 35px;
+  flex-shrink: 0;
+}
+
 /* 分类筛选 */
 .filter-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 10px;
+  flex: 1;
 }
 
 .filter-tabs button {
   padding: 3px 8px;
-  background: #2a2a4a;
+  background: #1a1a2e;
   border: 1px solid #4a4a6a;
   border-radius: 4px;
   color: #888;
@@ -662,6 +901,24 @@ export default {
   background: #4a4a6a;
   color: #fff;
   border-color: #87ceeb;
+}
+
+/* 品质筛选按钮特殊样式 */
+.quality-filters button.active {
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+}
+
+/* 排序选项 */
+.sort-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sort-arrow {
+  font-size: 0.9em;
+  color: #87ceeb;
 }
 
 .filter-count {
@@ -1177,5 +1434,142 @@ export default {
 
 .unequip-btn:hover {
   background: #e74c3c;
+}
+
+/* 头部操作按钮 */
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-btn {
+  padding: 4px 10px;
+  background: #2a2a4a;
+  border: 1px solid #4a4a6a;
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.75em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-btn:hover {
+  background: #3a3a5a;
+  color: #aaa;
+}
+
+.settings-btn.active {
+  background: #27ae60;
+  border-color: #2ecc71;
+  color: white;
+}
+
+/* 拾取筛选面板 */
+.loot-filter-panel {
+  background: #1a1a2e;
+  border: 1px solid #4a4a6a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.loot-filter-row {
+  margin-bottom: 10px;
+}
+
+.loot-filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.loot-filter-options {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #3a3a5a;
+}
+
+/* 开关样式 */
+.filter-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 0.85em;
+}
+
+.filter-switch input {
+  display: none;
+}
+
+.switch-slider {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  background: #4a4a6a;
+  border-radius: 10px;
+  transition: all 0.3s;
+}
+
+.switch-slider::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #888;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: all 0.3s;
+}
+
+.filter-switch input:checked + .switch-slider {
+  background: #27ae60;
+}
+
+.filter-switch input:checked + .switch-slider::after {
+  left: 22px;
+  background: white;
+}
+
+.filter-option-label {
+  color: #888;
+  font-size: 0.85em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.quality-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.quality-select button {
+  padding: 4px 10px;
+  background: #2a2a4a;
+  border: 1px solid #4a4a6a;
+  border-radius: 4px;
+  font-size: 0.75em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quality-select button:hover {
+  background: #3a3a5a;
+}
+
+.quality-select button.active {
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+}
+
+.loot-filter-hint {
+  color: #888;
+  font-size: 0.75em;
+  padding: 8px;
+  background: #2a2a4a;
+  border-radius: 4px;
+  margin-top: 10px;
+  line-height: 1.4;
 }
 </style>

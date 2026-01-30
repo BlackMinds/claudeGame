@@ -18,6 +18,10 @@
         <span class="label">技能</span>
         <span class="value skill">{{ equippedActiveCount }}/4主动 · {{ equippedPassiveCount }}/2被动</span>
       </div>
+      <div class="info-item clickable" @click="showPetPanel = true">
+        <span class="label">宠物</span>
+        <span class="value pet">{{ activePetName || '无' }}</span>
+      </div>
       <div class="info-item">
         <span class="label">灵石</span>
         <span class="value gold">{{ player.gold }}</span>
@@ -26,6 +30,7 @@
 
     <div class="nav-actions">
       <button @click="showSkillPanel = true" class="nav-btn skill">技能</button>
+      <button @click="showPetPanel = true" class="nav-btn pet">宠物</button>
       <button @click="showSettings = true" class="nav-btn settings">设置</button>
       <button @click="handleSave" class="nav-btn save">保存</button>
       <!-- <button @click="handleLoad" class="nav-btn load">读取</button> -->
@@ -78,6 +83,50 @@
         </div>
 
         <div class="setting-item">
+          <label>装备拾取筛选</label>
+          <div class="loot-filter-settings">
+            <label class="filter-switch">
+              <input type="checkbox" v-model="lootFilter.enabled" @change="saveLootFilter">
+              <span class="switch-slider"></span>
+              启用拾取筛选
+            </label>
+
+            <div v-if="lootFilter.enabled" class="loot-filter-options">
+              <div class="loot-option-row">
+                <span class="option-label">最低品质:</span>
+                <div class="quality-buttons">
+                  <button
+                    v-for="q in qualityOptions"
+                    :key="q.key"
+                    :class="{ active: lootFilter.minQuality === q.key }"
+                    :style="{ color: q.color, borderColor: lootFilter.minQuality === q.key ? q.color : '' }"
+                    @click="setMinQuality(q.key)"
+                  >
+                    {{ q.name }}
+                  </button>
+                </div>
+              </div>
+
+              <label class="filter-switch">
+                <input type="checkbox" v-model="lootFilter.autoSellFiltered" @change="saveLootFilter">
+                <span class="switch-slider"></span>
+                自动卖出低品质装备
+              </label>
+
+              <label class="filter-switch">
+                <input type="checkbox" v-model="lootFilter.pickupSkillBooks" @change="saveLootFilter">
+                <span class="switch-slider"></span>
+                拾取技能书
+              </label>
+
+              <div class="filter-hint">
+                {{ getLootFilterHint() }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item">
           <div class="auto-save-hint">自动保存已开启，每次操作自动保存</div>
         </div>
       </div>
@@ -90,21 +139,32 @@
         <SkillPanel />
       </div>
     </div>
+
+    <!-- 宠物面板弹窗 -->
+    <div v-if="showPetPanel" class="modal-overlay" @click.self="showPetPanel = false">
+      <div class="modal-content">
+        <button class="modal-close" @click="showPetPanel = false">×</button>
+        <PetPanel />
+      </div>
+    </div>
   </nav>
 </template>
 
 <script>
-import { gameState, getCurrentRealm, saveGame, loadGame, resetGame, exportSave, importSave } from '../../store/gameStore'
+import { gameState, getCurrentRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter } from '../../store/gameStore'
 import SkillPanel from './SkillPanel.vue'
+import PetPanel from './PetPanel.vue'
 
 export default {
   name: 'NavBar',
   components: {
-    SkillPanel
+    SkillPanel,
+    PetPanel
   },
   data() {
     return {
       showSkillPanel: false,
+      showPetPanel: false,
       showSettings: false,
       showImportInput: false,
       importData: '',
@@ -120,6 +180,13 @@ export default {
         { name: 'brown', label: '古铜', gradient: 'linear-gradient(180deg, #1a1408 0%, #2d2315 100%)' },
         { name: 'ocean', label: '海洋', gradient: 'linear-gradient(180deg, #0a1520 0%, #152535 100%)' },
         { name: 'sunset', label: '日落', gradient: 'linear-gradient(180deg, #1a1020 0%, #2a1530 100%)' }
+      ],
+      qualityOptions: [
+        { key: 'white', name: '普通', color: '#ffffff' },
+        { key: 'green', name: '优秀', color: '#2ecc71' },
+        { key: 'blue', name: '精良', color: '#3498db' },
+        { key: 'purple', name: '史诗', color: '#9b59b6' },
+        { key: 'orange', name: '传说', color: '#e67e22' }
       ]
     }
   },
@@ -148,6 +215,13 @@ export default {
     },
     equippedPassiveCount() {
       return gameState.player.equippedPassiveSkills.length
+    },
+    activePetName() {
+      const pet = getActivePet()
+      return pet ? pet.name : null
+    },
+    lootFilter() {
+      return gameState.lootFilter
     }
   },
   methods: {
@@ -226,6 +300,27 @@ export default {
           alert('存档数据无效或已损坏！')
         }
       }
+    },
+    saveLootFilter() {
+      updateLootFilter(this.lootFilter)
+    },
+    setMinQuality(quality) {
+      this.lootFilter.minQuality = quality
+      this.saveLootFilter()
+    },
+    getLootFilterHint() {
+      const qualityNames = { white: '普通', green: '优秀', blue: '精良', purple: '史诗', orange: '传说' }
+      const minName = qualityNames[this.lootFilter.minQuality]
+      let hint = `只拾取【${minName}】及以上品质装备`
+      if (this.lootFilter.autoSellFiltered) {
+        hint += '，低品质自动卖出'
+      } else {
+        hint += '，低品质直接丢弃'
+      }
+      if (!this.lootFilter.pickupSkillBooks) {
+        hint += '，不拾取技能书'
+      }
+      return hint
     }
   }
 }
@@ -344,6 +439,15 @@ export default {
   background: #5a3a7a;
 }
 
+.nav-btn.pet {
+  background: #5a4a2a;
+  color: #ffcc99;
+}
+
+.nav-btn.pet:hover {
+  background: #6a5a3a;
+}
+
 .info-item.clickable {
   cursor: pointer;
   transition: all 0.2s;
@@ -355,6 +459,11 @@ export default {
 
 .info-item .value.skill {
   color: #d8b4fe;
+  font-size: 0.9em;
+}
+
+.info-item .value.pet {
+  color: #ff9f43;
   font-size: 0.9em;
 }
 
@@ -564,5 +673,113 @@ export default {
   background: rgba(39, 174, 96, 0.1);
   border-radius: 6px;
   border: 1px solid rgba(39, 174, 96, 0.3);
+}
+
+/* 装备筛选设置 */
+.loot-filter-settings {
+  background: #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.loot-filter-options {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #4a4a6a;
+}
+
+.filter-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 0.85em;
+  margin-bottom: 10px;
+}
+
+.filter-switch:last-child {
+  margin-bottom: 0;
+}
+
+.filter-switch input {
+  display: none;
+}
+
+.switch-slider {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  background: #4a4a6a;
+  border-radius: 10px;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.switch-slider::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #888;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: all 0.3s;
+}
+
+.filter-switch input:checked + .switch-slider {
+  background: #27ae60;
+}
+
+.filter-switch input:checked + .switch-slider::after {
+  left: 22px;
+  background: white;
+}
+
+.loot-option-row {
+  margin-bottom: 12px;
+}
+
+.option-label {
+  color: #888;
+  font-size: 0.85em;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.quality-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quality-buttons button {
+  padding: 4px 10px;
+  background: #1a1a2e;
+  border: 1px solid #4a4a6a;
+  border-radius: 4px;
+  font-size: 0.75em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quality-buttons button:hover {
+  background: #3a3a5a;
+}
+
+.quality-buttons button.active {
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+}
+
+.filter-hint {
+  color: #888;
+  font-size: 0.75em;
+  padding: 8px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  margin-top: 10px;
+  line-height: 1.4;
 }
 </style>

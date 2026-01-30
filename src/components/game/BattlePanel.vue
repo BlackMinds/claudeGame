@@ -91,6 +91,18 @@
         </div>
         <div class="hp-text">{{ playerCurrentHp }} / {{ maxHp }}</div>
       </div>
+
+      <!-- 宠物状态 -->
+      <div v-if="activePet" class="combatant pet-side" :class="{ dead: activePet.currentHp <= 0 }">
+        <div class="combatant-name">
+          <span class="pet-icon">{{ activePet.icon }}</span>
+          {{ activePet.name }}
+        </div>
+        <div class="hp-bar-wrap">
+          <div class="hp-bar pet" :style="{ width: petHpPercent + '%' }"></div>
+        </div>
+        <div class="hp-text">{{ activePet.currentHp }} / {{ activePet.baseHp }}</div>
+      </div>
     </div>
 
     <!-- 战斗日志 -->
@@ -158,7 +170,8 @@ import {
   gameState,
   getPlayerStats,
   startAutoBattle,
-  stopAutoBattle
+  stopAutoBattle,
+  getActivePet
 } from '../../store/gameStore'
 
 export default {
@@ -220,6 +233,14 @@ export default {
     },
     playerHpPercent() {
       return (this.playerCurrentHp / this.maxHp) * 100
+    },
+    // 宠物相关
+    activePet() {
+      return getActivePet()
+    },
+    petHpPercent() {
+      if (!this.activePet) return 0
+      return (this.activePet.currentHp / this.activePet.baseHp) * 100
     },
     // 锁妖塔相关
     isTowerMode() {
@@ -485,6 +506,24 @@ export default {
 
 .hp-bar.player {
   background: linear-gradient(90deg, #2980b9, #3498db);
+}
+
+.hp-bar.pet {
+  background: linear-gradient(90deg, #e67e22, #f39c12);
+}
+
+.pet-side {
+  background: #2a3a2a;
+  border: 1px solid #4a6a4a;
+  margin-top: 6px;
+}
+
+.pet-side .combatant-name {
+  color: #f39c12;
+}
+
+.pet-side .pet-icon {
+  margin-right: 4px;
 }
 
 .hp-text {

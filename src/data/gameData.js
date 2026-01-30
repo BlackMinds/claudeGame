@@ -836,3 +836,248 @@ export function getEnhancedStatValue(baseValue, enhanceLevel) {
   const bonus = getEnhanceBonus(enhanceLevel)
   return baseValue * (1 + bonus)
 }
+
+// ==================== 宠物系统 ====================
+
+// 宠物品质配置
+export const petQualityConfig = {
+  white: { name: '普通', color: '#ffffff', statMultiplier: 1, captureRate: 15 },
+  green: { name: '优秀', color: '#2ecc71', statMultiplier: 1.3, captureRate: 10 },
+  blue: { name: '精良', color: '#3498db', statMultiplier: 1.6, captureRate: 6 },
+  purple: { name: '史诗', color: '#9b59b6', statMultiplier: 2, captureRate: 3 },
+  orange: { name: '传说', color: '#e67e22', statMultiplier: 2.5, captureRate: 1 }
+}
+
+// 宠物种类（每个地图可捕获的宠物）
+export const petTypes = [
+  // 新手村
+  { id: 1, name: '小狐狸', mapId: 1, baseLevel: 1, icon: '🦊', skillPool: [1, 2] },
+  { id: 2, name: '野兔精', mapId: 1, baseLevel: 2, icon: '🐰', skillPool: [1, 10] },
+  // 黑风林
+  { id: 3, name: '黑狼', mapId: 2, baseLevel: 8, icon: '🐺', skillPool: [2, 3, 11] },
+  { id: 4, name: '毒蛇', mapId: 2, baseLevel: 10, icon: '🐍', skillPool: [3, 10] },
+  // 落日峰
+  { id: 5, name: '火鸦', mapId: 3, baseLevel: 18, icon: '🐦', skillPool: [1, 4, 12] },
+  { id: 6, name: '石傀儡', mapId: 3, baseLevel: 20, icon: '🗿', skillPool: [10, 11] },
+  // 血月谷
+  { id: 7, name: '血蝠', mapId: 4, baseLevel: 28, icon: '🦇', skillPool: [5, 15, 12] },
+  { id: 8, name: '骷髅兵', mapId: 4, baseLevel: 30, icon: '💀', skillPool: [4, 11] },
+  // 龙脊山脉
+  { id: 9, name: '幼龙', mapId: 5, baseLevel: 38, icon: '🐲', skillPool: [6, 4, 12] },
+  { id: 10, name: '雷鹰', mapId: 5, baseLevel: 40, icon: '🦅', skillPool: [3, 6, 13] },
+  // 天魔峡
+  { id: 11, name: '魔灵', mapId: 6, baseLevel: 45, icon: '👻', skillPool: [7, 5, 14] },
+  { id: 12, name: '炎魔', mapId: 6, baseLevel: 48, icon: '👹', skillPool: [1, 7, 12] },
+  // 虚空裂隙
+  { id: 13, name: '虚空兽', mapId: 7, baseLevel: 52, icon: '🌀', skillPool: [8, 14, 13] },
+  { id: 14, name: '星灵', mapId: 7, baseLevel: 55, icon: '✨', skillPool: [6, 8, 15] },
+  // 混沌深渊
+  { id: 15, name: '混沌幼兽', mapId: 8, baseLevel: 58, icon: '🌑', skillPool: [9, 7, 14] },
+  { id: 16, name: '远古魔神', mapId: 8, baseLevel: 60, icon: '😈', skillPool: [9, 8, 15] }
+]
+
+// 根据地图获取可捕获的宠物
+export function getPetsByMap(mapId) {
+  return petTypes.filter(p => p.mapId === mapId)
+}
+
+// 资质系数计算（资质1-10对应0.55-1.0的成长系数）
+export function getAptitudeMultiplier(aptitude) {
+  return 0.5 + aptitude * 0.05
+}
+
+// 计算宠物某一级的属性（基于初始属性+等级成长）
+export function calculatePetStats(level, quality, aptitude) {
+  const qualityData = petQualityConfig[quality]
+  const qualityMult = qualityData.statMultiplier
+  const aptMult = getAptitudeMultiplier(aptitude)
+
+  // 基础成长值（比玩家低）
+  // 玩家每级: HP+10, 攻击+3, 防御+2
+  // 宠物基础每级: HP+4, 攻击+1.2, 防御+0.8
+  const hpGrowth = 4 * aptMult * qualityMult
+  const atkGrowth = 1.2 * aptMult * qualityMult
+  const defGrowth = 0.8 * aptMult * qualityMult
+
+  // 初始属性 + 等级成长
+  const baseHp = Math.floor(80 + level * hpGrowth)
+  const baseAttack = Math.floor(8 + level * atkGrowth)
+  const baseDefense = Math.floor(4 + level * defGrowth)
+
+  return { baseHp, baseAttack, baseDefense }
+}
+
+// 生成宠物实例
+export function generatePet(petTypeId, level, forceQuality = null, maxAptitude = 8) {
+  const petType = petTypes.find(p => p.id === petTypeId)
+  if (!petType) return null
+
+  // 随机品质
+  let quality = forceQuality
+  if (!quality) {
+    const roll = Math.random() * 100
+    if (roll < 1) quality = 'orange'
+    else if (roll < 5) quality = 'purple'
+    else if (roll < 15) quality = 'blue'
+    else if (roll < 35) quality = 'green'
+    else quality = 'white'
+  }
+
+  const qualityData = petQualityConfig[quality]
+
+  // 随机资质（1到maxAptitude，高资质概率低）
+  // 资质分布：低资质多，高资质少
+  let aptitude
+  const aptRoll = Math.random() * 100
+  if (aptRoll < 5 && maxAptitude >= 8) aptitude = Math.min(8, maxAptitude)        // 5%概率最高资质
+  else if (aptRoll < 15 && maxAptitude >= 7) aptitude = Math.min(7, maxAptitude)  // 10%概率7资质
+  else if (aptRoll < 30 && maxAptitude >= 6) aptitude = Math.min(6, maxAptitude)  // 15%概率6资质
+  else if (aptRoll < 50 && maxAptitude >= 5) aptitude = Math.min(5, maxAptitude)  // 20%概率5资质
+  else if (aptRoll < 70 && maxAptitude >= 4) aptitude = Math.min(4, maxAptitude)  // 20%概率4资质
+  else if (aptRoll < 85 && maxAptitude >= 3) aptitude = Math.min(3, maxAptitude)  // 15%概率3资质
+  else if (aptRoll < 95 && maxAptitude >= 2) aptitude = Math.min(2, maxAptitude)  // 10%概率2资质
+  else aptitude = 1                                                                // 5%概率1资质
+
+  // 计算属性
+  const stats = calculatePetStats(level, quality, aptitude)
+
+  // 随机选择1-2个技能
+  const numSkills = Math.random() < 0.3 ? 2 : 1
+  const petSkills = []
+  const availableSkills = [...petType.skillPool]
+  for (let i = 0; i < numSkills && availableSkills.length > 0; i++) {
+    const idx = Math.floor(Math.random() * availableSkills.length)
+    petSkills.push(availableSkills.splice(idx, 1)[0])
+  }
+
+  return {
+    id: `pet_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    typeId: petType.id,
+    name: petType.name,
+    icon: petType.icon,
+    level,
+    exp: 0,
+    quality,
+    qualityName: qualityData.name,
+    qualityColor: qualityData.color,
+    // 资质（1-10）
+    aptitude,
+    // 属性
+    baseHp: stats.baseHp,
+    baseAttack: stats.baseAttack,
+    baseDefense: stats.baseDefense,
+    critRate: 5 + Math.floor(level / 10),
+    critDamage: 50,
+    dodge: 3,
+    hit: 95,
+    // 技能（技能ID数组）
+    skills: petSkills,
+    skillLevels: petSkills.reduce((acc, id) => { acc[id] = 1; return acc }, {}),
+    // 当前状态
+    currentHp: stats.baseHp
+  }
+}
+
+// 计算宠物升级所需经验
+export function getPetExpForLevel(level) {
+  return Math.floor(100 * level * (1 + level * 0.2))
+}
+
+// 计算宠物战斗属性
+export function getPetStats(pet) {
+  if (!pet) return null
+  return {
+    maxHp: pet.baseHp,
+    attack: pet.baseAttack,
+    defense: pet.baseDefense,
+    critRate: pet.critRate,
+    critDamage: pet.critDamage,
+    dodge: pet.dodge,
+    hit: pet.hit
+  }
+}
+
+// 生成宠物蛋（只有10/100/200层可获得）
+export function generatePetEgg(towerFloor) {
+  // 根据层数决定蛋的品质范围和资质上限
+  let qualityPool = []
+  let eggName = ''
+  let maxAptitude = 8 // 孵化最高资质8
+
+  if (towerFloor === 10) {
+    // 10层：最高精良，资质上限6
+    qualityPool = ['white', 'white', 'green', 'green', 'blue']
+    eggName = '初级宠物蛋'
+    maxAptitude = 6
+  } else if (towerFloor === 100) {
+    // 100层：最高史诗，资质上限7
+    qualityPool = ['green', 'blue', 'blue', 'purple']
+    eggName = '高级宠物蛋'
+    maxAptitude = 7
+  } else if (towerFloor === 200) {
+    // 200层：最高传说，资质上限8
+    qualityPool = ['blue', 'purple', 'purple', 'orange']
+    eggName = '至尊宠物蛋'
+    maxAptitude = 8
+  } else {
+    return null // 其他层数不掉落
+  }
+
+  const quality = qualityPool[Math.floor(Math.random() * qualityPool.length)]
+  const qualityData = petQualityConfig[quality]
+
+  return {
+    id: `petegg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'petEgg',
+    name: eggName,
+    quality,
+    qualityName: qualityData.name,
+    qualityColor: qualityData.color,
+    towerFloor, // 记录获取时的层数，用于决定宠物等级
+    maxAptitude // 资质上限
+  }
+}
+
+// 生成资质丹
+export function generateAptitudePill(towerFloor) {
+  if (towerFloor === 90) {
+    return {
+      id: `aptpill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'aptitudePill',
+      name: '资质丹',
+      tier: 1,
+      minBoost: 0.05,
+      maxBoost: 0.09,
+      maxAptitude: 9, // 最高培养到9
+      color: '#3498db'
+    }
+  } else if (towerFloor === 190) {
+    return {
+      id: `aptpill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'aptitudePill',
+      name: '高级资质丹',
+      tier: 2,
+      minBoost: 0.01,
+      maxBoost: 0.05,
+      maxAptitude: 10, // 最高培养到10
+      color: '#9b59b6'
+    }
+  }
+  return null
+}
+
+// 孵化宠物蛋（返回宠物或null）
+export function hatchPetEgg(petEgg) {
+  if (!petEgg || petEgg.type !== 'petEgg') return null
+
+  // 随机选择一个宠物类型
+  const petType = petTypes[Math.floor(Math.random() * petTypes.length)]
+
+  // 宠物等级基于获取蛋时的塔层
+  const petLevel = Math.max(1, Math.min(60, petEgg.towerFloor + 5))
+
+  // 使用蛋的资质上限
+  const maxAptitude = petEgg.maxAptitude || 8
+
+  return generatePet(petType.id, petLevel, petEgg.quality, maxAptitude)
+}
