@@ -1163,6 +1163,14 @@ function getBuffName(buffType) {
 export function battleRound() {
   if (!gameState.battle.isInBattle) return null
 
+  // 检查玩家是否已经死亡（防止负血量继续战斗）
+  if (gameState.battle.playerCurrentHp <= 0) {
+    gameState.battle.playerCurrentHp = 0
+    gameState.battle.isInBattle = false
+    stopAutoBattle()
+    return 'lose'
+  }
+
   gameState.battle.roundCount++
   updateCooldowns()
   updatePlayerBuffs()
@@ -1290,6 +1298,15 @@ export function battleRound() {
       const sacrificeHp = Math.floor(gameState.battle.playerCurrentHp * selectedSkill.effectValue / 100)
       gameState.battle.playerCurrentHp -= sacrificeHp
       addBattleLog(`使用【${selectedSkill.name}】消耗 ${sacrificeHp} 点生命！`, 'danger')
+
+      // 检查是否因牺牲技能死亡
+      if (gameState.battle.playerCurrentHp <= 0) {
+        gameState.battle.playerCurrentHp = 0
+        addBattleLog(`你因透支生命而倒下...`, 'danger')
+        gameState.battle.isInBattle = false
+        stopAutoBattle()
+        return 'lose'
+      }
     }
   }
 
@@ -1345,6 +1362,15 @@ export function battleRound() {
         const reflectDamage = Math.floor(damage * reflectSkill.value / 100)
         gameState.battle.playerCurrentHp -= reflectDamage
         addBattleLog(`反伤护盾反弹 ${reflectDamage} 伤害！`, 'warning')
+
+        // 检查是否因反伤死亡
+        if (gameState.battle.playerCurrentHp <= 0) {
+          gameState.battle.playerCurrentHp = 0
+          addBattleLog(`你被反伤击败了...`, 'danger')
+          gameState.battle.isInBattle = false
+          stopAutoBattle()
+          return 'lose'
+        }
       }
 
       targetMonster.currentHp -= damage
