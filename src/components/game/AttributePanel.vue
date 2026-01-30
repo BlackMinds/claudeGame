@@ -97,7 +97,8 @@
       <div class="exp-row">
         <div class="exp-label">
           <span>等级</span>
-          <span>{{ player.exp }} / {{ expToNextLevel }}</span>
+          <span v-if="isAtMaxLevel" class="max-level">MAX</span>
+          <span v-else>{{ player.exp }} / {{ expToNextLevel }}</span>
         </div>
         <div class="exp-bar-container">
           <div class="exp-bar level-exp" :style="{ width: levelExpPercent + '%' }"></div>
@@ -119,7 +120,7 @@
 </template>
 
 <script>
-import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm, getMaxPassiveSlots } from '../../store/gameStore'
+import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm, getMaxPassiveSlots, isMaxLevel } from '../../store/gameStore'
 import { skillRarityConfig } from '../../data/gameData'
 
 export default {
@@ -174,7 +175,11 @@ export default {
       return getExpToNextLevel()
     },
     levelExpPercent() {
+      if (this.isAtMaxLevel) return 100
       return Math.min(100, (this.player.exp / this.expToNextLevel) * 100)
+    },
+    isAtMaxLevel() {
+      return isMaxLevel()
     },
     nextRealmExp() {
       const next = getNextRealm()
@@ -389,5 +394,11 @@ export default {
 
 .exp-bar.realm-exp {
   background: linear-gradient(90deg, #4a90d9, #87ceeb);
+}
+
+.max-level {
+  color: #ffd700;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
 }
 </style>

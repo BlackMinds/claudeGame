@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { realms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier } from '../data/gameData'
+import { realms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook } from '../data/gameData'
 import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 获取网络时间（返回日期字符串 YYYY-MM-DD）
@@ -116,6 +116,8 @@ export const gameState = Vue.observable({
     // 宠物系统
     pets: [],           // 拥有的宠物列表
     activePetId: null,  // 当前出战的宠物ID
+    petEggs: [],        // 宠物蛋存储
+    aptitudePills: [],  // 资质丹存储
     // 宠物蛋每日领取记录 { 10: '2024-01-15', 100: '2024-01-15', 200: '2024-01-15' }
     petEggClaimedDates: {},
     // 资质丹每日领取记录 { 50: '2024-01-15', 150: '2024-01-15' }
@@ -152,7 +154,9 @@ export const gameState = Vue.observable({
     towerHighestFloor: 1,
     towerStartFloor: 1
   },
-  logs: []
+  logs: [],
+  // 开发用：经验倍率
+  devExpMultiplier: 1
 })
 
 // 获取当前境界
@@ -168,6 +172,16 @@ export function getNextRealm() {
 // 获取升级所需经验
 export function getExpToNextLevel() {
   return getExpForLevel(gameState.player.level)
+}
+
+// 检查是否满级
+export function isMaxLevel() {
+  return gameState.player.level >= MAX_LEVEL
+}
+
+// 获取最高等级
+export function getMaxLevel() {
+  return MAX_LEVEL
 }
 
 // 计算装备提供的属性加成（包含强化加成）
@@ -284,12 +298,21 @@ export function calculateDamage(attack, defense, penetration, skillDamage, isCri
   return Math.max(1, Math.floor(finalDamage))
 }
 
+// 最高等级
+const MAX_LEVEL = 1000
+
 // 检查并升级
 export function checkLevelUp() {
+  // 已达到最高等级
+  if (gameState.player.level >= MAX_LEVEL) {
+    gameState.player.exp = getExpToNextLevel() // 经验条保持满
+    return false
+  }
+
   let expNeeded = getExpToNextLevel()
   let leveledUp = false
 
-  while (gameState.player.exp >= expNeeded) {
+  while (gameState.player.exp >= expNeeded && gameState.player.level < MAX_LEVEL) {
     gameState.player.exp -= expNeeded
     gameState.player.level++
 
@@ -297,15 +320,20 @@ export function checkLevelUp() {
     gameState.player.baseAttack += 3
     gameState.player.baseDefense += 2
 
-    if (gameState.player.level % 5 === 0) {
+    if (gameState.player.level % 20 === 0) {
       gameState.player.critRate += 1
-    }
-    if (gameState.player.level % 10 === 0) {
-      gameState.player.penetration += 1
     }
 
     addLog(`升级了！当前等级 ${gameState.player.level}`, 'success')
     leveledUp = true
+
+    // 检查是否达到最高等级
+    if (gameState.player.level >= MAX_LEVEL) {
+      gameState.player.exp = getExpToNextLevel() // 经验条满
+      addLog(`恭喜达到最高等级 ${MAX_LEVEL} 级！`, 'success')
+      break
+    }
+
     expNeeded = getExpToNextLevel()
   }
 
@@ -381,11 +409,6 @@ export function shouldPickupItem(item) {
   // 技能书单独判断
   if (item.type === 'skillBook') {
     return { pickup: filter.pickupSkillBooks }
-  }
-
-  // 宠物蛋和资质丹始终拾取
-  if (item.type === 'petEgg' || item.type === 'aptitudePill') {
-    return { pickup: true }
   }
 
   // 检查品质
@@ -866,7 +889,21 @@ const PET_LIMIT = 10
 // 获取当前出战的宠物
 export function getActivePet() {
   if (!gameState.player.activePetId) return null
-  return gameState.player.pets.find(p => p.id === gameState.player.activePetId)
+  const pet = gameState.player.pets.find(p => p.id === gameState.player.activePetId)
+  if (pet) {
+    // 确保宠物属性正确
+    if (!pet.baseHp || pet.baseHp <= 0) {
+      const aptitude = pet.aptitude || 5
+      const stats = calculatePetStats(pet.level, pet.quality, aptitude)
+      pet.baseHp = stats.baseHp
+      pet.baseAttack = stats.baseAttack
+      pet.baseDefense = stats.baseDefense
+    }
+    if (!pet.currentHp || pet.currentHp <= 0) {
+      pet.currentHp = pet.baseHp
+    }
+  }
+  return pet
 }
 
 // 添加宠物
@@ -923,16 +960,22 @@ export function recallPet() {
   return true
 }
 
+// 宠物最高等级
+const PET_MAX_LEVEL = 500
+
 // 宠物获得经验
 export function addPetExp(petId, amount) {
   const pet = gameState.player.pets.find(p => p.id === petId)
   if (!pet) return
 
+  // 已满级不获取经验
+  if (pet.level >= PET_MAX_LEVEL) return
+
   pet.exp += amount
 
   // 检查升级
   let expNeeded = getPetExpForLevel(pet.level)
-  while (pet.exp >= expNeeded && pet.level < 60) {
+  while (pet.exp >= expNeeded && pet.level < PET_MAX_LEVEL) {
     pet.exp -= expNeeded
     pet.level++
 
@@ -948,6 +991,14 @@ export function addPetExp(petId, amount) {
     }
 
     addLog(`宠物【${pet.name}】升级到 ${pet.level} 级！`, 'success')
+
+    // 检查是否达到最高等级
+    if (pet.level >= PET_MAX_LEVEL) {
+      addLog(`宠物【${pet.name}】已达到最高等级 ${PET_MAX_LEVEL} 级！`, 'success')
+      pet.exp = 0
+      break
+    }
+
     expNeeded = getPetExpForLevel(pet.level)
   }
 }
@@ -968,8 +1019,11 @@ export function getPetsWithDetails() {
 }
 
 // 使用宠物蛋孵化宠物
-export function usePetEgg(inventoryIndex) {
-  const item = gameState.player.inventory[inventoryIndex]
+export function usePetEgg(eggIndex) {
+  if (!gameState.player.petEggs) {
+    gameState.player.petEggs = []
+  }
+  const item = gameState.player.petEggs[eggIndex]
   if (!item || item.type !== 'petEgg') {
     addLog('无效的物品', 'danger')
     return false
@@ -989,18 +1043,25 @@ export function usePetEgg(inventoryIndex) {
   }
 
   // 移除宠物蛋
-  gameState.player.inventory.splice(inventoryIndex, 1)
+  gameState.player.petEggs.splice(eggIndex, 1)
 
   // 添加宠物
   gameState.player.pets.push(pet)
-  addLog(`孵化出【${pet.qualityName}】${pet.name}（资质${pet.aptitude}）！`, 'success')
+  if (pet.hasHiddenSkill) {
+    addLog(`孵化出【${pet.qualityName}】${pet.name}（资质${pet.aptitude}）！觉醒了隐藏技能！`, 'success')
+  } else {
+    addLog(`孵化出【${pet.qualityName}】${pet.name}（资质${pet.aptitude}）！`, 'success')
+  }
   autoSave()
   return true
 }
 
 // 使用资质丹提升宠物资质
-export function useAptitudePill(inventoryIndex, petId) {
-  const item = gameState.player.inventory[inventoryIndex]
+export function useAptitudePill(pillIndex, petId) {
+  if (!gameState.player.aptitudePills) {
+    gameState.player.aptitudePills = []
+  }
+  const item = gameState.player.aptitudePills[pillIndex]
   if (!item || item.type !== 'aptitudePill') {
     addLog('无效的物品', 'danger')
     return false
@@ -1039,11 +1100,239 @@ export function useAptitudePill(inventoryIndex, petId) {
   pet.baseDefense = newStats.baseDefense
 
   // 移除资质丹
-  gameState.player.inventory.splice(inventoryIndex, 1)
+  gameState.player.aptitudePills.splice(pillIndex, 1)
 
   addLog(`【${pet.name}】资质提升 +${actualBoost.toFixed(2)}（${oldAptitude.toFixed(2)} → ${pet.aptitude.toFixed(2)}）`, 'success')
   autoSave()
   return true
+}
+
+// 获取宠物蛋列表
+export function getPetEggs() {
+  return gameState.player.petEggs || []
+}
+
+// 获取资质丹列表
+export function getAptitudePills() {
+  return gameState.player.aptitudePills || []
+}
+
+// 获取宠物技能书列表
+export function getPetSkillBooks() {
+  return gameState.player.petSkillBooks || []
+}
+
+// 预览开启宠物技能书（只返回结果，不消耗技能书）
+export function previewOpenPetSkillBook(bookIndex) {
+  if (!gameState.player.petSkillBooks) {
+    gameState.player.petSkillBooks = []
+  }
+  const book = gameState.player.petSkillBooks[bookIndex]
+  if (!book || book.type !== 'petSkillBook') {
+    addLog('无效的物品', 'danger')
+    return null
+  }
+
+  // 开书获得技能
+  const result = openPetSkillBook(book)
+  if (!result) {
+    addLog('开启技能书失败', 'danger')
+    return null
+  }
+
+  return result
+}
+
+// 让宠物学习已开出的技能
+export function learnPetSkill(bookIndex, petId, skillId) {
+  if (!gameState.player.petSkillBooks) {
+    gameState.player.petSkillBooks = []
+  }
+  const book = gameState.player.petSkillBooks[bookIndex]
+  if (!book || book.type !== 'petSkillBook') {
+    addLog('无效的物品', 'danger')
+    return false
+  }
+
+  const pet = gameState.player.pets.find(p => p.id === petId)
+  if (!pet) {
+    addLog('请选择要学习技能的宠物', 'danger')
+    return false
+  }
+
+  // 检查宠物技能栏是否已满（最多6个技能：1固定+1隐藏+4可学习）
+  const maxSkills = 6
+  if (pet.skills.length >= maxSkills) {
+    addLog(`【${pet.name}】技能栏已满（${maxSkills}个）`, 'warning')
+    return false
+  }
+
+  // 检查宠物是否已学过该技能
+  if (pet.skills.includes(skillId)) {
+    addLog(`【${pet.name}】已学会该技能`, 'warning')
+    return false
+  }
+
+  // 获取技能信息
+  const skill = getSkillById(skillId)
+  if (!skill) {
+    addLog('无效的技能', 'danger')
+    return false
+  }
+
+  // 学习技能
+  pet.skills.push(skillId)
+  if (!pet.skillLevels) pet.skillLevels = {}
+  pet.skillLevels[skillId] = 1
+
+  // 移除技能书
+  gameState.player.petSkillBooks.splice(bookIndex, 1)
+
+  const tierNames = { 1: '初级', 2: '中级', 3: '高级' }
+  addLog(`【${pet.name}】学会了${tierNames[skill.tier]}技能【${skill.name}】！`, 'success')
+  autoSave()
+  return true
+}
+
+// 丢弃技能书
+export function discardPetSkillBook(bookIndex) {
+  if (!gameState.player.petSkillBooks) {
+    gameState.player.petSkillBooks = []
+  }
+  if (bookIndex >= 0 && bookIndex < gameState.player.petSkillBooks.length) {
+    gameState.player.petSkillBooks.splice(bookIndex, 1)
+    addLog('丢弃了技能书', 'normal')
+    autoSave()
+    return true
+  }
+  return false
+}
+
+// 兼容旧函数（保留但不推荐使用）
+export function usePetSkillBook(bookIndex, petId) {
+  const result = previewOpenPetSkillBook(bookIndex)
+  if (!result) return false
+  return learnPetSkill(bookIndex, petId, result.skillId)
+}
+
+// ========== 兑换码系统 ==========
+// 预设兑换码（可以随时添加新的）
+const redeemCodes = {
+  'XIUXIAN2024': {
+    name: '修仙大礼包',
+    rewards: [
+      { type: 'petSkillBook', tier: 'advanced', count: 5 },
+      { type: 'petEgg', tier: 'advanced', count: 5 }
+    ]
+  },
+  'NEWPLAYER': {
+    name: '新手礼包',
+    rewards: [
+      { type: 'petSkillBook', tier: 'advanced', count: 5 },
+      { type: 'petEgg', tier: 'advanced', count: 5 }
+    ]
+  },
+  'VIP666': {
+    name: 'VIP礼包',
+    rewards: [
+      { type: 'petSkillBook', tier: 'advanced', count: 5 },
+      { type: 'petEgg', tier: 'advanced', count: 5 }
+    ]
+  }
+}
+
+// 使用兑换码
+export function useRedeemCode(code) {
+  if (!code) {
+    addLog('请输入兑换码', 'danger')
+    return { success: false, message: '请输入兑换码' }
+  }
+
+  const upperCode = code.toUpperCase().trim()
+  const codeData = redeemCodes[upperCode]
+
+  if (!codeData) {
+    addLog('无效的兑换码', 'danger')
+    return { success: false, message: '无效的兑换码' }
+  }
+
+  // 检查是否已使用过
+  if (!gameState.player.usedRedeemCodes) {
+    gameState.player.usedRedeemCodes = []
+  }
+
+  if (gameState.player.usedRedeemCodes.includes(upperCode)) {
+    addLog('该兑换码已使用过', 'warning')
+    return { success: false, message: '该兑换码已使用过' }
+  }
+
+  // 发放奖励
+  const rewardTexts = []
+
+  for (const reward of codeData.rewards) {
+    if (reward.type === 'petSkillBook') {
+      // 生成高级宠物技能书
+      if (!gameState.player.petSkillBooks) {
+        gameState.player.petSkillBooks = []
+      }
+      for (let i = 0; i < reward.count; i++) {
+        const skillBook = {
+          id: `petskillbook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${i}`,
+          type: 'petSkillBook',
+          name: '高级宠物技能书',
+          quality: 'epic',
+          availableTiers: [1, 2, 3],
+          towerFloor: 0 // 兑换获得
+        }
+        gameState.player.petSkillBooks.push(skillBook)
+      }
+      rewardTexts.push(`高级宠物技能书 x${reward.count}`)
+    } else if (reward.type === 'petEgg') {
+      // 生成高级宠物蛋（至尊宠物蛋）
+      if (!gameState.player.petEggs) {
+        gameState.player.petEggs = []
+      }
+      for (let i = 0; i < reward.count; i++) {
+        const qualityPool = ['blue', 'purple', 'purple', 'orange']
+        const quality = qualityPool[Math.floor(Math.random() * qualityPool.length)]
+        const qualityNames = { white: '普通', green: '精良', blue: '稀有', purple: '史诗', orange: '传说' }
+        const qualityColors = { white: '#ffffff', green: '#2ecc71', blue: '#3498db', purple: '#9b59b6', orange: '#e67e22' }
+
+        // 预先决定宠物类型和隐藏技能
+        const petTypeId = Math.floor(Math.random() * 16) + 1
+        const hasHiddenSkill = Math.random() < 0.1
+
+        const petEgg = {
+          id: `petegg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${i}`,
+          type: 'petEgg',
+          name: '至尊宠物蛋',
+          quality,
+          qualityName: qualityNames[quality],
+          qualityColor: qualityColors[quality],
+          towerFloor: 200, // 等同200层品质
+          maxAptitude: 8,
+          petTypeId,
+          hasHiddenSkill
+        }
+        gameState.player.petEggs.push(petEgg)
+      }
+      rewardTexts.push(`至尊宠物蛋 x${reward.count}`)
+    }
+  }
+
+  // 记录已使用
+  gameState.player.usedRedeemCodes.push(upperCode)
+
+  const message = `兑换成功！获得：${rewardTexts.join('、')}`
+  addLog(message, 'success')
+  autoSave()
+
+  return { success: true, message, rewardTexts }
+}
+
+// 获取已使用的兑换码列表
+export function getUsedRedeemCodes() {
+  return gameState.player.usedRedeemCodes || []
 }
 
 // 开始战斗
@@ -1169,14 +1458,14 @@ export async function towerFloorCleared() {
     } else {
       const petEgg = generatePetEgg(floor)
       if (petEgg) {
-        if (addToInventory(petEgg)) {
-          // 记录领取日期
-          gameState.player.petEggClaimedDates[floor] = today
-          addBattleLog(`获得【${petEgg.name}】(${petEgg.qualityName})！`, 'success')
-          addLog(`锁妖塔第${floor}层奖励：【${petEgg.name}】(${petEgg.qualityName})`, 'success')
-        } else {
-          addBattleLog(`获得【${petEgg.name}】，但背包已满！`, 'warning')
+        // 直接添加到宠物蛋存储
+        if (!gameState.player.petEggs) {
+          gameState.player.petEggs = []
         }
+        gameState.player.petEggs.push(petEgg)
+        gameState.player.petEggClaimedDates[floor] = today
+        addBattleLog(`获得【${petEgg.name}】(${petEgg.qualityName})！`, 'success')
+        addLog(`锁妖塔第${floor}层奖励：【${petEgg.name}】(${petEgg.qualityName})`, 'success')
       }
     }
   }
@@ -1193,13 +1482,38 @@ export async function towerFloorCleared() {
     } else {
       const pill = generateAptitudePill(floor)
       if (pill) {
-        if (addToInventory(pill)) {
-          gameState.player.aptitudePillClaimedDates[floor] = today
-          addBattleLog(`获得【${pill.name}】！`, 'success')
-          addLog(`锁妖塔第${floor}层奖励：【${pill.name}】`, 'success')
-        } else {
-          addBattleLog(`获得【${pill.name}】，但背包已满！`, 'warning')
+        // 直接添加到资质丹存储
+        if (!gameState.player.aptitudePills) {
+          gameState.player.aptitudePills = []
         }
+        gameState.player.aptitudePills.push(pill)
+        gameState.player.aptitudePillClaimedDates[floor] = today
+        addBattleLog(`获得【${pill.name}】！`, 'success')
+        addLog(`锁妖塔第${floor}层奖励：【${pill.name}】`, 'success')
+      }
+    }
+  }
+
+  // 宠物技能书掉落（指定层数：110-170初级，180-190中级，300/400高级）
+  if (shouldDropPetSkillBook(floor)) {
+    if (!gameState.player.petSkillBookClaimedDates) {
+      gameState.player.petSkillBookClaimedDates = {}
+    }
+    const lastClaimed = gameState.player.petSkillBookClaimedDates[floor]
+
+    if (lastClaimed === today) {
+      addBattleLog(`今日已领取过第${floor}层宠物技能书`, 'normal')
+    } else {
+      const skillBook = generatePetSkillBook(floor)
+      if (skillBook) {
+        // 添加到宠物技能书存储
+        if (!gameState.player.petSkillBooks) {
+          gameState.player.petSkillBooks = []
+        }
+        gameState.player.petSkillBooks.push(skillBook)
+        gameState.player.petSkillBookClaimedDates[floor] = today
+        addBattleLog(`获得【${skillBook.name}】！`, 'success')
+        addLog(`锁妖塔第${floor}层奖励：【${skillBook.name}】`, 'success')
       }
     }
   }
@@ -1592,21 +1906,28 @@ export function battleRound() {
           targetMonster.currentHp = 0
           gameState.battle.killCount++
 
-          // 奖励
-          gameState.player.exp += targetMonster.exp
-          gameState.player.realmExp += Math.floor(targetMonster.exp / 4) // 修为获取降低
+          // 奖励（应用经验倍率）
+          const expGain = targetMonster.exp * gameState.devExpMultiplier
+          gameState.player.exp += expGain
+          gameState.player.realmExp += Math.floor(expGain / 4) // 修为获取降低
           gameState.player.gold += targetMonster.gold
 
-          // 给所有已装备的主动技能增加经验（降低获取量）
+          // 给所有已装备的主动技能增加经验（降低获取量，应用倍率）
+          const skillExpGain = Math.floor(expGain / 8)
           for (const skillId of gameState.player.equippedActiveSkills) {
-            addSkillExp(skillId, Math.floor(targetMonster.exp / 8))
+            addSkillExp(skillId, skillExpGain)
           }
-          // 给所有已装备的被动技能增加经验（降低获取量）
+          // 给所有已装备的被动技能增加经验（降低获取量，应用倍率）
           for (const skillId of gameState.player.equippedPassiveSkills) {
-            addSkillExp(skillId, Math.floor(targetMonster.exp / 8))
+            addSkillExp(skillId, skillExpGain)
+          }
+          // 给出战宠物增加经验
+          const activePetForExp = getActivePet()
+          if (activePetForExp) {
+            addPetExp(activePetForExp.id, Math.floor(expGain / 4))
           }
 
-          addBattleLog(`击败 ${targetMonster.name}！+${targetMonster.exp}经验 +${targetMonster.gold}灵石`, 'success')
+          addBattleLog(`击败 ${targetMonster.name}！+${expGain}经验 +${targetMonster.gold}灵石`, 'success')
 
           // 装备掉落（加上dropRate属性加成）
           const effectiveDropRate = targetMonster.dropRate + stats.dropRate
@@ -1720,15 +2041,16 @@ export function battleRound() {
           petTarget.currentHp = 0
           gameState.battle.killCount++
 
-          // 奖励
-          gameState.player.exp += petTarget.exp
-          gameState.player.realmExp += Math.floor(petTarget.exp / 4)
+          // 奖励（应用经验倍率）
+          const petExpGain = petTarget.exp * gameState.devExpMultiplier
+          gameState.player.exp += petExpGain
+          gameState.player.realmExp += Math.floor(petExpGain / 4)
           gameState.player.gold += petTarget.gold
 
-          // 宠物获得经验
-          addPetExp(activePet.id, Math.floor(petTarget.exp / 3))
+          // 宠物获得经验（应用倍率）
+          addPetExp(activePet.id, Math.floor(petExpGain / 3))
 
-          addBattleLog(`宠物击败 ${petTarget.name}！+${petTarget.exp}经验 +${petTarget.gold}灵石`, 'success')
+          addBattleLog(`宠物击败 ${petTarget.name}！+${petExpGain}经验 +${petTarget.gold}灵石`, 'success')
 
           checkLevelUp()
           checkRealmBreakthrough()
@@ -1935,17 +2257,25 @@ export function stopAutoBattle() {
   addBattleLog('停止自动战斗', 'warning')
 }
 
+// 检查是否为开发环境
+function isDevEnvironment() {
+  const hostname = window.location.hostname
+  return hostname === 'localhost' || hostname === '127.0.0.1'
+}
+
 // 保存游戏（加密）
 export function saveGame(silent = false) {
-  // 数据合理性检查
-  const validation = validatePlayerData(gameState.player)
-  if (!validation.valid) {
-    console.warn('数据异常:', validation.errors)
-    // 如果数据异常，不保存并警告
-    if (!silent) {
-      addLog('存档失败：检测到数据异常！', 'danger')
+  // 数据合理性检查（开发环境跳过）
+  if (!isDevEnvironment()) {
+    const validation = validatePlayerData(gameState.player)
+    if (!validation.valid) {
+      console.warn('数据异常:', validation.errors)
+      // 如果数据异常，不保存并警告
+      if (!silent) {
+        addLog('存档失败：检测到数据异常！', 'danger')
+      }
+      return false
     }
-    return false
   }
 
   const saveData = {
@@ -2052,21 +2382,57 @@ export function loadGame() {
       if (data.player.bonusInventorySlots === undefined) {
         data.player.bonusInventorySlots = 0
       }
-      // 兼容旧宠物数据（添加资质）
+      // 兼容旧宠物数据（添加资质和血量）
       if (data.player.pets) {
         for (const pet of data.player.pets) {
           if (pet.aptitude === undefined) {
             pet.aptitude = 5 // 旧宠物默认5资质
           }
+          // 重新计算宠物属性
+          const petStats = calculatePetStats(pet.level, pet.quality, pet.aptitude)
+          pet.baseHp = petStats.baseHp
+          pet.baseAttack = petStats.baseAttack
+          pet.baseDefense = petStats.baseDefense
+          // 初始化currentHp
+          if (pet.currentHp === undefined || pet.currentHp <= 0) {
+            pet.currentHp = pet.baseHp
+          }
+        }
+      }
+      // 宠物蛋和资质丹存储兼容
+      if (!data.player.petEggs) {
+        data.player.petEggs = []
+      }
+      if (!data.player.aptitudePills) {
+        data.player.aptitudePills = []
+      }
+      // 迁移背包中的宠物蛋和资质丹到新存储
+      if (data.player.inventory) {
+        const itemsToRemove = []
+        for (let i = 0; i < data.player.inventory.length; i++) {
+          const item = data.player.inventory[i]
+          if (item.type === 'petEgg') {
+            data.player.petEggs.push(item)
+            itemsToRemove.push(i)
+          } else if (item.type === 'aptitudePill') {
+            data.player.aptitudePills.push(item)
+            itemsToRemove.push(i)
+          }
+        }
+        // 从后往前删除，避免索引错乱
+        for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+          data.player.inventory.splice(itemsToRemove[i], 1)
         }
       }
 
-      // 数据合理性验证
-      const validation = validatePlayerData(data.player)
-      if (!validation.valid) {
-        console.warn('存档数据异常:', validation.errors)
-        addLog(`存档数据异常：${validation.errors.join('、')}`, 'danger')
-        return false
+      // 数据合理性验证（开发环境跳过）
+      if (!isDevEnvironment()) {
+        const validation = validatePlayerData(data.player)
+        if (!validation.valid) {
+          console.warn('存档数据异常:', validation.errors)
+          addLog(`存档数据异常：${validation.errors.join('、')}`, 'danger')
+          return false
+        }
       }
 
       Object.assign(gameState.player, data.player)
@@ -2103,11 +2469,13 @@ export function loadGame() {
 
 // 导出存档（返回加密字符串）
 export function exportSave() {
-  // 数据合理性检查
-  const validation = validatePlayerData(gameState.player)
-  if (!validation.valid) {
-    console.warn('数据异常，无法导出:', validation.errors)
-    return null
+  // 数据合理性检查（开发环境跳过）
+  if (!isDevEnvironment()) {
+    const validation = validatePlayerData(gameState.player)
+    if (!validation.valid) {
+      console.warn('数据异常，无法导出:', validation.errors)
+      return null
+    }
   }
 
   const saveData = {
@@ -2191,20 +2559,56 @@ export function importSave(encryptedData) {
     if (data.player.bonusInventorySlots === undefined) {
       data.player.bonusInventorySlots = 0
     }
-    // 兼容旧宠物数据（添加资质）
+    // 兼容旧宠物数据（添加资质和血量）
     if (data.player.pets) {
       for (const pet of data.player.pets) {
         if (pet.aptitude === undefined) {
           pet.aptitude = 5 // 旧宠物默认5资质
         }
+        // 重新计算宠物属性
+        const petStats = calculatePetStats(pet.level, pet.quality, pet.aptitude)
+        pet.baseHp = petStats.baseHp
+        pet.baseAttack = petStats.baseAttack
+        pet.baseDefense = petStats.baseDefense
+        // 初始化currentHp
+        if (pet.currentHp === undefined || pet.currentHp <= 0) {
+          pet.currentHp = pet.baseHp
+        }
+      }
+    }
+    // 宠物蛋和资质丹存储兼容
+    if (!data.player.petEggs) {
+      data.player.petEggs = []
+    }
+    if (!data.player.aptitudePills) {
+      data.player.aptitudePills = []
+    }
+    // 迁移背包中的宠物蛋和资质丹到新存储
+    if (data.player.inventory) {
+      const itemsToRemove = []
+      for (let i = 0; i < data.player.inventory.length; i++) {
+        const item = data.player.inventory[i]
+        if (item.type === 'petEgg') {
+          data.player.petEggs.push(item)
+          itemsToRemove.push(i)
+        } else if (item.type === 'aptitudePill') {
+          data.player.aptitudePills.push(item)
+          itemsToRemove.push(i)
+        }
+      }
+      // 从后往前删除，避免索引错乱
+      for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+        data.player.inventory.splice(itemsToRemove[i], 1)
       }
     }
 
-    // 数据合理性验证
-    const validation = validatePlayerData(data.player)
-    if (!validation.valid) {
-      addLog(`存档数据异常：${validation.errors.join('、')}`, 'danger')
-      return false
+    // 数据合理性验证（开发环境跳过）
+    if (!isDevEnvironment()) {
+      const validation = validatePlayerData(data.player)
+      if (!validation.valid) {
+        addLog(`存档数据异常：${validation.errors.join('、')}`, 'danger')
+        return false
+      }
     }
 
     Object.assign(gameState.player, data.player)
@@ -2268,6 +2672,8 @@ export function resetGame() {
     // 宠物系统
     pets: [],
     activePetId: null,
+    petEggs: [],
+    aptitudePills: [],
     petEggClaimedDates: {},
     aptitudePillClaimedDates: {},
     // 锁妖塔奖励
@@ -2304,4 +2710,58 @@ export function resetGame() {
 
   gameState.logs = []
   addLog('开始新的修仙之旅！', 'success')
+}
+
+// 开发测试：添加测试装备（仅开发环境可用）
+export function addTestEquipment() {
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    console.log('仅开发环境可用')
+    return
+  }
+  const testArtifact = {
+    id: 'test_artifact_' + Date.now(),
+    name: '测试神器·混沌珠',
+    slotType: 'artifact',
+    type: 'equipment',
+    level: 100,
+    requiredLevel: 1,
+    quality: 'orange',
+    qualityName: '传说',
+    qualityColor: '#e67e22',
+    icon: '🔮',
+    enhanceLevel: 10,
+    stats: {
+      hp: 100000,
+      attack: 10000,
+      defense: 10000
+    }
+  }
+  gameState.player.equipment.artifact = testArtifact
+  autoSave()
+  addLog('测试装备已添加！', 'success')
+  console.log('测试法宝已装备！')
+}
+
+// 开发测试：切换百倍经验（仅开发环境可用）
+export function toggleExpMultiplier() {
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    console.log('仅开发环境可用')
+    return false
+  }
+  if (gameState.devExpMultiplier === 1) {
+    gameState.devExpMultiplier = 100
+    addLog('百倍经验已开启！', 'success')
+    console.log('百倍经验已开启！')
+    return true
+  } else {
+    gameState.devExpMultiplier = 1
+    addLog('百倍经验已关闭', 'normal')
+    console.log('百倍经验已关闭')
+    return false
+  }
+}
+
+// 获取当前经验倍率
+export function getExpMultiplier() {
+  return gameState.devExpMultiplier
 }

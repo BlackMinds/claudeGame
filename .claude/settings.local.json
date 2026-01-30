@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create vue@2 -- xiuxian-game --default)",
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "WebFetch(domain:www.guajigame.com)",
+      "WebSearch",
+      "Bash(npx vite build:*)",
+      "Bash(npm run build:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: 修仙传 - 文字RPG游戏\n\n功能特性:\n- 完整的技能系统（25个技能，包含主动/被动技能）\n- 装备系统（7个槽位，5种品质，5种武器类型）\n- 11个地图区域（1-60级）\n- 境界系统（9个境界）\n- 自动战斗系统\n- 怪物技能和buff系统\n- 存档加密保存/导出/导入\n- 掉落表查看功能\n- 背景颜色自定义\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: 添加安全防护和数值平衡调整\n\n安全防护:\n- 禁用F12、Ctrl+Shift+I等开发者工具快捷键\n- 禁用右键菜单\n- 检测开发者工具打开状态\n- 添加数据校验和（checksum）验证\n- 添加数值合理性检查（等级、金币、属性等）\n- 存档版本升级到v6\n\n数值平衡:\n- 移除技能商店，所有技能改为怪物掉落\n- 修复已学习技能列表滚动问题\n- 添加地图难度倍率系统（1x-20x）\n- 重新平衡怪物属性公式，后期地图更具挑战性\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: 添加装备强化系统\n\n强化功能:\n- 最高强化等级: +10\n- 使用灵石强化，费用随装备等级和强化等级递增\n- +1到+6: 100%成功率\n- +7: 80%, +8: 65%, +9: 50%, +10: 35%\n- +6以上失败会掉落1-3级\n- 每级强化增加5%属性加成\n- 点击已装备的装备打开强化面板\n\nUI更新:\n- 装备显示强化等级标签（+N）\n- 属性显示格式: 基础值 \\(强化后\\)\n- 强化面板显示费用、成功率、警告提示\n- 强化结果动画效果\n\n安全验证:\n- 添加强化等级范围检查\\(0-10\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(timeout:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(git checkout:*)"
+    ]
+  }
+}

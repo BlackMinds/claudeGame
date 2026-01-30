@@ -19,6 +19,10 @@
         :class="{ active: activeTab === 'pills' }"
         @click="activeTab = 'pills'"
       >资质丹</button>
+      <button
+        :class="{ active: activeTab === 'skillbooks' }"
+        @click="activeTab = 'skillbooks'"
+      >技能书</button>
     </div>
 
     <!-- 宠物列表 -->
@@ -101,6 +105,68 @@
       </div>
     </div>
 
+    <!-- 技能书列表 -->
+    <div v-if="activeTab === 'skillbooks'" class="skillbook-list">
+      <div v-if="petSkillBooks.length === 0" class="empty-hint">
+        没有宠物技能书，通关锁妖塔110-170/180-190/300/400层可获得
+      </div>
+      <div
+        v-for="(book, index) in petSkillBooks"
+        :key="book.id"
+        class="skillbook-card"
+        :class="'quality-' + book.quality"
+      >
+        <div class="skillbook-icon">📖</div>
+        <div class="skillbook-info">
+          <div class="skillbook-name" :class="'text-' + book.quality">{{ book.name }}</div>
+          <div class="skillbook-desc">
+            可开出：{{ getAvailableTiersText(book.availableTiers) }}
+          </div>
+        </div>
+        <button
+          class="use-skillbook-btn"
+          @click="openSkillBook(index)"
+        >开启</button>
+      </div>
+
+      <!-- 开书结果弹窗 -->
+      <div v-if="openedSkill" class="opened-skill-modal">
+        <div class="opened-skill-content">
+          <div class="opened-skill-title">获得技能！</div>
+          <div class="opened-skill-name" :class="'rarity-' + openedSkill.skillRarity">
+            {{ openedSkill.skillName }}
+          </div>
+          <div class="opened-skill-tier">
+            {{ getTierName(openedSkill.skillTier) }}技能
+          </div>
+          <div class="opened-skill-desc">{{ getSkillDescription(openedSkill.skillId) }}</div>
+
+          <div class="learn-section">
+            <div class="learn-title">选择宠物学习：</div>
+            <div class="pet-select-list">
+              <div
+                v-for="pet in pets"
+                :key="pet.id"
+                class="pet-select-item"
+                :class="{ selected: learnTargetPetId === pet.id, disabled: isPetSkillFull(pet) || petHasSkill(pet, openedSkill.skillId) }"
+                @click="selectLearnTarget(pet)"
+              >
+                <span class="pet-select-icon">{{ pet.icon }}</span>
+                <span class="pet-select-name" :style="{ color: pet.qualityColor }">{{ pet.name }}</span>
+                <span class="pet-select-skills">{{ pet.skills.length }}/6</span>
+                <span v-if="petHasSkill(pet, openedSkill.skillId)" class="pet-has-skill">已学会</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="opened-skill-actions">
+            <button class="learn-btn" @click="confirmLearnSkill" :disabled="!learnTargetPetId">学习技能</button>
+            <button class="discard-btn" @click="discardOpenedSkill">丢弃技能</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 选中宠物详情 -->
     <div v-if="selectedPet" class="pet-detail">
       <div class="detail-header">
@@ -136,13 +202,49 @@
           <span class="stat-label">暴击率</span>
           <span class="stat-value">{{ selectedPet.critRate }}%</span>
         </div>
+        <div class="stat-row">
+          <span class="stat-label">暴击伤害</span>
+          <span class="stat-value">{{ 150 + (selectedPet.critDamage || 50) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">抗暴击</span>
+          <span class="stat-value">{{ selectedPet.critResist || 0 }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">闪避率</span>
+          <span class="stat-value">{{ selectedPet.dodge || 3 }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">命中率</span>
+          <span class="stat-value">{{ selectedPet.hit || 95 }}%</span>
+        </div>
       </div>
 
       <div class="detail-skills" v-if="selectedPet.skills && selectedPet.skills.length > 0">
         <div class="skills-title">技能</div>
         <div class="skill-list">
-          <div v-for="skillId in selectedPet.skills" :key="skillId" class="skill-item">
+          <div
+            v-for="skillId in selectedPet.skills"
+            :key="skillId"
+            class="skill-item"
+            @mouseenter="showSkillTooltip(skillId, $event)"
+            @mouseleave="hideSkillTooltip"
+          >
             {{ getSkillName(skillId) }}
+          </div>
+        </div>
+        <!-- 技能提示框 -->
+        <div v-if="tooltipSkill" class="skill-tooltip" :style="tooltipStyle">
+          <div class="tooltip-name">{{ tooltipSkill.name }}</div>
+          <div class="tooltip-desc">{{ tooltipSkill.description }}</div>
+          <div class="tooltip-stats" v-if="tooltipSkill.baseDamageMultiplier">
+            伤害倍率: {{ (tooltipSkill.baseDamageMultiplier * 100).toFixed(0) }}%
+          </div>
+          <div class="tooltip-stats" v-if="tooltipSkill.cooldown">
+            冷却: {{ tooltipSkill.cooldown }}回合
+          </div>
+          <div class="tooltip-stats" v-if="tooltipSkill.effect">
+            特效: {{ getEffectName(tooltipSkill.effect) }}
           </div>
         </div>
       </div>
@@ -180,14 +282,19 @@
 
 <script>
 import {
-  gameState,
   getPetsWithDetails,
   getActivePet,
   deployPet,
   recallPet,
   releasePet,
   usePetEgg,
-  useAptitudePill
+  useAptitudePill,
+  getPetEggs,
+  getAptitudePills,
+  getPetSkillBooks,
+  previewOpenPetSkillBook,
+  learnPetSkill,
+  discardPetSkillBook
 } from '../../store/gameStore'
 import { getSkillById } from '../../data/gameData'
 
@@ -197,7 +304,12 @@ export default {
     return {
       activeTab: 'pets',
       selectedPetId: null,
-      petLimit: 10
+      petLimit: 10,
+      tooltipSkill: null,
+      tooltipStyle: { top: '0px', left: '0px' },
+      openedSkill: null,
+      openedSkillBookIndex: null,
+      learnTargetPetId: null
     }
   },
   computed: {
@@ -212,10 +324,13 @@ export default {
       return this.pets.find(p => p.id === this.selectedPetId)
     },
     petEggs() {
-      return gameState.player.inventory.filter(item => item.type === 'petEgg')
+      return getPetEggs()
     },
     aptitudePills() {
-      return gameState.player.inventory.filter(item => item.type === 'aptitudePill')
+      return getAptitudePills()
+    },
+    petSkillBooks() {
+      return getPetSkillBooks()
     }
   },
   methods: {
@@ -229,6 +344,21 @@ export default {
     getSkillName(skillId) {
       const skill = getSkillById(skillId)
       return skill ? skill.name : '未知技能'
+    },
+    getSkillDescription(skillId) {
+      const skill = getSkillById(skillId)
+      if (!skill) return '未知技能'
+      let desc = skill.description
+      if (skill.baseDamageMultiplier) {
+        desc += `\n伤害倍率: ${(skill.baseDamageMultiplier * 100).toFixed(0)}%`
+      }
+      if (skill.cooldown) {
+        desc += `\n冷却: ${skill.cooldown}回合`
+      }
+      if (skill.effect) {
+        desc += `\n特效: ${skill.effect}`
+      }
+      return desc
     },
     handleDeploy() {
       if (this.selectedPetId) {
@@ -244,15 +374,8 @@ export default {
         this.selectedPetId = null
       }
     },
-    hatchEgg(inventoryIndex) {
-      // 找到对应的背包索引
-      const eggs = gameState.player.inventory
-        .map((item, idx) => ({ item, idx }))
-        .filter(({ item }) => item.type === 'petEgg')
-
-      if (eggs[inventoryIndex]) {
-        usePetEgg(eggs[inventoryIndex].idx)
-      }
+    hatchEgg(eggIndex) {
+      usePetEgg(eggIndex)
     },
     formatAptitude(aptitude) {
       return aptitude.toFixed(2)
@@ -268,14 +391,84 @@ export default {
       if (!this.selectedPetId) {
         return
       }
-      // 找到对应的背包索引
-      const pills = gameState.player.inventory
-        .map((item, idx) => ({ item, idx }))
-        .filter(({ item }) => item.type === 'aptitudePill')
-
-      if (pills[pillIndex]) {
-        useAptitudePill(pills[pillIndex].idx, this.selectedPetId)
+      useAptitudePill(pillIndex, this.selectedPetId)
+    },
+    showSkillTooltip(skillId, event) {
+      const skill = getSkillById(skillId)
+      if (skill) {
+        this.tooltipSkill = skill
+        const rect = event.target.getBoundingClientRect()
+        this.tooltipStyle = {
+          top: (rect.bottom + 5) + 'px',
+          left: rect.left + 'px'
+        }
       }
+    },
+    hideSkillTooltip() {
+      this.tooltipSkill = null
+    },
+    getEffectName(effect) {
+      const effectNames = {
+        slow: '减速',
+        burn: '燃烧',
+        aoe: '群攻',
+        stun: '眩晕',
+        lifesteal: '吸血',
+        charge: '蓄力'
+      }
+      return effectNames[effect] || effect
+    },
+    openSkillBook(bookIndex) {
+      // 先开书看结果
+      const result = previewOpenPetSkillBook(bookIndex)
+      if (result) {
+        this.openedSkill = result
+        this.openedSkillBookIndex = bookIndex
+        this.learnTargetPetId = null
+      }
+    },
+    selectLearnTarget(pet) {
+      if (this.isPetSkillFull(pet) || this.petHasSkill(pet, this.openedSkill.skillId)) {
+        return
+      }
+      this.learnTargetPetId = pet.id
+    },
+    isPetSkillFull(pet) {
+      return pet.skills.length >= 6
+    },
+    petHasSkill(pet, skillId) {
+      return pet.skills.includes(skillId)
+    },
+    confirmLearnSkill() {
+      if (!this.learnTargetPetId || !this.openedSkill) return
+
+      const success = learnPetSkill(this.openedSkillBookIndex, this.learnTargetPetId, this.openedSkill.skillId)
+      if (success) {
+        this.openedSkill = null
+        this.openedSkillBookIndex = null
+        this.learnTargetPetId = null
+      }
+    },
+    discardOpenedSkill() {
+      // 丢弃技能，技能书将被消耗
+      if (confirm('确定要丢弃这个技能吗？技能书将被消耗！')) {
+        discardPetSkillBook(this.openedSkillBookIndex)
+        this.openedSkill = null
+        this.openedSkillBookIndex = null
+        this.learnTargetPetId = null
+      }
+    },
+    getTierName(tier) {
+      const tierNames = { 1: '初级', 2: '中级', 3: '高级' }
+      return tierNames[tier] || '未知'
+    },
+    getAvailableTiersText(tiers) {
+      const tierNames = { 1: '初级', 2: '中级', 3: '高级' }
+      return tiers.map(t => tierNames[t]).join('、') + '技能'
+    },
+    getSkillDescription(skillId) {
+      const skill = getSkillById(skillId)
+      return skill ? skill.description : ''
     }
   }
 }
@@ -547,6 +740,45 @@ export default {
   color: #d8b4fe;
   border-radius: 4px;
   font-size: 0.85em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.skill-item:hover {
+  background: #5a3a7a;
+  transform: scale(1.05);
+}
+
+.skill-tooltip {
+  position: fixed;
+  background: linear-gradient(135deg, #2a2a4a 0%, #1a1a3a 100%);
+  border: 1px solid #6a6a8a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-width: 180px;
+  max-width: 250px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.tooltip-name {
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 0.95em;
+  margin-bottom: 6px;
+}
+
+.tooltip-desc {
+  color: #ccc;
+  font-size: 0.85em;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.tooltip-stats {
+  color: #87ceeb;
+  font-size: 0.8em;
+  padding: 2px 0;
 }
 
 .detail-actions {
@@ -737,5 +969,257 @@ export default {
   padding: 10px;
   background: #1a1a2e;
   border-radius: 6px;
+}
+
+/* 技能书列表样式 */
+.skillbook-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+.skillbook-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #2a2a4a;
+  border: 2px solid #4a4a6a;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.skillbook-card.quality-common {
+  border-color: #888;
+}
+
+.skillbook-card.quality-rare {
+  border-color: #3498db;
+}
+
+.skillbook-card.quality-epic {
+  border-color: #9b59b6;
+}
+
+.skillbook-icon {
+  font-size: 2em;
+}
+
+.skillbook-info {
+  flex: 1;
+}
+
+.skillbook-name {
+  font-weight: bold;
+}
+
+.text-common {
+  color: #ccc;
+}
+
+.text-rare {
+  color: #3498db;
+}
+
+.text-epic {
+  color: #9b59b6;
+}
+
+.skillbook-desc {
+  color: #888;
+  font-size: 0.8em;
+}
+
+.use-skillbook-btn {
+  padding: 6px 15px;
+  background: linear-gradient(135deg, #e67e22, #d35400);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.use-skillbook-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d35400, #e67e22);
+}
+
+.use-skillbook-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.skillbook-hint {
+  color: #888;
+  font-size: 0.85em;
+  text-align: center;
+  padding: 10px;
+  background: #1a1a2e;
+  border-radius: 6px;
+}
+
+.skillbook-hint.success {
+  color: #27ae60;
+  background: #1a2e1a;
+}
+
+/* 开书结果弹窗 */
+.opened-skill-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+}
+
+.opened-skill-content {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid #4a4a6a;
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 300px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.opened-skill-title {
+  color: #ffd700;
+  font-size: 1.2em;
+  margin-bottom: 15px;
+}
+
+.opened-skill-name {
+  font-size: 1.4em;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.opened-skill-name.rarity-common { color: #ccc; }
+.opened-skill-name.rarity-rare { color: #3498db; }
+.opened-skill-name.rarity-epic { color: #9b59b6; }
+
+.opened-skill-tier {
+  color: #87ceeb;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+.opened-skill-desc {
+  color: #aaa;
+  font-size: 0.85em;
+  padding: 10px;
+  background: #2a2a4a;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.learn-section {
+  text-align: left;
+  margin-bottom: 15px;
+}
+
+.learn-title {
+  color: #87ceeb;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+.pet-select-list {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.pet-select-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #2a2a4a;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pet-select-item:hover:not(.disabled) {
+  background: #3a3a5a;
+  border-color: #5a5a7a;
+}
+
+.pet-select-item.selected {
+  border-color: #27ae60;
+  background: #1a3a2a;
+}
+
+.pet-select-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pet-select-icon {
+  font-size: 1.2em;
+}
+
+.pet-select-name {
+  flex: 1;
+  font-weight: bold;
+}
+
+.pet-select-skills {
+  color: #888;
+  font-size: 0.85em;
+}
+
+.pet-has-skill {
+  color: #e67e22;
+  font-size: 0.75em;
+}
+
+.opened-skill-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.learn-btn {
+  flex: 1;
+  padding: 10px;
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.learn-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.learn-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.discard-btn {
+  flex: 1;
+  padding: 10px;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.discard-btn:hover {
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
 }
 </style>

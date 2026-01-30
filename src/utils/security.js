@@ -33,8 +33,8 @@ export function verifyChecksum(data, checksum) {
 export function validatePlayerData(player) {
   const errors = []
 
-  // 等级检查 (1-60)
-  if (player.level < 1 || player.level > 60) {
+  // 等级检查 (1-1000)
+  if (player.level < 1 || player.level > 1000) {
     errors.push('等级异常')
   }
 
@@ -54,9 +54,9 @@ export function validatePlayerData(player) {
   }
 
   // 基础属性检查
-  const maxBaseHp = 150 + 60 * 10 + 9 * 50 + 1000 // 基础+等级+境界+容错
-  const maxBaseAtk = 15 + 60 * 3 + 9 * 15 + 500
-  const maxBaseDef = 8 + 60 * 2 + 9 * 10 + 300
+  const maxBaseHp = 50000
+  const maxBaseAtk = 50000
+  const maxBaseDef = 50000
 
   if (player.baseHp < 100 || player.baseHp > maxBaseHp) {
     errors.push('生命值异常')
@@ -82,7 +82,7 @@ export function validatePlayerData(player) {
   if (player.equippedActiveSkills && player.equippedActiveSkills.length > 4) {
     errors.push('主动技能数量异常')
   }
-  if (player.equippedPassiveSkills && player.equippedPassiveSkills.length > 2) {
+  if (player.equippedPassiveSkills && player.equippedPassiveSkills.length > 3) {
     errors.push('被动技能数量异常')
   }
 

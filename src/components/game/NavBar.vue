@@ -35,6 +35,8 @@
       <button @click="handleSave" class="nav-btn save">保存</button>
       <!-- <button @click="handleLoad" class="nav-btn load">读取</button> -->
       <button @click="handleReset" class="nav-btn reset">重置</button>
+      <!-- <button v-if="isDevEnvironment" @click="handleAddTestEquipment" class="nav-btn dev">测试装备</button> -->
+      <!-- <button v-if="isDevEnvironment" @click="handleToggleExpMultiplier" class="nav-btn dev" :class="{ active: expMultiplier > 1 }">{{ expMultiplier > 1 ? '100x经验' : '1x经验' }}</button> -->
     </div>
 
     <!-- 设置面板 -->
@@ -127,6 +129,23 @@
         </div>
 
         <div class="setting-item">
+          <label>兑换码</label>
+          <div class="redeem-section">
+            <input
+              type="text"
+              v-model="redeemCode"
+              placeholder="输入兑换码..."
+              class="redeem-input"
+              @keyup.enter="handleRedeem"
+            />
+            <button @click="handleRedeem" class="redeem-btn">兑换</button>
+          </div>
+          <div v-if="redeemResult" class="redeem-result" :class="{ success: redeemResult.success, error: !redeemResult.success }">
+            {{ redeemResult.message }}
+          </div>
+        </div>
+
+        <div class="setting-item">
           <div class="auto-save-hint">自动保存已开启，每次操作自动保存</div>
         </div>
       </div>
@@ -151,7 +170,7 @@
 </template>
 
 <script>
-import { gameState, getCurrentRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter, getMaxPassiveSlots } from '../../store/gameStore'
+import { gameState, getCurrentRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter, getMaxPassiveSlots, addTestEquipment, toggleExpMultiplier, getExpMultiplier, useRedeemCode } from '../../store/gameStore'
 import SkillPanel from './SkillPanel.vue'
 import PetPanel from './PetPanel.vue'
 
@@ -187,7 +206,9 @@ export default {
         { key: 'blue', name: '精良', color: '#3498db' },
         { key: 'purple', name: '史诗', color: '#9b59b6' },
         { key: 'orange', name: '传说', color: '#e67e22' }
-      ]
+      ],
+      redeemCode: '',
+      redeemResult: null
     }
   },
   mounted() {
@@ -225,6 +246,13 @@ export default {
     },
     lootFilter() {
       return gameState.lootFilter
+    },
+    isDevEnvironment() {
+      const hostname = window.location.hostname
+      return hostname === 'localhost' || hostname === '127.0.0.1'
+    },
+    expMultiplier() {
+      return getExpMultiplier()
     }
   },
   methods: {
@@ -331,6 +359,33 @@ export default {
         hint += '，不拾取技能书'
       }
       return hint
+    },
+    handleAddTestEquipment() {
+      addTestEquipment()
+      alert('测试神器已添加到法宝栏位！')
+    },
+    handleToggleExpMultiplier() {
+      const isOn = toggleExpMultiplier()
+      if (isOn) {
+        alert('百倍经验已开启！')
+      } else {
+        alert('百倍经验已关闭')
+      }
+    },
+    handleRedeem() {
+      if (!this.redeemCode.trim()) {
+        this.redeemResult = { success: false, message: '请输入兑换码' }
+        return
+      }
+      const result = useRedeemCode(this.redeemCode)
+      this.redeemResult = result
+      if (result.success) {
+        this.redeemCode = ''
+        // 3秒后清除成功提示
+        setTimeout(() => {
+          this.redeemResult = null
+        }, 3000)
+      }
     }
   }
 }
@@ -456,6 +511,21 @@ export default {
 
 .nav-btn.pet:hover {
   background: #6a5a3a;
+}
+
+.nav-btn.dev {
+  background: #6a2a6a;
+  color: #ff99ff;
+}
+
+.nav-btn.dev:hover {
+  background: #8a3a8a;
+}
+
+.nav-btn.dev.active {
+  background: #2a8a2a;
+  color: #98fb98;
+  box-shadow: 0 0 10px rgba(152, 251, 152, 0.5);
 }
 
 .info-item.clickable {
@@ -791,5 +861,64 @@ export default {
   border-radius: 4px;
   margin-top: 10px;
   line-height: 1.4;
+}
+
+/* 兑换码样式 */
+.redeem-section {
+  display: flex;
+  gap: 10px;
+}
+
+.redeem-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: #2a2a4a;
+  border: 1px solid #4a4a6a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9em;
+}
+
+.redeem-input::placeholder {
+  color: #666;
+}
+
+.redeem-input:focus {
+  outline: none;
+  border-color: #ffd700;
+}
+
+.redeem-btn {
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #e67e22, #d35400);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.redeem-btn:hover {
+  background: linear-gradient(135deg, #d35400, #e67e22);
+}
+
+.redeem-result {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85em;
+}
+
+.redeem-result.success {
+  background: rgba(39, 174, 96, 0.2);
+  border: 1px solid #27ae60;
+  color: #2ecc71;
+}
+
+.redeem-result.error {
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
 }
 </style>

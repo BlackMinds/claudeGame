@@ -674,6 +674,775 @@ export const skills = [
     shopPrice: 0,
     dropFromMaps: [8, 9, 10],
     dropRate: 0.005
+  },
+  // ========== 宠物专属技能 (ID: 101-116) ==========
+  // 每个宠物孵化时固定携带的技能
+  {
+    id: 101,
+    name: '狐仙治愈',
+    description: '治愈主人，恢复主人15%最大生命值',
+    type: 'petSkill',
+    rarity: 'rare',
+    maxLevel: 10,
+    effect: 'healOwner',
+    effectValue: 15,
+    cooldown: 4,
+    petExclusive: true
+  },
+  {
+    id: 102,
+    name: '疾风步',
+    description: '3回合内提升主人20%闪避率',
+    type: 'petSkill',
+    rarity: 'rare',
+    maxLevel: 10,
+    effect: 'ownerDodgeBuff',
+    effectValue: 20,
+    effectDuration: 3,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 103,
+    name: '撕咬',
+    description: '凶猛撕咬敌人，造成150%伤害并使其流血3回合',
+    type: 'petSkill',
+    rarity: 'common',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.5,
+    effect: 'bleed',
+    effectValue: 5,
+    effectDuration: 3,
+    cooldown: 3,
+    petExclusive: true
+  },
+  {
+    id: 104,
+    name: '剧毒噬咬',
+    description: '毒牙攻击，造成120%伤害并使敌人中毒4回合',
+    type: 'petSkill',
+    rarity: 'common',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.2,
+    effect: 'poison',
+    effectValue: 3,
+    effectDuration: 4,
+    cooldown: 3,
+    petExclusive: true
+  },
+  {
+    id: 105,
+    name: '烈焰俯冲',
+    description: '从空中俯冲攻击，造成180%火焰伤害并有30%几率灼烧敌人',
+    type: 'petSkill',
+    rarity: 'rare',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.8,
+    effect: 'burn',
+    effectValue: 30,
+    effectDuration: 2,
+    cooldown: 4,
+    petExclusive: true
+  },
+  {
+    id: 106,
+    name: '石化护盾',
+    description: '为主人生成护盾，吸收相当于宠物50%生命值的伤害',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'ownerShield',
+    effectValue: 50,
+    cooldown: 8,
+    petExclusive: true
+  },
+  {
+    id: 107,
+    name: '吸血噬咬',
+    description: '吸取敌人生命，造成140%伤害并回复伤害50%的生命',
+    type: 'petSkill',
+    rarity: 'rare',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.4,
+    effect: 'lifesteal',
+    effectValue: 50,
+    cooldown: 4,
+    petExclusive: true
+  },
+  {
+    id: 108,
+    name: '亡灵诅咒',
+    description: '诅咒敌人，3回合内敌人受到伤害增加25%',
+    type: 'petSkill',
+    rarity: 'rare',
+    maxLevel: 10,
+    effect: 'curse',
+    effectValue: 25,
+    effectDuration: 3,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 109,
+    name: '龙息',
+    description: '喷吐龙焰，对所有敌人造成200%伤害',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 2.0,
+    effect: 'aoe',
+    hitCount: 99,
+    cooldown: 5,
+    petExclusive: true
+  },
+  {
+    id: 110,
+    name: '雷霆俯冲',
+    description: '携带雷电俯冲攻击，造成170%伤害并有20%几率眩晕敌人',
+    type: 'petSkill',
+    rarity: 'rare',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.7,
+    effect: 'stun',
+    effectValue: 20,
+    effectDuration: 1,
+    cooldown: 4,
+    petExclusive: true
+  },
+  {
+    id: 111,
+    name: '灵魂侵蚀',
+    description: '无视防御的灵魂攻击，造成160%真实伤害',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.6,
+    effect: 'trueDamage',
+    cooldown: 5,
+    petExclusive: true
+  },
+  {
+    id: 112,
+    name: '地狱业火',
+    description: '召唤地狱之火，对所有敌人造成180%伤害并灼烧3回合',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.8,
+    effect: 'aoe',
+    hitCount: 99,
+    burn: true,
+    burnDuration: 3,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 113,
+    name: '虚空侵蚀',
+    description: '侵蚀敌人，3回合内敌人攻击力降低30%',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'weaken',
+    effectValue: 30,
+    effectDuration: 3,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 114,
+    name: '星光祝福',
+    description: '祝福主人，3回合内暴击率+30%，暴击伤害+50%',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'ownerCritBuff',
+    critRateBonus: 30,
+    critDamageBonus: 50,
+    effectDuration: 3,
+    cooldown: 7,
+    petExclusive: true
+  },
+  {
+    id: 115,
+    name: '混沌冲击',
+    description: '释放混沌能量，造成250%伤害并随机附加负面效果',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 2.5,
+    effect: 'chaos',
+    cooldown: 5,
+    petExclusive: true
+  },
+  {
+    id: 116,
+    name: '神罚',
+    description: '召唤神罚，对单体造成400%毁灭性伤害',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 4.0,
+    cooldown: 8,
+    petExclusive: true
+  },
+  // ========== 宠物隐藏技能 (ID: 201-216) ==========
+  // 孵化时有10%概率获得
+  {
+    id: 201,
+    name: '魅惑',
+    description: '魅惑敌人，30%几率使其眩晕2回合',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'charm',
+    effectValue: 30,
+    effectDuration: 2,
+    cooldown: 7,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 202,
+    name: '幻影分身',
+    description: '创造幻影，3回合内闪避率+50%',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'superDodge',
+    effectValue: 50,
+    effectDuration: 3,
+    cooldown: 8,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 203,
+    name: '狼嚎',
+    description: '激励主人，3回合内主人攻击力+40%',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'ownerAttackBuff',
+    effectValue: 40,
+    effectDuration: 3,
+    cooldown: 7,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 204,
+    name: '致命剧毒',
+    description: '释放致命毒素，使敌人中毒5回合（每回合损失8%生命）',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'deadlyPoison',
+    effectValue: 8,
+    effectDuration: 5,
+    cooldown: 6,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 205,
+    name: '浴火重生',
+    description: '死亡时有50%几率复活并恢复30%生命（每场战斗限1次）',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'phoenixRebirth',
+    effectValue: 30,
+    reviveChance: 50,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 206,
+    name: '嘲讽',
+    description: '嘲讽敌人，2回合内敌人只能攻击宠物',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'taunt',
+    effectDuration: 2,
+    cooldown: 6,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 207,
+    name: '血之狂欢',
+    description: '进入狂暴状态，3回合内攻击力+50%且吸血100%',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'bloodFrenzy',
+    attackBonus: 50,
+    lifestealBonus: 100,
+    effectDuration: 3,
+    cooldown: 8,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 208,
+    name: '亡灵召唤',
+    description: '召唤亡灵助战，对敌人额外造成3次80%伤害',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 0.8,
+    effect: 'summon',
+    hitCount: 3,
+    cooldown: 6,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 209,
+    name: '龙威',
+    description: '释放龙威，3回合内敌人攻击力-40%',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'dragonMight',
+    effectValue: 40,
+    effectDuration: 3,
+    cooldown: 7,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 210,
+    name: '闪电链',
+    description: '释放闪电链，对所有敌人造成150%伤害并有15%几率眩晕',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.5,
+    effect: 'chainLightning',
+    stunChance: 15,
+    hitCount: 99,
+    cooldown: 5,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 211,
+    name: '灵魂吞噬',
+    description: '吞噬敌人灵魂，造成200%真实伤害并恢复等量生命',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 2.0,
+    effect: 'soulDevour',
+    cooldown: 7,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 212,
+    name: '烈焰之躯',
+    description: '点燃自身，3回合内反弹受到伤害的30%给攻击者',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'flameBody',
+    effectValue: 30,
+    effectDuration: 3,
+    cooldown: 6,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 213,
+    name: '虚空黑洞',
+    description: '召唤黑洞，对所有敌人造成180%伤害并降低50%防御3回合',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.8,
+    effect: 'voidBlackHole',
+    defenseReduction: 50,
+    effectDuration: 3,
+    hitCount: 99,
+    cooldown: 8,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 214,
+    name: '星陨',
+    description: '召唤星辰坠落，对所有敌人造成220%伤害',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 2.2,
+    effect: 'starfall',
+    hitCount: 99,
+    cooldown: 6,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 215,
+    name: '混沌领域',
+    description: '展开混沌领域，所有敌人随机受到减攻/减防/中毒/流血效果',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'chaosDomain',
+    effectDuration: 3,
+    cooldown: 8,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 216,
+    name: '末日审判',
+    description: '召唤末日审判，对所有敌人造成300%伤害并附加所有负面效果',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 3.0,
+    effect: 'doomsday',
+    hitCount: 99,
+    cooldown: 10,
+    petExclusive: true,
+    isHidden: true
+  },
+  // ========== 宠物可学习技能 (ID: 301-324) ==========
+  // 通过宠物技能书获得，所有宠物都可以学习
+  // 初级档位 - 被动技能 (301-307)
+  {
+    id: 301,
+    name: '强壮',
+    description: '增加宠物等级×10点生命值',
+    type: 'petLearnablePassive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'hpBonus',
+    levelMultiplier: 10,
+    petExclusive: true
+  },
+  {
+    id: 302,
+    name: '好斗',
+    description: '增加宠物等级×3点攻击',
+    type: 'petLearnablePassive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'attackBonus',
+    levelMultiplier: 3,
+    petExclusive: true
+  },
+  {
+    id: 303,
+    name: '硬化',
+    description: '增加宠物等级×2点防御',
+    type: 'petLearnablePassive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'defenseBonus',
+    levelMultiplier: 2,
+    petExclusive: true
+  },
+  {
+    id: 304,
+    name: '连击',
+    description: '攻击时有30%几率连续对敌人造成2次伤害',
+    type: 'petLearnablePassive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'multiHit',
+    hitChance: 30,
+    hitCount: 2,
+    petExclusive: true
+  },
+  {
+    id: 305,
+    name: '吸血',
+    description: '攻击时恢复造成伤害20%的生命',
+    type: 'petLearnablePassive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'lifesteal',
+    lifestealPercent: 20,
+    petExclusive: true
+  },
+  {
+    id: 306,
+    name: '熟练施法',
+    description: '增加15%施法概率，所有主动技能冷却减少1回合',
+    type: 'petLearnablePassive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'castMastery',
+    castChanceBonus: 15,
+    cdReduction: 1,
+    petExclusive: true
+  },
+  {
+    id: 307,
+    name: '再生',
+    description: '每回合回复15%的最大生命值',
+    type: 'petLearnablePassive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'regen',
+    regenPercent: 15,
+    petExclusive: true
+  },
+  // 中级档位 - 被动技能 (308-314)
+  {
+    id: 308,
+    name: '高级强壮',
+    description: '增加宠物等级×20点生命值',
+    type: 'petLearnablePassive',
+    rarity: 'rare',
+    tier: 2,
+    maxLevel: 10,
+    effect: 'hpBonus',
+    levelMultiplier: 20,
+    petExclusive: true
+  },
+  {
+    id: 309,
+    name: '高级好斗',
+    description: '增加宠物等级×6点攻击',
+    type: 'petLearnablePassive',
+    rarity: 'rare',
+    tier: 2,
+    maxLevel: 10,
+    effect: 'attackBonus',
+    levelMultiplier: 6,
+    petExclusive: true
+  },
+  {
+    id: 310,
+    name: '高级硬化',
+    description: '增加宠物等级×4点防御',
+    type: 'petLearnablePassive',
+    rarity: 'rare',
+    tier: 2,
+    maxLevel: 10,
+    effect: 'defenseBonus',
+    levelMultiplier: 4,
+    petExclusive: true
+  },
+  {
+    id: 311,
+    name: '高级连击',
+    description: '攻击时有40%几率连续对敌人造成2-3次伤害',
+    type: 'petLearnablePassive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'multiHit',
+    hitChance: 40,
+    minHitCount: 2,
+    maxHitCount: 3,
+    petExclusive: true
+  },
+  {
+    id: 312,
+    name: '高级熟练施法',
+    description: '增加25%施法概率，所有主动技能冷却减少2回合',
+    type: 'petLearnablePassive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'castMastery',
+    castChanceBonus: 25,
+    cdReduction: 2,
+    petExclusive: true
+  },
+  {
+    id: 313,
+    name: '战场嗅觉',
+    description: '提高10%闪避率与10%暴击率，对50%血以下敌人造成20%额外伤害',
+    type: 'petLearnablePassive',
+    rarity: 'rare',
+    tier: 2,
+    maxLevel: 10,
+    effect: 'battleInstinct',
+    dodgeBonus: 10,
+    critRateBonus: 10,
+    executeDamageBonus: 20,
+    executeThreshold: 50,
+    petExclusive: true
+  },
+  {
+    id: 314,
+    name: '超级好战',
+    description: '增加宠物等级×10点攻击，并增加25%暴击率',
+    type: 'petLearnablePassive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'attackBonus',
+    levelMultiplier: 10,
+    critRateBonus: 25,
+    petExclusive: true
+  },
+  // 初级档位 - 主动技能 (315-317)
+  {
+    id: 315,
+    name: '冰封',
+    description: '造成150%物理伤害并有35%几率冰冻敌人1回合',
+    type: 'petLearnableActive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    baseDamageMultiplier: 1.5,
+    effect: 'freeze',
+    freezeChance: 35,
+    freezeDuration: 1,
+    cooldown: 4,
+    petExclusive: true
+  },
+  {
+    id: 316,
+    name: '猪刚烈',
+    description: '嘲讽2个敌人攻击自己，持续2回合',
+    type: 'petLearnableActive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'taunt',
+    tauntCount: 2,
+    effectDuration: 2,
+    cooldown: 5,
+    petExclusive: true
+  },
+  {
+    id: 317,
+    name: '自然滋养',
+    description: '3回合内每回合回复10%生命值，防御力增加10%',
+    type: 'petLearnableActive',
+    rarity: 'common',
+    tier: 1,
+    maxLevel: 10,
+    effect: 'naturalBlessing',
+    regenPercent: 10,
+    defenseBonus: 10,
+    effectDuration: 3,
+    cooldown: 5,
+    petExclusive: true
+  },
+  // 中级档位 - 主动技能 (318-321)
+  {
+    id: 318,
+    name: '超级赛亚人',
+    description: '增加自身35%攻击力、20%暴击率，但防御力降低10%，持续3回合',
+    type: 'petLearnableActive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'superSaiyan',
+    attackBonus: 35,
+    critRateBonus: 20,
+    defensePenalty: 10,
+    effectDuration: 3,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 319,
+    name: '猎杀标记',
+    description: '标记敌人，队友攻击该目标时有30%概率触发50%额外伤害，持续3回合',
+    type: 'petLearnableActive',
+    rarity: 'rare',
+    tier: 2,
+    maxLevel: 10,
+    effect: 'huntMark',
+    triggerChance: 30,
+    bonusDamage: 50,
+    effectDuration: 3,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 320,
+    name: '暴怒临界',
+    description: '生命低于40%时触发，回复到60%生命值并增加10%攻防，持续2回合',
+    type: 'petLearnableActive',
+    rarity: 'rare',
+    tier: 2,
+    maxLevel: 10,
+    effect: 'rageThreshold',
+    triggerThreshold: 40,
+    healTo: 60,
+    statBonus: 10,
+    effectDuration: 2,
+    cooldown: 5,
+    petExclusive: true
+  },
+  {
+    id: 321,
+    name: '共生治愈',
+    description: '宠物与主人平均分配生命值',
+    type: 'petLearnableActive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'sharedHealing',
+    cooldown: 6,
+    petExclusive: true
+  },
+  // 高级档位 - 主动技能 (322-324)
+  {
+    id: 322,
+    name: '惊虎吞狗掌',
+    description: '连续对敌人进行1-9次致命打击，每次造成80%伤害',
+    type: 'petLearnableActive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    baseDamageMultiplier: 0.8,
+    effect: 'multiStrike',
+    minHitCount: 1,
+    maxHitCount: 9,
+    cooldown: 8,
+    petExclusive: true
+  },
+  {
+    id: 323,
+    name: '神·超级赛亚人',
+    description: '增加自身50%攻击力、30%暴击率，但防御力降低10%，持续3回合',
+    type: 'petLearnableActive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'godSaiyan',
+    attackBonus: 50,
+    critRateBonus: 30,
+    defensePenalty: 10,
+    effectDuration: 3,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 324,
+    name: '残血庇护',
+    description: '回复目标已损失生命的30%，优先治疗血量最低的队友',
+    type: 'petLearnableActive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'desperateHealing',
+    healPercent: 30,
+    cooldown: 5,
+    petExclusive: true
   }
 ]
 
@@ -724,7 +1493,7 @@ export function getSkillById(skillId) {
 // 技能书掉落逻辑
 export function rollSkillBookDrop(mapId) {
   const droppableSkills = skills.filter(s =>
-    s.dropFromMaps.includes(mapId) && s.dropRate > 0
+    s.dropFromMaps && s.dropFromMaps.includes(mapId) && s.dropRate > 0
   )
   for (const skill of droppableSkills) {
     if (Math.random() < skill.dropRate) {
@@ -853,31 +1622,35 @@ export const petQualityConfig = {
 }
 
 // 宠物种类（每个地图可捕获的宠物）
+// 宠物种类（每个地图可捕获的宠物）
+// fixedSkills: 孵化时固定携带的技能
+// hiddenSkill: 隐藏技能（10%几率获得）
+// role: 宠物定位
 export const petTypes = [
   // 新手村
-  { id: 1, name: '小狐狸', mapId: 1, baseLevel: 1, icon: '🦊', skillPool: [1, 2] },
-  { id: 2, name: '野兔精', mapId: 1, baseLevel: 2, icon: '🐰', skillPool: [1, 10] },
+  { id: 1, name: '小狐狸', mapId: 1, baseLevel: 1, icon: '🦊', role: '治疗', fixedSkills: [101], hiddenSkill: 201 },
+  { id: 2, name: '野兔精', mapId: 1, baseLevel: 2, icon: '🐰', role: '辅助', fixedSkills: [102], hiddenSkill: 202 },
   // 黑风林
-  { id: 3, name: '黑狼', mapId: 2, baseLevel: 8, icon: '🐺', skillPool: [2, 3, 11] },
-  { id: 4, name: '毒蛇', mapId: 2, baseLevel: 10, icon: '🐍', skillPool: [3, 10] },
+  { id: 3, name: '黑狼', mapId: 2, baseLevel: 8, icon: '🐺', role: '输出', fixedSkills: [103], hiddenSkill: 203 },
+  { id: 4, name: '毒蛇', mapId: 2, baseLevel: 10, icon: '🐍', role: '持续伤害', fixedSkills: [104], hiddenSkill: 204 },
   // 落日峰
-  { id: 5, name: '火鸦', mapId: 3, baseLevel: 18, icon: '🐦', skillPool: [1, 4, 12] },
-  { id: 6, name: '石傀儡', mapId: 3, baseLevel: 20, icon: '🗿', skillPool: [10, 11] },
+  { id: 5, name: '火鸦', mapId: 3, baseLevel: 18, icon: '🐦', role: '爆发', fixedSkills: [105], hiddenSkill: 205 },
+  { id: 6, name: '石傀儡', mapId: 3, baseLevel: 20, icon: '🗿', role: '坦克', fixedSkills: [106], hiddenSkill: 206 },
   // 血月谷
-  { id: 7, name: '血蝠', mapId: 4, baseLevel: 28, icon: '🦇', skillPool: [5, 15, 12] },
-  { id: 8, name: '骷髅兵', mapId: 4, baseLevel: 30, icon: '💀', skillPool: [4, 11] },
+  { id: 7, name: '血蝠', mapId: 4, baseLevel: 28, icon: '🦇', role: '续航', fixedSkills: [107], hiddenSkill: 207 },
+  { id: 8, name: '骷髅兵', mapId: 4, baseLevel: 30, icon: '💀', role: '控制', fixedSkills: [108], hiddenSkill: 208 },
   // 龙脊山脉
-  { id: 9, name: '幼龙', mapId: 5, baseLevel: 38, icon: '🐲', skillPool: [6, 4, 12] },
-  { id: 10, name: '雷鹰', mapId: 5, baseLevel: 40, icon: '🦅', skillPool: [3, 6, 13] },
+  { id: 9, name: '幼龙', mapId: 5, baseLevel: 38, icon: '🐲', role: '群攻', fixedSkills: [109], hiddenSkill: 209 },
+  { id: 10, name: '雷鹰', mapId: 5, baseLevel: 40, icon: '🦅', role: '控制', fixedSkills: [110], hiddenSkill: 210 },
   // 天魔峡
-  { id: 11, name: '魔灵', mapId: 6, baseLevel: 45, icon: '👻', skillPool: [7, 5, 14] },
-  { id: 12, name: '炎魔', mapId: 6, baseLevel: 48, icon: '👹', skillPool: [1, 7, 12] },
+  { id: 11, name: '魔灵', mapId: 6, baseLevel: 45, icon: '👻', role: '穿透', fixedSkills: [111], hiddenSkill: 211 },
+  { id: 12, name: '炎魔', mapId: 6, baseLevel: 48, icon: '👹', role: '群攻', fixedSkills: [112], hiddenSkill: 212 },
   // 虚空裂隙
-  { id: 13, name: '虚空兽', mapId: 7, baseLevel: 52, icon: '🌀', skillPool: [8, 14, 13] },
-  { id: 14, name: '星灵', mapId: 7, baseLevel: 55, icon: '✨', skillPool: [6, 8, 15] },
+  { id: 13, name: '虚空兽', mapId: 7, baseLevel: 52, icon: '🌀', role: '减益', fixedSkills: [113], hiddenSkill: 213 },
+  { id: 14, name: '星灵', mapId: 7, baseLevel: 55, icon: '✨', role: '增益', fixedSkills: [114], hiddenSkill: 214 },
   // 混沌深渊
-  { id: 15, name: '混沌幼兽', mapId: 8, baseLevel: 58, icon: '🌑', skillPool: [9, 7, 14] },
-  { id: 16, name: '远古魔神', mapId: 8, baseLevel: 60, icon: '😈', skillPool: [9, 8, 15] }
+  { id: 15, name: '混沌幼兽', mapId: 8, baseLevel: 58, icon: '🌑', role: '混乱', fixedSkills: [115], hiddenSkill: 215 },
+  { id: 16, name: '远古魔神', mapId: 8, baseLevel: 60, icon: '😈', role: '毁灭', fixedSkills: [116], hiddenSkill: 216 }
 ]
 
 // 根据地图获取可捕获的宠物
@@ -912,7 +1685,7 @@ export function calculatePetStats(level, quality, aptitude) {
 }
 
 // 生成宠物实例
-export function generatePet(petTypeId, level, forceQuality = null, maxAptitude = 8) {
+export function generatePet(petTypeId, level, forceQuality = null, maxAptitude = 8, forceHiddenSkill = null) {
   const petType = petTypes.find(p => p.id === petTypeId)
   if (!petType) return null
 
@@ -945,13 +1718,15 @@ export function generatePet(petTypeId, level, forceQuality = null, maxAptitude =
   // 计算属性
   const stats = calculatePetStats(level, quality, aptitude)
 
-  // 随机选择1-2个技能
-  const numSkills = Math.random() < 0.3 ? 2 : 1
-  const petSkills = []
-  const availableSkills = [...petType.skillPool]
-  for (let i = 0; i < numSkills && availableSkills.length > 0; i++) {
-    const idx = Math.floor(Math.random() * availableSkills.length)
-    petSkills.push(availableSkills.splice(idx, 1)[0])
+  // 使用固定技能（每个宠物有特定的固定技能）
+  const petSkills = [...(petType.fixedSkills || [])]
+
+  // 隐藏技能：如果传入了参数则使用，否则10%概率获得
+  let hasHiddenSkill = forceHiddenSkill !== null ? forceHiddenSkill : (Math.random() < 0.1)
+  if (hasHiddenSkill && petType.hiddenSkill) {
+    petSkills.push(petType.hiddenSkill)
+  } else {
+    hasHiddenSkill = false // 如果没有隐藏技能定义，设为false
   }
 
   return {
@@ -959,6 +1734,7 @@ export function generatePet(petTypeId, level, forceQuality = null, maxAptitude =
     typeId: petType.id,
     name: petType.name,
     icon: petType.icon,
+    role: petType.role,
     level,
     exp: 0,
     quality,
@@ -972,11 +1748,13 @@ export function generatePet(petTypeId, level, forceQuality = null, maxAptitude =
     baseDefense: stats.baseDefense,
     critRate: 5 + Math.floor(level / 10),
     critDamage: 50,
+    critResist: 0,
     dodge: 3,
     hit: 95,
     // 技能（技能ID数组）
     skills: petSkills,
     skillLevels: petSkills.reduce((acc, id) => { acc[id] = 1; return acc }, {}),
+    hasHiddenSkill,
     // 当前状态
     currentHp: stats.baseHp
   }
@@ -1030,6 +1808,10 @@ export function generatePetEgg(towerFloor) {
   const quality = qualityPool[Math.floor(Math.random() * qualityPool.length)]
   const qualityData = petQualityConfig[quality]
 
+  // 在生成蛋时就决定宠物类型和是否有隐藏技能（防止刷档）
+  const petType = petTypes[Math.floor(Math.random() * petTypes.length)]
+  const hasHiddenSkill = Math.random() < 0.1 // 10%概率有隐藏技能
+
   return {
     id: `petegg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     type: 'petEgg',
@@ -1038,7 +1820,9 @@ export function generatePetEgg(towerFloor) {
     qualityName: qualityData.name,
     qualityColor: qualityData.color,
     towerFloor, // 记录获取时的层数，用于决定宠物等级
-    maxAptitude // 资质上限
+    maxAptitude, // 资质上限
+    petTypeId: petType.id, // 预先决定的宠物类型
+    hasHiddenSkill // 预先决定是否有隐藏技能
   }
 }
 
@@ -1074,14 +1858,122 @@ export function generateAptitudePill(towerFloor) {
 export function hatchPetEgg(petEgg) {
   if (!petEgg || petEgg.type !== 'petEgg') return null
 
-  // 随机选择一个宠物类型
-  const petType = petTypes[Math.floor(Math.random() * petTypes.length)]
+  // 使用蛋中预先决定的宠物类型（防止刷档）
+  // 兼容旧存档：如果没有预先决定，则随机选择
+  let petTypeId = petEgg.petTypeId
+  if (!petTypeId) {
+    const petType = petTypes[Math.floor(Math.random() * petTypes.length)]
+    petTypeId = petType.id
+  }
 
-  // 宠物等级基于获取蛋时的塔层
-  const petLevel = Math.max(1, Math.min(60, petEgg.towerFloor + 5))
+  // 宠物从1级开始
+  const petLevel = 1
 
   // 使用蛋的资质上限
   const maxAptitude = petEgg.maxAptitude || 8
 
-  return generatePet(petType.id, petLevel, petEgg.quality, maxAptitude)
+  // 使用蛋中预先决定的隐藏技能（防止刷档）
+  // 兼容旧存档：如果没有预先决定，则随机判定
+  const hasHiddenSkill = petEgg.hasHiddenSkill !== undefined ? petEgg.hasHiddenSkill : (Math.random() < 0.1)
+
+  return generatePet(petTypeId, petLevel, petEgg.quality, maxAptitude, hasHiddenSkill)
+}
+
+// ========== 宠物技能书系统 ==========
+// 可学习技能ID范围：301-324
+const petLearnableSkillIds = Array.from({ length: 24 }, (_, i) => 301 + i)
+
+// 宠物技能书掉落层数配置
+const petSkillBookDropFloors = {
+  // 初级宠物技能书掉落层数
+  basic: [110, 120, 130, 140, 150, 160, 170],
+  // 中级宠物技能书掉落层数
+  intermediate: [180, 190],
+  // 高级宠物技能书掉落层数
+  advanced: [300, 400]
+}
+
+// 生成宠物技能书
+export function generatePetSkillBook(towerFloor) {
+  // 根据层数决定技能书类型
+  let bookQuality, bookName, availableTiers
+
+  if (petSkillBookDropFloors.advanced.includes(towerFloor)) {
+    // 高级宠物技能书：可开出全部档位
+    bookQuality = 'epic'
+    bookName = '高级宠物技能书'
+    availableTiers = [1, 2, 3]
+  } else if (petSkillBookDropFloors.intermediate.includes(towerFloor)) {
+    // 中级宠物技能书：可开出初级和中级
+    bookQuality = 'rare'
+    bookName = '中级宠物技能书'
+    availableTiers = [1, 2]
+  } else if (petSkillBookDropFloors.basic.includes(towerFloor)) {
+    // 初级宠物技能书：只能开出初级
+    bookQuality = 'common'
+    bookName = '初级宠物技能书'
+    availableTiers = [1]
+  } else {
+    return null // 非指定层数不掉落
+  }
+
+  return {
+    id: `petskillbook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'petSkillBook',
+    name: bookName,
+    quality: bookQuality,
+    availableTiers,
+    towerFloor
+  }
+}
+
+// 检查某层是否掉落宠物技能书
+export function shouldDropPetSkillBook(towerFloor) {
+  return petSkillBookDropFloors.basic.includes(towerFloor) ||
+         petSkillBookDropFloors.intermediate.includes(towerFloor) ||
+         petSkillBookDropFloors.advanced.includes(towerFloor)
+}
+
+// 开启宠物技能书，返回获得的技能ID
+export function openPetSkillBook(skillBook) {
+  if (!skillBook || skillBook.type !== 'petSkillBook') return null
+
+  const availableTiers = skillBook.availableTiers || [1]
+
+  // 获取可学习技能列表
+  const learnableSkills = skills.filter(s =>
+    petLearnableSkillIds.includes(s.id) && availableTiers.includes(s.tier)
+  )
+
+  if (learnableSkills.length === 0) return null
+
+  // 根据档位决定概率权重（越高级越难开）
+  // tier 1: 权重60
+  // tier 2: 权重30
+  // tier 3: 权重10
+  const weightedSkills = []
+  for (const skill of learnableSkills) {
+    let weight = 60
+    if (skill.tier === 2) weight = 30
+    else if (skill.tier === 3) weight = 10
+
+    for (let i = 0; i < weight; i++) {
+      weightedSkills.push(skill)
+    }
+  }
+
+  // 随机选择一个技能
+  const selectedSkill = weightedSkills[Math.floor(Math.random() * weightedSkills.length)]
+
+  return {
+    skillId: selectedSkill.id,
+    skillName: selectedSkill.name,
+    skillTier: selectedSkill.tier,
+    skillRarity: selectedSkill.rarity
+  }
+}
+
+// 获取可学习技能列表（用于UI展示）
+export function getPetLearnableSkills() {
+  return skills.filter(s => petLearnableSkillIds.includes(s.id))
 }

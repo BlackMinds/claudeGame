@@ -453,8 +453,8 @@ export default {
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 12px;
-  min-height: 180px;
-  max-height: 180px;
+  min-height: 220px;
+  max-height: 220px;
   overflow: hidden;
 }
 
@@ -462,7 +462,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 156px;
+  height: 196px;
 }
 
 .idle-text {
@@ -500,8 +500,8 @@ export default {
 
 .monsters-container,
 .player-container {
-  min-height: 130px;
-  max-height: 130px;
+  min-height: 170px;
+  max-height: 170px;
   overflow-y: auto;
   overflow-x: hidden;
 }
