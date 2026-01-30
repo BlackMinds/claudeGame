@@ -235,6 +235,62 @@ function generateMaps() {
 
 export const maps = generateMaps()
 
+// ==================== 锁妖塔系统 ====================
+
+// 锁妖塔配置
+export const towerConfig = {
+  name: '锁妖塔',
+  description: '镇压妖魔的古塔，每层都有强大的妖物守护',
+  monsterCount: 3, // 每层固定3只怪物
+  requiredLevel: 10 // 需要10级才能进入
+}
+
+// 生成锁妖塔某一层的怪物
+export function generateTowerFloorMonsters(floor) {
+  // 怪物等级 = 层数 + 5，最低10级
+  const monsterLevel = Math.max(10, floor + 5)
+
+  // 难度倍率随层数增加（每10层增加50%）
+  const difficultyMult = 1 + Math.floor(floor / 10) * 0.5
+
+  // 怪物名称库
+  const monsterNames = [
+    '妖狐', '狼妖', '蛇妖', '熊妖', '虎妖',
+    '鬼面蛛', '嗜血蝠', '噬魂兽', '赤焰魔', '玄冰魔',
+    '雷霆兽', '暗影鬼', '血魔将', '骨魔将', '魂魔将',
+    '堕落天使', '深渊领主', '混沌使者', '远古巨兽', '天魔王'
+  ]
+
+  const monsters = []
+  for (let i = 0; i < towerConfig.monsterCount; i++) {
+    // 随机选择怪物名称
+    const nameIndex = Math.min(Math.floor(floor / 5) + Math.floor(Math.random() * 3), monsterNames.length - 1)
+    const name = monsterNames[nameIndex]
+
+    // 计算属性（比普通地图怪物强）
+    const baseHp = 60 + monsterLevel * 30 + Math.pow(monsterLevel, 1.8) * 5
+    const baseAtk = 6 + monsterLevel * 4 + Math.pow(monsterLevel, 1.4) * 1.5
+    const baseDef = 3 + monsterLevel * 2.5 + Math.pow(monsterLevel, 1.3)
+
+    monsters.push({
+      name: `${floor}层${name}`,
+      level: monsterLevel,
+      hp: Math.floor(baseHp * difficultyMult),
+      attack: Math.floor(baseAtk * difficultyMult),
+      defense: Math.floor(baseDef * difficultyMult),
+      exp: Math.floor((20 + floor * 8) * difficultyMult),
+      gold: Math.floor((15 + floor * 5) * difficultyMult),
+      dropRate: Math.min(30, 10 + floor * 0.5), // 锁妖塔掉落率更高
+      currentHp: Math.floor(baseHp * difficultyMult),
+      skills: getRandomSkills(monsterLevel),
+      buffs: {},
+      reviveUsed: false
+    })
+  }
+
+  return monsters
+}
+
 // 技能稀有度配置
 export const skillRarityConfig = {
   common: { name: '普通', color: '#ffffff' },

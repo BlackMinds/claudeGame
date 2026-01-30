@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { realms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue } from '../data/gameData'
+import { realms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, towerConfig, generateTowerFloorMonsters } from '../data/gameData'
 import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 加密密钥
@@ -97,7 +97,12 @@ export const gameState = Vue.observable({
     battleLog: [],
     selectedMapId: 1,
     battleTimer: null,
-    killCount: 0
+    killCount: 0,
+    // 锁妖塔状态
+    isTowerMode: false,
+    towerFloor: 1,
+    towerHighestFloor: 1,
+    towerStartFloor: 1
   },
   logs: []
 })
@@ -677,6 +682,11 @@ export function updateCooldowns() {
 
 // 开始战斗
 export function startBattle() {
+  // 锁妖塔模式
+  if (gameState.battle.isTowerMode) {
+    return startTowerBattle()
+  }
+
   const map = maps.find(m => m.id === gameState.battle.selectedMapId)
   if (!map) return false
 
@@ -723,6 +733,50 @@ export function startBattle() {
   }
 
   return true
+}
+
+// 开始锁妖塔战斗
+export function startTowerBattle() {
+  if (gameState.player.level < towerConfig.requiredLevel) {
+    addLog(`等级不足，需要 ${towerConfig.requiredLevel} 级才能进入锁妖塔`, 'danger')
+    return false
+  }
+
+  const floor = gameState.battle.towerFloor
+  const monsters = generateTowerFloorMonsters(floor)
+
+  const stats = getPlayerStats()
+
+  gameState.battle.isInBattle = true
+  gameState.battle.currentMonsters = monsters
+  gameState.battle.currentMonsterIndex = 0
+  gameState.battle.playerCurrentHp = stats.maxHp
+  gameState.battle.skillCooldowns = {}
+  gameState.battle.playerBuffs = {}
+  gameState.battle.roundCount = 0
+
+  addBattleLog(`【锁妖塔 第${floor}层】`, 'warning')
+  addBattleLog(`遭遇 ${monsters.length} 只妖物！`, 'warning')
+  monsters.forEach((m, i) => {
+    addBattleLog(`  ${i + 1}. Lv.${m.level} ${m.name}`, 'normal')
+  })
+
+  return true
+}
+
+// 锁妖塔通关当前层
+export function towerFloorCleared() {
+  const floor = gameState.battle.towerFloor
+  addBattleLog(`恭喜通过第 ${floor} 层！`, 'success')
+
+  // 更新最高层数
+  if (floor >= gameState.battle.towerHighestFloor) {
+    gameState.battle.towerHighestFloor = floor + 1
+  }
+
+  // 进入下一层
+  gameState.battle.towerFloor = floor + 1
+  autoSave()
 }
 
 // 更新玩家buff持续时间
@@ -1030,6 +1084,10 @@ export function battleRound() {
           const remainingMonsters = monsters.filter(m => m.currentHp > 0)
           if (remainingMonsters.length === 0) {
             gameState.battle.isInBattle = false
+            // 锁妖塔模式：通关当前层
+            if (gameState.battle.isTowerMode) {
+              towerFloorCleared()
+            }
             return 'win'
           }
         }
@@ -1175,6 +1233,7 @@ export function startAutoBattle() {
 // 停止自动战斗
 export function stopAutoBattle() {
   gameState.battle.isAutoBattle = false
+  gameState.battle.isTowerMode = false
   if (gameState.battle.battleTimer) {
     clearTimeout(gameState.battle.battleTimer)
     gameState.battle.battleTimer = null
@@ -1199,10 +1258,11 @@ export function saveGame(silent = false) {
     player: gameState.player,
     battle: {
       selectedMapId: gameState.battle.selectedMapId,
-      killCount: gameState.battle.killCount
+      killCount: gameState.battle.killCount,
+      towerHighestFloor: gameState.battle.towerHighestFloor
     },
     timestamp: Date.now(),
-    version: 6, // 版本号更新
+    version: 7, // 版本号更新
     checksum: calculateChecksum(gameState.player) // 添加校验和
   }
   const encrypted = encrypt(saveData)
@@ -1290,10 +1350,14 @@ export function loadGame() {
       if (data.battle) {
         gameState.battle.selectedMapId = data.battle.selectedMapId || 1
         gameState.battle.killCount = data.battle.killCount || 0
+        gameState.battle.towerHighestFloor = data.battle.towerHighestFloor || 1
       }
 
       gameState.battle.isInBattle = false
       gameState.battle.isAutoBattle = false
+      gameState.battle.isTowerMode = false
+      gameState.battle.towerFloor = 1
+      gameState.battle.towerStartFloor = 1
       gameState.battle.playerCurrentHp = getPlayerStats().maxHp
 
       addLog('游戏已加载', 'success')
@@ -1318,10 +1382,11 @@ export function exportSave() {
     player: gameState.player,
     battle: {
       selectedMapId: gameState.battle.selectedMapId,
-      killCount: gameState.battle.killCount
+      killCount: gameState.battle.killCount,
+      towerHighestFloor: gameState.battle.towerHighestFloor
     },
     timestamp: Date.now(),
-    version: 6,
+    version: 7,
     checksum: calculateChecksum(gameState.player)
   }
   return encrypt(saveData)
@@ -1385,10 +1450,14 @@ export function importSave(encryptedData) {
     if (data.battle) {
       gameState.battle.selectedMapId = data.battle.selectedMapId || 1
       gameState.battle.killCount = data.battle.killCount || 0
+      gameState.battle.towerHighestFloor = data.battle.towerHighestFloor || 1
     }
 
     gameState.battle.isInBattle = false
     gameState.battle.isAutoBattle = false
+    gameState.battle.isTowerMode = false
+    gameState.battle.towerFloor = 1
+    gameState.battle.towerStartFloor = 1
     gameState.battle.playerCurrentHp = getPlayerStats().maxHp
 
     // 保存到本地
@@ -1443,7 +1512,12 @@ export function resetGame() {
     battleLog: [],
     selectedMapId: 1,
     battleTimer: null,
-    killCount: 0
+    killCount: 0,
+    // 锁妖塔状态
+    isTowerMode: false,
+    towerFloor: 1,
+    towerHighestFloor: 1,
+    towerStartFloor: 1
   }
 
   gameState.logs = []

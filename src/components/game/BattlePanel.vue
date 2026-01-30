@@ -8,17 +8,36 @@
     <!-- 地图选择 -->
     <div class="map-select">
       <div class="map-select-row">
-        <select v-model="selectedMapId" :disabled="isAutoBattle">
+        <select v-model="selectedMapId" :disabled="isAutoBattle" @change="onMapChange">
           <option v-for="map in maps" :key="map.id" :value="map.id">
             {{ map.name }} (Lv.{{ map.requiredLevel }}+)
             {{ player.level < map.requiredLevel ? '🔒' : '' }}
           </option>
+          <option value="tower" :disabled="!canEnterTower">
+            {{ towerConfig.name }} (Lv.{{ towerConfig.requiredLevel }}+)
+            {{ !canEnterTower ? '🔒' : '' }}
+          </option>
         </select>
         <button class="drop-table-btn" @click="showDropTable = true">掉落表</button>
       </div>
+      <!-- 锁妖塔层数选择 -->
+      <div class="tower-floor-select" v-if="selectedMapId === 'tower'">
+        <span class="floor-label">起始层数:</span>
+        <select v-model.number="towerStartFloor" :disabled="isAutoBattle">
+          <option v-for="floor in availableFloors" :key="floor" :value="floor">
+            第 {{ floor }} 层
+          </option>
+        </select>
+        <span class="highest-floor">最高: {{ towerHighestFloor }}层</span>
+      </div>
+      <!-- 当前塔层显示 -->
+      <div class="current-tower-floor" v-if="isTowerMode && isInBattle">
+        当前层数: <span class="floor-number">{{ towerFloor }}</span>
+      </div>
       <div class="map-desc" v-if="selectedMap">
         {{ selectedMap.description }}
-        <span class="level-range">怪物等级: {{ selectedMap.levelRange[0] }}-{{ selectedMap.levelRange[1] }}</span>
+        <span class="level-range" v-if="selectedMapId !== 'tower'">怪物等级: {{ selectedMap.levelRange[0] }}-{{ selectedMap.levelRange[1] }}</span>
+        <span class="level-range" v-else>怪物等级: 随层数增加</span>
       </div>
     </div>
 
@@ -134,7 +153,7 @@
 </template>
 
 <script>
-import { maps, skills, skillRarityConfig } from '../../data/gameData'
+import { maps, skills, skillRarityConfig, towerConfig } from '../../data/gameData'
 import {
   gameState,
   getPlayerStats,
@@ -147,7 +166,8 @@ export default {
   data() {
     return {
       maps,
-      showDropTable: false
+      showDropTable: false,
+      towerConfig
     }
   },
   computed: {
@@ -181,13 +201,55 @@ export default {
       },
       set(val) {
         gameState.battle.selectedMapId = val
+        // 切换到非锁妖塔地图时，关闭塔模式
+        if (val !== 'tower') {
+          gameState.battle.isTowerMode = false
+        }
       }
     },
     selectedMap() {
+      if (this.selectedMapId === 'tower') {
+        return {
+          name: towerConfig.name,
+          description: towerConfig.description,
+          requiredLevel: towerConfig.requiredLevel,
+          levelRange: [this.towerFloor + 5, this.towerFloor + 10]
+        }
+      }
       return maps.find(m => m.id === this.selectedMapId)
     },
     playerHpPercent() {
       return (this.playerCurrentHp / this.maxHp) * 100
+    },
+    // 锁妖塔相关
+    isTowerMode() {
+      return gameState.battle.isTowerMode
+    },
+    towerFloor() {
+      return gameState.battle.towerFloor
+    },
+    towerHighestFloor() {
+      return gameState.battle.towerHighestFloor
+    },
+    towerStartFloor: {
+      get() {
+        return gameState.battle.towerStartFloor
+      },
+      set(val) {
+        gameState.battle.towerStartFloor = val
+        gameState.battle.towerFloor = val
+      }
+    },
+    // 可选择的起始层数列表
+    availableFloors() {
+      const floors = []
+      for (let i = 1; i <= this.towerHighestFloor; i++) {
+        floors.push(i)
+      }
+      return floors
+    },
+    canEnterTower() {
+      return this.player.level >= towerConfig.requiredLevel
     }
   },
   watch: {
@@ -204,10 +266,23 @@ export default {
   },
   methods: {
     handleStartBattle() {
+      // 如果选择锁妖塔，设置塔模式
+      if (this.selectedMapId === 'tower') {
+        gameState.battle.isTowerMode = true
+        gameState.battle.towerFloor = this.towerStartFloor
+      } else {
+        gameState.battle.isTowerMode = false
+      }
       startAutoBattle()
     },
     handleStopBattle() {
       stopAutoBattle()
+    },
+    onMapChange() {
+      // 切换到锁妖塔时，确保起始层数合理
+      if (this.selectedMapId === 'tower') {
+        gameState.battle.towerStartFloor = Math.min(this.towerStartFloor, this.towerHighestFloor)
+      }
     },
     getMonsterHpPercent(monster) {
       if (!monster) return 0
@@ -624,5 +699,53 @@ export default {
 
 .equip-drop {
   color: #87ceeb !important;
+}
+
+/* 锁妖塔相关样式 */
+.tower-floor-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px;
+  background: #2a2a4a;
+  border-radius: 6px;
+}
+
+.tower-floor-select .floor-label {
+  color: #ffd700;
+  font-size: 0.9em;
+}
+
+.tower-floor-select select {
+  flex: 1;
+  padding: 6px 10px;
+  background: #1a1a2e;
+  border: 1px solid #4a4a6a;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9em;
+}
+
+.tower-floor-select .highest-floor {
+  color: #98fb98;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.current-tower-floor {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #4a1a5e 0%, #2a1a4e 100%);
+  border: 1px solid #8a4a9a;
+  border-radius: 6px;
+  color: #e0b0ff;
+  font-weight: bold;
+  text-align: center;
+}
+
+.current-tower-floor .floor-number {
+  color: #ffd700;
+  font-size: 1.2em;
 }
 </style>
