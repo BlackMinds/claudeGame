@@ -190,8 +190,16 @@ export default {
         lifesteal: '吸血',
         damageReduction: '减伤',
         thorns: '反伤',
-        hpRegen: '回复'
-      }
+        hpRegen: '回复',
+        hpPercent: '生命',
+        attackPercent: '攻击',
+        defensePercent: '防御',
+        conditionalDamageReduction: '条件减伤',
+        lowHpDefenseBonus: '低血防御',
+        fatalReflect: '致命反伤'
+      },
+      // 百分比类型的属性
+      percentStats: ['hpPercent', 'attackPercent', 'defensePercent', 'conditionalDamageReduction', 'lowHpDefenseBonus', 'fatalReflect']
     }
   },
   computed: {
@@ -259,7 +267,12 @@ export default {
       const texts = []
       for (const [stat, value] of Object.entries(skill.bonusStats)) {
         const name = this.statNames[stat] || stat
-        texts.push(`${name}+${value}`)
+        // 百分比类型的属性显示%
+        if (this.percentStats.includes(stat)) {
+          texts.push(`${name}+${value}%`)
+        } else {
+          texts.push(`${name}+${value}`)
+        }
       }
       return texts.join(' ')
     }
