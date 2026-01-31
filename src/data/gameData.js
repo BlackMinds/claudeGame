@@ -2774,23 +2774,23 @@ export function calculatePetStats(level, quality, aptitude) {
   const qualityMult = qualityData.statMultiplier
   const aptMult = getAptitudeMultiplier(aptitude)
 
-  // 等级成长加成（每20级额外+25%成长率）
-  const levelBonus = 1 + Math.floor(level / 20) * 0.25
+  // 等级成长加成（每15级额外+30%成长率）
+  const levelBonus = 1 + Math.floor(level / 15) * 0.3
 
-  // 基础成长值（与玩家相近）
-  // 宠物基础每级: HP+8, 攻击+3, 防御+2
-  const hpGrowth = 8 * aptMult * qualityMult * levelBonus
-  const atkGrowth = 3 * aptMult * qualityMult * levelBonus
-  const defGrowth = 2 * aptMult * qualityMult * levelBonus
+  // 基础成长值（大幅加强）
+  // 宠物基础每级: HP+15, 攻击+6, 防御+4
+  const hpGrowth = 15 * aptMult * qualityMult * levelBonus
+  const atkGrowth = 6 * aptMult * qualityMult * levelBonus
+  const defGrowth = 4 * aptMult * qualityMult * levelBonus
 
-  // 初始属性 + 等级成长 + 等级指数成长
-  const baseHp = Math.floor(100 + level * hpGrowth + Math.pow(level, 1.2) * aptMult)
-  const baseAttack = Math.floor(12 + level * atkGrowth + Math.pow(level, 1.1) * aptMult * 0.5)
-  const baseDefense = Math.floor(6 + level * defGrowth + Math.pow(level, 1.05) * aptMult * 0.3)
+  // 初始属性 + 等级成长 + 等级指数成长（加强初始值和指数成长）
+  const baseHp = Math.floor(200 + level * hpGrowth + Math.pow(level, 1.3) * aptMult * 1.5)
+  const baseAttack = Math.floor(25 + level * atkGrowth + Math.pow(level, 1.2) * aptMult * 0.8)
+  const baseDefense = Math.floor(15 + level * defGrowth + Math.pow(level, 1.15) * aptMult * 0.5)
 
   // 暴击和闪避随等级成长
-  const critRate = Math.floor(5 + level * 0.1 * aptMult)
-  const dodge = Math.floor(3 + level * 0.08 * aptMult)
+  const critRate = Math.floor(5 + level * 0.12 * aptMult)
+  const dodge = Math.floor(3 + level * 0.1 * aptMult)
 
   return { baseHp, baseAttack, baseDefense, critRate, dodge }
 }
