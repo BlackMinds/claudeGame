@@ -627,7 +627,8 @@ export function generateTowerFloorMonsters(floor) {
     '妖狐', '狼妖', '蛇妖', '熊妖', '虎妖',
     '鬼面蛛', '嗜血蝠', '噬魂兽', '赤焰魔', '玄冰魔',
     '雷霆兽', '暗影鬼', '血魔将', '骨魔将', '魂魔将',
-    '堕落天使', '深渊领主', '混沌使者', '远古巨兽', '天魔王'
+    '堕落天使', '深渊领主', '混沌使者', '远古巨兽', '天魔王',
+    '天魔皇', '红龙', '黑龙', '冰龙', '影龙', '水晶龙', '古龙','堕天使残骸','泰坦遗骸',
   ]
 
   const monsters = []
@@ -695,15 +696,16 @@ export const skills = [
   {
     id: 2,
     name: '冰锥术',
-    description: '发射冰锥攻击敌人，附带减速效果',
+    description: '发射冰锥攻击敌人，有几率冰冻敌人1回合',
     type: 'active',
     rarity: 'common',
     maxLevel: 5,
     baseDamageMultiplier: 1.4,
     levelBonusMultiplier: 0.18,
     cooldown: 2,
-    effect: 'slow',
-    effectValue: 20,
+    effect: 'freeze',
+    effectValue: 30,
+    effectDuration: 1,
     shopPrice: 0,
     dropFromMaps: [1, 2],
     dropRate: 0.02

@@ -47,7 +47,7 @@
         </div>
         <div class="attr-item">
           <span class="attr-icon pen-icon"></span>
-          <span class="attr-name">忽视防御</span>
+          <span class="attr-name">穿透</span>
           <span class="attr-value">{{ stats.penetration.toFixed(1) }}%</span>
         </div>
         <div class="attr-item">

@@ -429,7 +429,7 @@ export default {
         critDamage: '暴击伤害',
         dodge: '闪避率',
         hit: '命中率',
-        penetration: '忽视防御',
+        penetration: '穿透',
         skillDamage: '技能伤害',
         dropRate: '掉落率',
         damageReduction: '伤害减免',

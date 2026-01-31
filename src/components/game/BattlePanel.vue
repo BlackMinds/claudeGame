@@ -99,8 +99,17 @@
         <div class="battle-right">
           <div class="side-label">我方</div>
           <div class="player-container">
-            <div class="combatant player-side">
+            <div
+              class="combatant player-side"
+              @mouseenter="showPlayerTooltip($event)"
+              @mouseleave="hidePlayerTooltip"
+            >
               <div class="combatant-name">{{ player.name }}</div>
+              <div class="player-buffs" v-if="hasPlayerBuffs">
+                <span v-for="(buff, key) in playerBuffs" :key="key" class="buff-icon" :title="getBuffName(key)">
+                  {{ getBuffIcon(key) }}
+                </span>
+              </div>
               <div class="hp-bar-wrap">
                 <div class="hp-bar player" :style="{ width: playerHpPercent + '%' }"></div>
               </div>
@@ -108,15 +117,26 @@
             </div>
 
             <!-- 宠物状态 -->
-            <div v-if="activePet" class="combatant pet-side" :class="{ dead: activePet.currentHp <= 0 }">
+            <div
+              v-if="activePet"
+              class="combatant pet-side"
+              :class="{ dead: activePet.currentHp <= 0 }"
+              @mouseenter="showPetTooltip($event)"
+              @mouseleave="hidePetTooltip"
+            >
               <div class="combatant-name">
                 <span class="pet-icon">{{ activePet.icon }}</span>
                 {{ activePet.name }}
               </div>
+              <div class="pet-buffs" v-if="hasPetBuffs">
+                <span v-for="(buff, key) in petBuffs" :key="key" class="buff-icon" :title="getPetBuffName(key)">
+                  {{ getPetBuffIcon(key) }}
+                </span>
+              </div>
               <div class="hp-bar-wrap">
                 <div class="hp-bar pet" :style="{ width: petHpPercent + '%' }"></div>
               </div>
-              <div class="hp-text">{{ activePet.currentHp }} / {{ activePet.baseHp }}</div>
+              <div class="hp-text">{{ activePet.currentHp }} / {{ petMaxHp }}</div>
             </div>
           </div>
         </div>
@@ -204,6 +224,128 @@
       </div>
     </div>
 
+    <!-- 玩家属性提示框 -->
+    <div
+      v-if="tooltipPlayer"
+      class="player-tooltip"
+      :style="{ top: tooltipY + 'px', left: tooltipX + 'px' }"
+    >
+      <div class="tooltip-header">
+        <span class="tooltip-name">{{ player.name }}</span>
+        <span class="tooltip-level">Lv.{{ player.level }}</span>
+      </div>
+      <div class="tooltip-stats">
+        <div class="stat-row">
+          <span class="stat-label">生命值</span>
+          <span class="stat-value hp">{{ playerCurrentHp }} / {{ maxHp }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">攻击力</span>
+          <span class="stat-value atk">{{ playerStats.attack }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">防御力</span>
+          <span class="stat-value def">{{ playerStats.defense }}</span>
+        </div>
+      </div>
+      <div class="tooltip-special">
+        <div class="stat-row">
+          <span class="stat-label">暴击率</span>
+          <span class="stat-value crit">{{ playerStats.critRate.toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">暴击伤害</span>
+          <span class="stat-value crit">{{ (150 + playerStats.critDamage).toFixed(0) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">闪避率</span>
+          <span class="stat-value dodge">{{ playerStats.dodge.toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">穿透</span>
+          <span class="stat-value pen">{{ playerStats.penetration.toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">吸血</span>
+          <span class="stat-value lifesteal">{{ playerStats.lifesteal.toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">减伤</span>
+          <span class="stat-value reduce">{{ playerStats.damageReduction.toFixed(1) }}%</span>
+        </div>
+      </div>
+      <div class="tooltip-skills" v-if="equippedActiveSkills.length > 0">
+        <div class="skills-title">主动技能</div>
+        <div v-for="skill in equippedActiveSkillsInfo" :key="skill.id" class="skill-item">
+          <span class="skill-name">{{ skill.name }}</span>
+          <span class="skill-cd">CD:{{ skill.cooldown }}</span>
+        </div>
+      </div>
+      <div class="tooltip-buffs" v-if="hasPlayerBuffs">
+        <div class="buffs-title">当前效果</div>
+        <div v-for="(buff, key) in playerBuffs" :key="key" class="buff-item buff">
+          {{ getBuffName(key) }}: {{ formatBuffValue(buff) }}
+        </div>
+      </div>
+    </div>
+
+    <!-- 宠物属性提示框 -->
+    <div
+      v-if="tooltipPet"
+      class="pet-tooltip"
+      :style="{ top: tooltipY + 'px', left: tooltipX + 'px' }"
+    >
+      <div class="tooltip-header">
+        <span class="tooltip-name">{{ activePet.icon }} {{ activePet.name }}</span>
+        <span class="tooltip-level">Lv.{{ activePet.level }}</span>
+      </div>
+      <div class="tooltip-stats">
+        <div class="stat-row">
+          <span class="stat-label">生命值</span>
+          <span class="stat-value hp">{{ activePet.currentHp }} / {{ petMaxHp }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">攻击力</span>
+          <span class="stat-value atk">{{ petStatsComputed.attack }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">防御力</span>
+          <span class="stat-value def">{{ petStatsComputed.defense }}</span>
+        </div>
+      </div>
+      <div class="tooltip-special">
+        <div class="stat-row">
+          <span class="stat-label">暴击率</span>
+          <span class="stat-value crit">{{ petStatsComputed.critRate.toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">暴击伤害</span>
+          <span class="stat-value crit">{{ (150 + petStatsComputed.critDamage).toFixed(0) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">闪避率</span>
+          <span class="stat-value dodge">{{ petStatsComputed.dodge.toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">命中率</span>
+          <span class="stat-value hit">{{ petStatsComputed.hit.toFixed(1) }}%</span>
+        </div>
+      </div>
+      <div class="tooltip-skills" v-if="petSkillsInfo.length > 0">
+        <div class="skills-title">技能</div>
+        <div v-for="skill in petSkillsInfo" :key="skill.id" class="skill-item" :class="skill.type">
+          <span class="skill-name">{{ skill.name }}</span>
+          <span class="skill-type-tag">{{ skill.typeLabel }}</span>
+        </div>
+      </div>
+      <div class="tooltip-buffs" v-if="hasPetBuffs">
+        <div class="buffs-title">当前效果</div>
+        <div v-for="(buff, key) in petBuffs" :key="key" class="buff-item buff">
+          {{ getPetBuffName(key) }}: {{ formatBuffValue(buff) }}
+        </div>
+      </div>
+    </div>
+
     <!-- 掉落表弹窗 -->
     <div v-if="showDropTable" class="modal-overlay" @click.self="showDropTable = false">
       <div class="drop-table-modal">
@@ -249,13 +391,14 @@
 </template>
 
 <script>
-import { maps, skills, skillRarityConfig, towerConfig } from '../../data/gameData'
+import { maps, skills, skillRarityConfig, towerConfig, getSkillById, getPetStats } from '../../data/gameData'
 import {
   gameState,
   getPlayerStats,
   startAutoBattle,
   stopAutoBattle,
-  getActivePet
+  getActivePet,
+  getPetPassiveEffects
 } from '../../store/gameStore'
 
 export default {
@@ -266,6 +409,8 @@ export default {
       showDropTable: false,
       towerConfig,
       tooltipMonster: null,
+      tooltipPlayer: false,
+      tooltipPet: false,
       tooltipX: 0,
       tooltipY: 0
     }
@@ -358,6 +503,70 @@ export default {
     },
     canEnterTower() {
       return this.player.level >= towerConfig.requiredLevel
+    },
+    // 玩家属性
+    playerStats() {
+      return getPlayerStats()
+    },
+    // 玩家buff
+    playerBuffs() {
+      return gameState.battle.playerBuffs || {}
+    },
+    hasPlayerBuffs() {
+      return this.playerBuffs && Object.keys(this.playerBuffs).length > 0
+    },
+    // 玩家装备的主动技能
+    equippedActiveSkills() {
+      return this.player.equippedActiveSkills || []
+    },
+    equippedActiveSkillsInfo() {
+      return this.equippedActiveSkills.map(skillId => {
+        const skill = getSkillById(skillId)
+        return skill ? {
+          id: skill.id,
+          name: skill.name,
+          cooldown: skill.cooldown,
+          description: skill.description
+        } : null
+      }).filter(s => s)
+    },
+    // 宠物最大生命
+    petMaxHp() {
+      if (!this.activePet) return 0
+      const stats = getPetStats(this.activePet)
+      return stats.maxHp
+    },
+    // 宠物属性
+    petStatsComputed() {
+      if (!this.activePet) return { attack: 0, defense: 0, critRate: 0, critDamage: 0, dodge: 0, hit: 0 }
+      return getPetStats(this.activePet)
+    },
+    // 宠物buff
+    petBuffs() {
+      return gameState.battle.petBuffs || {}
+    },
+    hasPetBuffs() {
+      return this.petBuffs && Object.keys(this.petBuffs).length > 0
+    },
+    // 宠物技能信息
+    petSkillsInfo() {
+      if (!this.activePet || !this.activePet.skills) return []
+      return this.activePet.skills.map(skillId => {
+        const skill = getSkillById(skillId)
+        if (!skill) return null
+        let typeLabel = '主动'
+        if (skill.type === 'petLearnablePassive' || (skill.type === 'petSkill' && skill.cooldown === 0)) {
+          typeLabel = '被动'
+        } else if (skill.isHidden) {
+          typeLabel = '隐藏'
+        }
+        return {
+          id: skill.id,
+          name: skill.name,
+          type: skill.type,
+          typeLabel
+        }
+      }).filter(s => s)
     }
   },
   watch: {
@@ -432,6 +641,79 @@ export default {
     hideMonsterTooltip() {
       this.tooltipMonster = null
     },
+    showPlayerTooltip(event) {
+      this.tooltipPlayer = true
+      this.tooltipPet = false
+      this.tooltipMonster = null
+      const rect = event.target.getBoundingClientRect()
+      this.tooltipX = rect.left - 290
+      this.tooltipY = rect.top
+      if (this.tooltipX < 10) {
+        this.tooltipX = rect.right + 10
+      }
+      if (this.tooltipY + 350 > window.innerHeight) {
+        this.tooltipY = window.innerHeight - 360
+      }
+    },
+    hidePlayerTooltip() {
+      this.tooltipPlayer = false
+    },
+    showPetTooltip(event) {
+      this.tooltipPet = true
+      this.tooltipPlayer = false
+      this.tooltipMonster = null
+      const rect = event.target.getBoundingClientRect()
+      this.tooltipX = rect.left - 290
+      this.tooltipY = rect.top
+      if (this.tooltipX < 10) {
+        this.tooltipX = rect.right + 10
+      }
+      if (this.tooltipY + 350 > window.innerHeight) {
+        this.tooltipY = window.innerHeight - 360
+      }
+    },
+    hidePetTooltip() {
+      this.tooltipPet = false
+    },
+    getBuffIcon(key) {
+      const icons = {
+        attackBuff: '⚔️',
+        defenseBuff: '🛡️',
+        critBuff: '💥',
+        critDamageBuff: '💢',
+        dodgeBuff: '💨',
+        shield: '🔰',
+        regen: '💚',
+        charge: '⚡',
+        absoluteDefense: '🏰',
+        reflectBuff: '🔄'
+      }
+      return icons[key] || '✨'
+    },
+    getPetBuffIcon(key) {
+      const icons = {
+        saiyan: '⚡',
+        superDodge: '👻',
+        taunt: '😤',
+        bloodFrenzy: '🩸',
+        flameBody: '🔥',
+        ironBody: '🛡️',
+        rageBonus: '💢'
+      }
+      return icons[key] || '✨'
+    },
+    getPetBuffName(key) {
+      const names = {
+        saiyan: '赛亚人',
+        superDodge: '幻影分身',
+        taunt: '嘲讽',
+        bloodFrenzy: '血之狂欢',
+        flameBody: '烈焰之躯',
+        ironBody: '金刚不坏',
+        rageBonus: '暴怒'
+      }
+      return names[key] || key
+    },
     hasBuffs(monster) {
       return monster.buffs && Object.keys(monster.buffs).length > 0
     },
@@ -446,11 +728,16 @@ export default {
         defenseBuff: '防御提升',
         critRate: '暴击提升',
         critBuff: '暴击提升',
+        critDamageBuff: '暴伤提升',
         shield: '护盾',
         lifesteal: '吸血',
         dodge: '闪避提升',
+        dodgeBuff: '闪避提升',
         hp: '生命提升',
-        regen: '生命回复'
+        regen: '生命回复',
+        charge: '蓄力',
+        absoluteDefense: '绝对防御',
+        reflectBuff: '反伤护盾'
       }
       return names[key] || key
     },
@@ -458,13 +745,19 @@ export default {
       const names = {
         vulnerable: '易伤',
         weakened: '虚弱',
+        weaken: '虚弱',
         poisoned: '中毒',
+        poison: '中毒',
         frozen: '冰冻',
+        freeze: '冰冻',
         stunned: '眩晕',
+        stun: '眩晕',
         marked: '标记',
         bleed: '流血',
         burn: '灼烧',
-        slow: '减速'
+        slow: '减速',
+        curse: '诅咒',
+        defenseDown: '破甲'
       }
       return names[key] || key
     },
@@ -1163,5 +1456,98 @@ export default {
 
 .monster-side:hover {
   background: rgba(255, 107, 107, 0.1);
+}
+
+/* 玩家和宠物可点击 */
+.player-side, .pet-side {
+  cursor: pointer;
+}
+
+.player-side:hover {
+  background: rgba(46, 204, 113, 0.1);
+}
+
+.pet-side:hover {
+  background: rgba(52, 152, 219, 0.1);
+}
+
+/* 玩家/宠物 buff 图标 */
+.player-buffs, .pet-buffs {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+
+.buff-icon {
+  font-size: 0.8em;
+}
+
+/* 玩家属性提示框 */
+.player-tooltip {
+  position: fixed;
+  z-index: 2000;
+  background: linear-gradient(135deg, #1a2e1a 0%, #2a4a2a 100%);
+  border: 2px solid #2ecc71;
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 250px;
+  max-width: 280px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.player-tooltip .tooltip-name {
+  color: #2ecc71;
+}
+
+.player-tooltip .tooltip-level {
+  color: #98fb98;
+  margin-left: 10px;
+  font-size: 0.9em;
+}
+
+/* 宠物属性提示框 */
+.pet-tooltip {
+  position: fixed;
+  z-index: 2000;
+  background: linear-gradient(135deg, #1a1a3e 0%, #2a2a5a 100%);
+  border: 2px solid #3498db;
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 250px;
+  max-width: 280px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.pet-tooltip .tooltip-name {
+  color: #3498db;
+}
+
+.pet-tooltip .tooltip-level {
+  color: #87ceeb;
+  margin-left: 10px;
+  font-size: 0.9em;
+}
+
+/* 技能类型标签 */
+.skill-type-tag {
+  font-size: 0.75em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 5px;
+}
+
+.skill-item.petLearnablePassive .skill-type-tag,
+.skill-item.petSkill .skill-type-tag {
+  background: rgba(155, 89, 182, 0.3);
+  color: #bb8fce;
+}
+
+.skill-cd {
+  font-size: 0.8em;
+  color: #888;
+  margin-left: auto;
 }
 </style>
