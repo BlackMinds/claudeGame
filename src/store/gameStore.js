@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, MAX_ENHANCE_LEVEL, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook, equipmentSets } from '../data/gameData'
+import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, MAX_ENHANCE_LEVEL, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook, equipmentSets, artifactMaterials, materialDropRates, getMapDroppableMaterials, getTowerDroppableMaterials, craftArtifact, getArtifactExpForLevel, getCraftedArtifactStats, getMaterialById } from '../data/gameData'
 import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 获取网络时间（返回日期字符串 YYYY-MM-DD）
@@ -71,7 +71,7 @@ function getExpForLevel(level) {
   return Math.floor(120 * level * (1 + level * 0.15))
 }
 
-// 生成新手装备
+// 生成新手装备（法宝已移至打造系统）
 function generateStarterEquipment() {
   return {
     weapon: generateEquipment(1, 'weapon', 'white'),
@@ -79,8 +79,7 @@ function generateStarterEquipment() {
     helmet: generateEquipment(1, 'helmet', 'white'),
     ring: generateEquipment(1, 'ring', 'white'),
     necklace: generateEquipment(1, 'necklace', 'white'),
-    boots: generateEquipment(1, 'boots', 'white'),
-    artifact: generateEquipment(1, 'artifact', 'white')
+    boots: generateEquipment(1, 'boots', 'white')
   }
 }
 
@@ -126,7 +125,11 @@ export const gameState = Vue.observable({
     // 额外被动技能栏位（锁妖塔50层奖励）
     bonusPassiveSlots: 0,
     // 额外背包格子（锁妖塔20/30/40层奖励）
-    bonusInventorySlots: 0
+    bonusInventorySlots: 0,
+    // 法宝打造系统
+    artifactMaterials: {},  // 材料背包 { materialId: count }
+    craftedArtifacts: [],   // 打造的法宝列表
+    equippedCraftedArtifact: null  // 当前装备的打造法宝
   },
   // 拾取筛选设置
   lootFilter: {
@@ -150,6 +153,21 @@ export const gameState = Vue.observable({
     selectedMapId: 1,
     battleTimer: null,
     killCount: 0,
+    // 战斗统计
+    battleStats: {
+      startTime: null,
+      totalExp: 0,
+      totalGold: 0,
+      totalKills: 0,
+      drops: {
+        white: 0,
+        green: 0,
+        blue: 0,
+        purple: 0,
+        orange: 0,
+        skillBooks: 0
+      }
+    },
     // 锁妖塔状态
     isTowerMode: false,
     towerFloor: 1,
@@ -353,10 +371,16 @@ export function getPlayerStats() {
   const passiveStats = getPassiveSkillBonus()
   const { bonuses: setBonuses } = getSetBonuses()
 
-  // 境界百分比加成 + 套装百分比加成 + 被动技能百分比加成
-  const hpBonus = 1 + (realm.hpBonus || 0) / 100 + (setBonuses.hp || 0) / 100 + (passiveStats.hpPercent || 0) / 100
-  const attackBonus = 1 + (realm.attackBonus || 0) / 100 + (setBonuses.attack || 0) / 100 + (passiveStats.attackPercent || 0) / 100
-  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100 + (setBonuses.defense || 0) / 100 + (passiveStats.defensePercent || 0) / 100
+  // 获取打造法宝属性
+  const craftedArtifact = getEquippedCraftedArtifact()
+  const craftedArtStats = craftedArtifact ? getCraftedArtifactStats(craftedArtifact) : null
+  const artStats = craftedArtStats?.stats || { attack: 0, defense: 0, hp: 0 }
+  const artPassive = craftedArtStats?.passiveEffects || {}
+
+  // 境界百分比加成 + 套装百分比加成 + 被动技能百分比加成 + 打造法宝百分比加成
+  const hpBonus = 1 + (realm.hpBonus || 0) / 100 + (setBonuses.hp || 0) / 100 + (passiveStats.hpPercent || 0) / 100 + (artPassive.hpPercent || 0) / 100 + (artPassive.allPercent || 0) / 100
+  const attackBonus = 1 + (realm.attackBonus || 0) / 100 + (setBonuses.attack || 0) / 100 + (passiveStats.attackPercent || 0) / 100 + (artPassive.attackPercent || 0) / 100 + (artPassive.allPercent || 0) / 100
+  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100 + (setBonuses.defense || 0) / 100 + (passiveStats.defensePercent || 0) / 100 + (artPassive.defensePercent || 0) / 100 + (artPassive.allPercent || 0) / 100
 
   // 获取临时buff加成
   const buffs = gameState.battle.playerBuffs || {}
@@ -364,39 +388,43 @@ export function getPlayerStats() {
   const defenseBuffPercent = buffs.defenseBuff?.value || 0
   const critBuffValue = buffs.critBuff?.value || 0
 
-  const baseAttack = Math.floor((p.baseAttack + equipStats.attack + passiveStats.attack) * attackBonus)
-  const baseDefense = Math.floor((p.baseDefense + equipStats.defense + passiveStats.defense) * defenseBonus)
+  const baseAttack = Math.floor((p.baseAttack + equipStats.attack + passiveStats.attack + artStats.attack) * attackBonus)
+  const baseDefense = Math.floor((p.baseDefense + equipStats.defense + passiveStats.defense + artStats.defense) * defenseBonus)
 
-  // 吸血 = 装备吸血 + 被动技能吸血 + 境界吸血加成 + 套装吸血
-  const totalLifesteal = (equipStats.lifesteal || 0) + (passiveStats.lifesteal || 0) + (realm.lifestealBonus || 0) + (setBonuses.lifesteal || 0)
+  // 吸血 = 装备吸血 + 被动技能吸血 + 境界吸血加成 + 套装吸血 + 打造法宝吸血
+  const totalLifesteal = (equipStats.lifesteal || 0) + (passiveStats.lifesteal || 0) + (realm.lifestealBonus || 0) + (setBonuses.lifesteal || 0) + (artPassive.lifesteal || 0)
 
-  // 伤害减免 = 装备减伤 + 被动技能减伤 + 套装减伤
-  const totalDamageReduction = (equipStats.damageReduction || 0) + (passiveStats.damageReduction || 0) + (setBonuses.damageReduction || 0)
+  // 伤害减免 = 装备减伤 + 被动技能减伤 + 套装减伤 + 打造法宝减伤
+  const totalDamageReduction = (equipStats.damageReduction || 0) + (passiveStats.damageReduction || 0) + (setBonuses.damageReduction || 0) + (artPassive.damageReduction || 0)
 
-  // 反伤 = 装备反伤 + 被动技能反伤 + 套装反伤
-  const totalThorns = (equipStats.thorns || 0) + (passiveStats.thorns || 0) + (setBonuses.thorns || 0)
+  // 反伤 = 装备反伤 + 被动技能反伤 + 套装反伤 + 打造法宝反伤
+  const totalThorns = (equipStats.thorns || 0) + (passiveStats.thorns || 0) + (setBonuses.thorns || 0) + (artPassive.thorns || 0)
 
   return {
-    maxHp: Math.floor((p.baseHp + equipStats.hp + passiveStats.hp) * hpBonus),
+    maxHp: Math.floor((p.baseHp + equipStats.hp + passiveStats.hp + artStats.hp) * hpBonus),
     attack: Math.floor(baseAttack * (1 + attackBuffPercent / 100)),
     defense: Math.floor(baseDefense * (1 + defenseBuffPercent / 100)),
-    critRate: p.critRate + equipStats.critRate + passiveStats.critRate + critBuffValue + (setBonuses.critRate || 0),
+    critRate: p.critRate + equipStats.critRate + passiveStats.critRate + critBuffValue + (setBonuses.critRate || 0) + (artPassive.critRate || 0),
     critResist: p.critResist + equipStats.critResist + passiveStats.critResist,
-    critDamage: p.critDamage + equipStats.critDamage + passiveStats.critDamage + (setBonuses.critDamage || 0),
-    dodge: p.dodge + equipStats.dodge + passiveStats.dodge + (setBonuses.dodge || 0),
+    critDamage: p.critDamage + equipStats.critDamage + passiveStats.critDamage + (setBonuses.critDamage || 0) + (artPassive.critDamage || 0),
+    dodge: p.dodge + equipStats.dodge + passiveStats.dodge + (setBonuses.dodge || 0) + (artPassive.dodge || 0),
     hit: p.hit + equipStats.hit + passiveStats.hit,
-    penetration: p.penetration + equipStats.penetration + passiveStats.penetration + (setBonuses.penetration || 0),
+    penetration: p.penetration + equipStats.penetration + passiveStats.penetration + (setBonuses.penetration || 0) + (artPassive.penetration || 0),
     skillDamage: equipStats.skillDamage + passiveStats.skillDamage,
     dropRate: equipStats.dropRate,
     lifesteal: totalLifesteal,
     damageReduction: totalDamageReduction,
     hpRegen: passiveStats.hpRegen || 0,
-    healBonus: realm.healBonus || 0,
-    healReceivedBonus: realm.healReceivedBonus || 0,
+    healBonus: (realm.healBonus || 0) + (artPassive.healBonus || 0),
+    healReceivedBonus: (realm.healReceivedBonus || 0) + (artPassive.healReceivedBonus || 0),
     thorns: totalThorns,
     conditionalDamageReduction: passiveStats.conditionalDamageReduction || 0,
-    lowHpDefenseBonus: passiveStats.lowHpDefenseBonus || 0,
-    fatalReflect: passiveStats.fatalReflect || 0
+    lowHpDefenseBonus: (passiveStats.lowHpDefenseBonus || 0) + (artPassive.lowHpReduction || 0),
+    fatalReflect: passiveStats.fatalReflect || 0,
+    // 打造法宝特殊效果
+    debuffDamageBonus: artPassive.debuffDamageBonus || 0,
+    killHealPercent: artPassive.killHealPercent || 0,
+    revivePercent: artPassive.revive || 0
   }
 }
 
@@ -678,6 +706,16 @@ export function equipItem(item) {
 export function unequipItem(slotType) {
   const item = gameState.player.equipment[slotType]
   if (item) {
+    // 打造法宝特殊处理：不放入背包，只清除装备槽和标记
+    if (slotType === 'artifact' && item.type === 'craftedArtifact') {
+      gameState.player.equipment[slotType] = null
+      gameState.player.equippedCraftedArtifact = null
+      addLog(`卸下了【${item.name}】`, 'normal')
+      autoSave()
+      return true
+    }
+
+    // 普通装备放入背包
     if (gameState.player.inventory.length >= getInventoryLimit()) {
       addLog(`背包已满，无法卸下【${item.name}】`, 'danger')
       return false
@@ -1483,6 +1521,38 @@ const redeemCodes = {
       { type: 'petSkillBook', tier: 'advanced', count: 5 },
       { type: 'petEgg', tier: 'advanced', count: 5 }
     ]
+  },
+  // 法宝材料兑换码
+  'FABAO2024': {
+    name: '超级材料礼包',
+    rewards: [
+      { type: 'material', id: 'mat_chaos_essence', count: 5 },
+      { type: 'material', id: 'mat_hongmeng_qi', count: 5 }
+    ]
+  },
+  'ALLMAT888': {
+    name: '全材料豪华礼包',
+    rewards: [
+      { type: 'material', id: 'mat_spirit_stone', count: 20 },
+      { type: 'material', id: 'mat_iron_essence', count: 20 },
+      { type: 'material', id: 'mat_wood_spirit', count: 20 },
+      { type: 'material', id: 'mat_dark_iron', count: 15 },
+      { type: 'material', id: 'mat_spirit_jade', count: 15 },
+      { type: 'material', id: 'mat_fire_crystal', count: 15 },
+      { type: 'material', id: 'mat_meteor_iron', count: 10 },
+      { type: 'material', id: 'mat_dragon_crystal', count: 10 },
+      { type: 'material', id: 'mat_phoenix_feather', count: 10 },
+      { type: 'material', id: 'mat_chaos_essence', count: 5 },
+      { type: 'material', id: 'mat_hongmeng_qi', count: 5 }
+    ]
+  },
+  'SUPERMAT': {
+    name: '超级材料测试包',
+    oneTime: false,  // 可多次使用
+    rewards: [
+      { type: 'material', id: 'mat_chaos_essence', count: 10 },
+      { type: 'material', id: 'mat_hongmeng_qi', count: 10 }
+    ]
   }
 }
 
@@ -1562,11 +1632,19 @@ export function useRedeemCode(code) {
         gameState.player.petEggs.push(petEgg)
       }
       rewardTexts.push(`至尊宠物蛋 x${reward.count}`)
+    } else if (reward.type === 'material') {
+      // 添加法宝材料
+      addMaterial(reward.id, reward.count)
+      const matData = getMaterialById(reward.id)
+      const matName = matData ? matData.name : reward.id
+      rewardTexts.push(`${matName} x${reward.count}`)
     }
   }
 
-  // 记录已使用
-  gameState.player.usedRedeemCodes.push(upperCode)
+  // 记录已使用（除非设置了 oneTime: false）
+  if (codeData.oneTime !== false) {
+    gameState.player.usedRedeemCodes.push(upperCode)
+  }
 
   const message = `兑换成功！获得：${rewardTexts.join('、')}`
   addLog(message, 'success')
@@ -1632,6 +1710,8 @@ export function startBattle() {
   gameState.battle.roundCount = 0
   gameState.battle.fatalReflectUsed = false
   gameState.battle.chaosStrikeActive = false
+  gameState.battle.artifactReviveUsed = false  // 法宝涅槃重生
+  gameState.battle.artifactSkillCooldowns = {}  // 法宝主动技能冷却
 
   // 重置宠物血量
   const activePet = getActivePet()
@@ -1681,6 +1761,8 @@ export function startTowerBattle() {
   gameState.battle.roundCount = 0
   gameState.battle.fatalReflectUsed = false
   gameState.battle.chaosStrikeActive = false
+  gameState.battle.artifactReviveUsed = false  // 法宝涅槃重生
+  gameState.battle.artifactSkillCooldowns = {}  // 法宝主动技能冷却
 
   // 重置宠物血量
   const activePet = getActivePet()
@@ -1803,6 +1885,15 @@ export async function towerFloorCleared() {
     }
   }
 
+  // 400层以上掉落超级材料（法宝打造系统）
+  if (floor >= 400) {
+    const droppedMaterial = checkTowerMaterialDrop(floor)
+    if (droppedMaterial) {
+      addBattleLog(`掉落稀有材料【${droppedMaterial.name}】${droppedMaterial.icon}！`, 'success')
+      addLog(`锁妖塔第${floor}层掉落：【${droppedMaterial.name}】`, 'success')
+    }
+  }
+
   // 更新最高层数
   if (floor >= gameState.battle.towerHighestFloor) {
     gameState.battle.towerHighestFloor = floor + 1
@@ -1883,7 +1974,7 @@ function updatePlayerBuffs() {
     if (buffs[buffName].duration > 0) {
       buffs[buffName].duration--
       if (buffs[buffName].duration <= 0) {
-        delete buffs[buffName]
+        Vue.delete(buffs, buffName)
         addBattleLog(`⏱️ 【${getBuffName(buffName)}】效果结束`, 'info')
       }
     }
@@ -1915,7 +2006,7 @@ function updateMonsterDebuffs() {
       if (monster.debuffs[debuffName].duration > 0) {
         monster.debuffs[debuffName].duration--
         if (monster.debuffs[debuffName].duration <= 0) {
-          delete monster.debuffs[debuffName]
+          Vue.delete(monster.debuffs, debuffName)
           addBattleLog(`⏱️ ${getMonsterNameWithStatus(monster)} 的【${getDebuffName(debuffName)}】效果结束`, 'info')
         }
       }
@@ -2052,7 +2143,7 @@ export function battleRound() {
   let chargeBonus = 1
   if (chargeState) {
     chargeBonus = chargeState.value
-    delete gameState.battle.playerBuffs.charge
+    Vue.delete(gameState.battle.playerBuffs, 'charge')
     addBattleLog(`⚡ 蓄力完成，释放强力攻击！`, 'warning')
   }
 
@@ -2209,6 +2300,90 @@ export function battleRound() {
     }
   }
 
+  // ========== 法宝主动技能 ==========
+  const equippedArtifact = getEquippedCraftedArtifact()
+  if (equippedArtifact && equippedArtifact.activeSkills && equippedArtifact.activeSkills.length > 0) {
+    for (const artSkill of equippedArtifact.activeSkills) {
+      const cooldown = gameState.battle.artifactSkillCooldowns[artSkill.id] || 0
+      if (cooldown <= 0) {
+        // 计算技能数值（含等级成长）
+        const artLevel = equippedArtifact.level || 1
+        const baseValue = artSkill.baseValue || 0
+        const levelBonus = (artLevel - 1) * (artSkill.growthPerLevel || 0)
+        const skillValue = baseValue + levelBonus
+
+        // 设置冷却
+        gameState.battle.artifactSkillCooldowns[artSkill.id] = artSkill.cooldown || 5
+
+        // 根据技能效果执行
+        if (artSkill.effect === 'shield') {
+          // 灵光护体：获得护盾
+          const shieldAmount = Math.floor(skillValue)
+          gameState.battle.playerBuffs.shield = { value: shieldAmount, duration: 99 }
+          addBattleLog(`🔮 法宝【${artSkill.name}】：获得 ${shieldAmount} 点护盾`, 'buff')
+        }
+        else if (artSkill.effect === 'heal') {
+          // 灵气疗伤：回复生命
+          const healAmount = Math.floor(stats.maxHp * skillValue / 100)
+          gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
+          addBattleLog(`🔮 法宝【${artSkill.name}】：回复 ${healAmount} 点生命`, 'heal')
+        }
+        else if (artSkill.effect === 'damageStun') {
+          // 雷霆一击：对第一个敌人造成伤害并眩晕
+          const target = aliveMonsters[0]
+          if (target) {
+            const damage = Math.floor(skillValue)
+            target.currentHp -= damage
+            if (!target.debuffs) target.debuffs = {}
+            target.debuffs.stun = { duration: artSkill.stunDuration || 1 }
+            addBattleLog(`🔮 法宝【${artSkill.name}】：对 ${getMonsterNameWithStatus(target)} 造成 ${damage} 伤害并眩晕！`, 'success')
+          }
+        }
+        else if (artSkill.effect === 'aoeDamage') {
+          // 烈焰爆发：对所有敌人造成伤害
+          const damage = Math.floor(skillValue)
+          for (const target of aliveMonsters) {
+            target.currentHp -= damage
+          }
+          addBattleLog(`🔮 法宝【${artSkill.name}】：对全体敌人造成 ${damage} 伤害！`, 'success')
+        }
+        else if (artSkill.effect === 'attackDebuff') {
+          // 虚弱诅咒：降低敌人攻击力
+          for (const target of aliveMonsters) {
+            if (!target.debuffs) target.debuffs = {}
+            target.debuffs.weaken = { value: skillValue, duration: artSkill.duration || 3 }
+          }
+          addBattleLog(`🔮 法宝【${artSkill.name}】：降低全体敌人 ${skillValue.toFixed(1)}% 攻击力`, 'debuff')
+        }
+        else if (artSkill.effect === 'skipTurn') {
+          // 时间静止：敌人跳过回合
+          for (const target of aliveMonsters) {
+            if (!target.debuffs) target.debuffs = {}
+            target.debuffs.stun = { duration: artSkill.duration || 1 }
+          }
+          addBattleLog(`🔮 法宝【${artSkill.name}】：全体敌人被定身 ${artSkill.duration || 1} 回合！`, 'debuff')
+        }
+        else if (artSkill.effect === 'attackBuff') {
+          // 狂暴之力：提升攻击力
+          gameState.battle.playerBuffs.attackBuff = {
+            value: skillValue,
+            duration: artSkill.duration || 3
+          }
+          addBattleLog(`🔮 法宝【${artSkill.name}】：攻击力 +${skillValue.toFixed(1)}% (${artSkill.duration || 3}回合)`, 'buff')
+        }
+
+        break // 每回合只使用一个法宝技能
+      }
+    }
+
+    // 更新法宝技能冷却
+    for (const skillId in gameState.battle.artifactSkillCooldowns) {
+      if (gameState.battle.artifactSkillCooldowns[skillId] > 0) {
+        gameState.battle.artifactSkillCooldowns[skillId]--
+      }
+    }
+  }
+
   // 应用蓄力加成
   let chargeDebuff = null
   if (chargeBonus > 1) {
@@ -2282,6 +2457,17 @@ export function battleRound() {
       if (targetMonster.debuffs && targetMonster.debuffs.curse) {
         const curseBonus = targetMonster.debuffs.curse.value / 100
         damage = Math.floor(damage * (1 + curseBonus))
+      }
+
+      // 审判之力：对有负面状态的敌人额外伤害（法宝被动技能）
+      if (stats.debuffDamageBonus > 0 && targetMonster.debuffs) {
+        const hasDebuff = Object.keys(targetMonster.debuffs).some(key =>
+          targetMonster.debuffs[key] && (targetMonster.debuffs[key].duration > 0 || targetMonster.debuffs[key].value > 0)
+        )
+        if (hasDebuff) {
+          const judgmentBonus = stats.debuffDamageBonus / 100
+          damage = Math.floor(damage * (1 + judgmentBonus))
+        }
       }
 
       // 反伤护盾
@@ -2375,12 +2561,26 @@ export function battleRound() {
           targetMonster.currentHp = 0
           gameState.battle.killCount++
 
+          // 死神低语：击杀回血（法宝被动技能）
+          if (stats.killHealPercent > 0) {
+            const killHeal = Math.floor(stats.maxHp * stats.killHealPercent / 100)
+            gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + killHeal)
+            addBattleLog(`💀 【死神低语】击杀回复 ${killHeal} 生命`, 'heal')
+          }
+
           // 奖励（应用经验和金币倍率）
           const expGain = targetMonster.exp * gameState.devExpMultiplier
           const goldGain = targetMonster.gold * gameState.devGoldMultiplier
           gameState.player.exp += expGain
           gameState.player.realmExp += Math.floor(expGain / 4) // 修为获取降低
           gameState.player.gold += goldGain
+
+          // 更新战斗统计
+          if (gameState.battle.battleStats) {
+            gameState.battle.battleStats.totalExp += expGain
+            gameState.battle.battleStats.totalGold += goldGain
+            gameState.battle.battleStats.totalKills++
+          }
 
           // 给所有已装备的主动技能增加经验（降低获取量，应用倍率）
           const skillExpGain = Math.floor(expGain / 8)
@@ -2399,13 +2599,21 @@ export function battleRound() {
 
           addBattleLog(`击败 ${getMonsterNameWithStatus(targetMonster)}！+${expGain}经验 +${goldGain}灵石`, 'success')
 
-          // 装备掉落（加上dropRate属性加成和开发倍率）
+          // 装备掉落（加上dropRate属性加成和开发倍率）- 法宝只能通过打造获得
           const effectiveDropRate = (targetMonster.dropRate + stats.dropRate) * gameState.devDropMultiplier
           if (Math.random() * 100 < effectiveDropRate) {
-            const slots = Object.keys(equipSlots)
+            const slots = Object.keys(equipSlots).filter(s => s !== 'artifact')
             const randomSlot = slots[Math.floor(Math.random() * slots.length)]
             const dropLevel = Math.max(1, targetMonster.level + Math.floor(Math.random() * 5) - 2)
             const newEquip = generateEquipment(dropLevel, randomSlot)
+
+            // 统计掉落
+            if (gameState.battle.battleStats && gameState.battle.battleStats.drops) {
+              const quality = newEquip.quality
+              if (gameState.battle.battleStats.drops[quality] !== undefined) {
+                gameState.battle.battleStats.drops[quality]++
+              }
+            }
 
             // 检查拾取筛选
             const pickupResult = shouldPickupItem(newEquip)
@@ -2445,6 +2653,11 @@ export function battleRound() {
                 rarity: droppedSkill.rarity
               }
 
+              // 统计技能书掉落
+              if (gameState.battle.battleStats && gameState.battle.battleStats.drops) {
+                gameState.battle.battleStats.drops.skillBooks++
+              }
+
               // 检查拾取筛选
               const pickupResult = shouldPickupItem(skillBook)
               if (pickupResult.pickup) {
@@ -2458,6 +2671,20 @@ export function battleRound() {
                 addBattleLog(`过滤技能书【${droppedSkill.name}】`, 'normal')
               }
             }
+          }
+
+          // 材料掉落（法宝打造系统）
+          if (!gameState.battle.isTowerMode) {
+            const droppedMaterial = checkMaterialDrop(gameState.battle.selectedMapId)
+            if (droppedMaterial) {
+              addBattleLog(`掉落材料【${droppedMaterial.name}】${droppedMaterial.icon}`, 'success')
+            }
+          }
+
+          // 给装备的打造法宝增加经验
+          const equippedCraftedArt = getEquippedCraftedArtifact()
+          if (equippedCraftedArt) {
+            addCraftedArtifactExp(equippedCraftedArt.id, Math.floor(expGain / 10))
           }
 
           checkLevelUp()
@@ -3106,6 +3333,13 @@ export function battleRound() {
           gameState.player.realmExp += Math.floor(petExpGain / 4)
           gameState.player.gold += petGoldGain
 
+          // 更新战斗统计
+          if (gameState.battle.battleStats) {
+            gameState.battle.battleStats.totalExp += petExpGain
+            gameState.battle.battleStats.totalGold += petGoldGain
+            gameState.battle.battleStats.totalKills++
+          }
+
           // 宠物获得经验（应用倍率）
           addPetExp(activePet.id, Math.floor(petExpGain / 3))
 
@@ -3141,11 +3375,11 @@ export function battleRound() {
 
   // 更新宠物buff持续时间
   if (gameState.battle.petBuffs) {
-    for (const buffKey in gameState.battle.petBuffs) {
+    for (const buffKey of Object.keys(gameState.battle.petBuffs)) {
       if (gameState.battle.petBuffs[buffKey].duration > 0) {
         gameState.battle.petBuffs[buffKey].duration--
         if (gameState.battle.petBuffs[buffKey].duration <= 0) {
-          delete gameState.battle.petBuffs[buffKey]
+          Vue.delete(gameState.battle.petBuffs, buffKey)
         }
       }
     }
@@ -3362,7 +3596,7 @@ export function battleRound() {
           } else {
             monsterDamage -= shield.value
             addBattleLog(`💥 护盾吸收 ${shield.value} 伤害后破碎！`, 'danger')
-            delete gameState.battle.playerBuffs.shield
+            Vue.delete(gameState.battle.playerBuffs, 'shield')
           }
         }
 
@@ -3426,6 +3660,13 @@ export function battleRound() {
               monster.currentHp = 0
               addBattleLog(`${getMonsterNameWithStatus(monster)} 被因果律击杀！`, 'success')
             }
+          }
+          // 涅槃重生：法宝被动技能，死亡时复活（每场战斗1次）
+          else if (stats.revivePercent > 0 && !gameState.battle.artifactReviveUsed) {
+            gameState.battle.artifactReviveUsed = true
+            const reviveHp = Math.floor(stats.maxHp * stats.revivePercent / 100)
+            gameState.battle.playerCurrentHp = reviveHp
+            addBattleLog(`🔮 【涅槃重生】触发！复活并恢复 ${reviveHp} 点生命 (${stats.revivePercent}%)`, 'success')
           } else {
             gameState.battle.playerCurrentHp = 0
             result = 'lose'
@@ -3445,12 +3686,46 @@ export function battleRound() {
   return 'continue'
 }
 
+// 重置战斗统计
+export function resetBattleStats() {
+  gameState.battle.battleStats = {
+    startTime: Date.now(),
+    totalExp: 0,
+    totalGold: 0,
+    totalKills: 0,
+    drops: {
+      white: 0,
+      green: 0,
+      blue: 0,
+      purple: 0,
+      orange: 0,
+      skillBooks: 0,
+      materials: {}  // 材料掉落统计 { materialId: count }
+    }
+  }
+}
+
+// 获取战斗统计
+export function getBattleStats() {
+  const stats = gameState.battle.battleStats
+  const elapsed = stats.startTime ? (Date.now() - stats.startTime) / 1000 : 0
+  const minutes = elapsed / 60
+  return {
+    ...stats,
+    elapsedSeconds: Math.floor(elapsed),
+    expPerMinute: minutes > 0 ? Math.floor(stats.totalExp / minutes) : 0,
+    goldPerMinute: minutes > 0 ? Math.floor(stats.totalGold / minutes) : 0,
+    killsPerMinute: minutes > 0 ? (stats.totalKills / minutes).toFixed(1) : 0
+  }
+}
+
 // 开始自动战斗
 export function startAutoBattle() {
   if (gameState.battle.isAutoBattle) return
 
   gameState.battle.isAutoBattle = true
   gameState.battle.killCount = 0
+  resetBattleStats()
   clearBattleLog()
   addBattleLog('开始自动战斗...', 'warning')
 
@@ -4005,4 +4280,282 @@ export function toggleExpMultiplier() {
 // 获取当前经验倍率
 export function getExpMultiplier() {
   return gameState.devExpMultiplier
+}
+
+// 开发测试：添加材料（仅开发环境可用）
+export function devAddMaterials(grade = 'all') {
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    console.log('仅开发环境可用')
+    return false
+  }
+
+  const materialsToAdd = {
+    low: ['mat_spirit_stone', 'mat_iron_essence', 'mat_wood_spirit'],
+    mid: ['mat_dark_iron', 'mat_spirit_jade', 'mat_fire_crystal'],
+    high: ['mat_meteor_iron', 'mat_dragon_crystal', 'mat_phoenix_feather'],
+    super: ['mat_chaos_essence', 'mat_hongmeng_qi']
+  }
+
+  if (grade === 'all') {
+    for (const g of Object.keys(materialsToAdd)) {
+      for (const matId of materialsToAdd[g]) {
+        addMaterial(matId, 10)
+      }
+    }
+    addLog('已添加所有材料各10个！', 'success')
+    console.log('已添加所有材料各10个！')
+  } else if (materialsToAdd[grade]) {
+    for (const matId of materialsToAdd[grade]) {
+      addMaterial(matId, 10)
+    }
+    addLog(`已添加${grade}级材料各10个！`, 'success')
+    console.log(`已添加${grade}级材料各10个！`)
+  } else {
+    console.log('无效的材料等级，可选：low, mid, high, super, all')
+    return false
+  }
+
+  autoSave()
+  return true
+}
+
+// ==================== 法宝打造系统 ====================
+
+// 添加材料到背包
+export function addMaterial(materialId, count = 1) {
+  if (!gameState.player.artifactMaterials) {
+    gameState.player.artifactMaterials = {}
+  }
+  if (!gameState.player.artifactMaterials[materialId]) {
+    gameState.player.artifactMaterials[materialId] = 0
+  }
+  gameState.player.artifactMaterials[materialId] += count
+  return true
+}
+
+// 移除材料
+export function removeMaterial(materialId, count = 1) {
+  if (!gameState.player.artifactMaterials || !gameState.player.artifactMaterials[materialId]) {
+    return false
+  }
+  if (gameState.player.artifactMaterials[materialId] < count) {
+    return false
+  }
+  gameState.player.artifactMaterials[materialId] -= count
+  if (gameState.player.artifactMaterials[materialId] <= 0) {
+    Vue.delete(gameState.player.artifactMaterials, materialId)
+  }
+  return true
+}
+
+// 获取材料数量
+export function getMaterialCount(materialId) {
+  if (!gameState.player.artifactMaterials) return 0
+  return gameState.player.artifactMaterials[materialId] || 0
+}
+
+// 获取所有材料
+export function getAllMaterials() {
+  if (!gameState.player.artifactMaterials) return []
+  const result = []
+  for (const [id, count] of Object.entries(gameState.player.artifactMaterials)) {
+    const matData = getMaterialById(id)
+    if (matData && count > 0) {
+      result.push({ ...matData, count })
+    }
+  }
+  return result
+}
+
+// 打造法宝
+export function doCraftArtifact(selectedMaterials, artifactName = null) {
+  // 检查材料是否足够
+  for (const mat of selectedMaterials) {
+    if (getMaterialCount(mat.id) < mat.count) {
+      addLog(`材料【${getMaterialById(mat.id)?.name || mat.id}】不足！`, 'danger')
+      return null
+    }
+  }
+
+  // 扣除材料
+  for (const mat of selectedMaterials) {
+    removeMaterial(mat.id, mat.count)
+  }
+
+  // 打造法宝
+  const artifact = craftArtifact(selectedMaterials, artifactName)
+  if (!artifact) {
+    addLog('打造失败！', 'danger')
+    return null
+  }
+
+  // 添加到法宝列表
+  if (!gameState.player.craftedArtifacts) {
+    gameState.player.craftedArtifacts = []
+  }
+  gameState.player.craftedArtifacts.push(artifact)
+
+  addLog(`成功打造【${artifact.qualityName}】${artifact.name}！`, 'success')
+  autoSave()
+  return artifact
+}
+
+// 装备打造法宝
+export function equipCraftedArtifact(artifactId) {
+  if (!gameState.player.craftedArtifacts) return false
+
+  const artifact = gameState.player.craftedArtifacts.find(a => a.id === artifactId)
+  if (!artifact) return false
+
+  gameState.player.equippedCraftedArtifact = artifact.id
+  // 同时设置到装备槽位，以便装备面板显示
+  gameState.player.equipment.artifact = artifact
+  addLog(`装备了【${artifact.qualityName}】${artifact.name}`, 'success')
+  autoSave()
+  return true
+}
+
+// 卸下打造法宝
+export function unequipCraftedArtifact() {
+  if (!gameState.player.equippedCraftedArtifact) return false
+
+  const artifact = getEquippedCraftedArtifact()
+  if (artifact) {
+    addLog(`卸下了【${artifact.qualityName}】${artifact.name}`, 'normal')
+  }
+
+  gameState.player.equippedCraftedArtifact = null
+  // 同时清除装备槽位
+  gameState.player.equipment.artifact = null
+  autoSave()
+  return true
+}
+
+// 获取当前装备的打造法宝
+export function getEquippedCraftedArtifact() {
+  if (!gameState.player.equippedCraftedArtifact) return null
+  if (!gameState.player.craftedArtifacts) return null
+
+  return gameState.player.craftedArtifacts.find(
+    a => a.id === gameState.player.equippedCraftedArtifact
+  )
+}
+
+// 给法宝增加经验
+export function addCraftedArtifactExp(artifactId, exp) {
+  if (!gameState.player.craftedArtifacts) return false
+
+  const artifact = gameState.player.craftedArtifacts.find(a => a.id === artifactId)
+  if (!artifact) return false
+
+  artifact.exp = (artifact.exp || 0) + exp
+
+  // 检查升级
+  let leveledUp = false
+  while (artifact.level < artifact.maxLevel) {
+    const expNeeded = getArtifactExpForLevel(artifact.level)
+    if (artifact.exp >= expNeeded) {
+      artifact.exp -= expNeeded
+      artifact.level++
+      leveledUp = true
+    } else {
+      break
+    }
+  }
+
+  if (leveledUp) {
+    addBattleLog(`法宝【${artifact.name}】升级到 ${artifact.level} 级！`, 'success')
+  }
+
+  return leveledUp
+}
+
+// 分解法宝（返还部分材料）
+export function dismantleCraftedArtifact(artifactId) {
+  if (!gameState.player.craftedArtifacts) return false
+
+  const index = gameState.player.craftedArtifacts.findIndex(a => a.id === artifactId)
+  if (index === -1) return false
+
+  const artifact = gameState.player.craftedArtifacts[index]
+
+  // 如果是已装备的，先卸下
+  if (gameState.player.equippedCraftedArtifact === artifactId) {
+    gameState.player.equippedCraftedArtifact = null
+  }
+
+  // 返还部分材料（50%几率返还每种材料1个）
+  if (artifact.usedMaterials) {
+    for (const mat of artifact.usedMaterials) {
+      if (Math.random() < 0.5) {
+        addMaterial(mat.id, 1)
+        const matData = getMaterialById(mat.id)
+        if (matData) {
+          addLog(`回收了1个【${matData.name}】`, 'normal')
+        }
+      }
+    }
+  }
+
+  // 移除法宝
+  gameState.player.craftedArtifacts.splice(index, 1)
+
+  addLog(`分解了【${artifact.qualityName}】${artifact.name}`, 'warning')
+  autoSave()
+  return true
+}
+
+// 获取法宝列表
+export function getCraftedArtifacts() {
+  return gameState.player.craftedArtifacts || []
+}
+
+// 材料掉落检查（普通地图）
+export function checkMaterialDrop(mapId) {
+  const droppableMaterials = getMapDroppableMaterials(mapId)
+  if (droppableMaterials.length === 0) return null
+
+  // 应用掉落倍率
+  const dropMultiplier = gameState.devDropMultiplier || 1
+
+  for (const material of droppableMaterials) {
+    const dropRate = materialDropRates[material.grade] * dropMultiplier
+    if (Math.random() * 100 < dropRate) {
+      addMaterial(material.id, 1)
+      // 记录材料掉落统计
+      if (gameState.battle.battleStats && gameState.battle.battleStats.drops) {
+        if (!gameState.battle.battleStats.drops.materials) {
+          gameState.battle.battleStats.drops.materials = {}
+        }
+        gameState.battle.battleStats.drops.materials[material.id] = (gameState.battle.battleStats.drops.materials[material.id] || 0) + 1
+      }
+      return material
+    }
+  }
+  return null
+}
+
+// 材料掉落检查（锁妖塔）
+export function checkTowerMaterialDrop(towerFloor) {
+  const droppableMaterials = getTowerDroppableMaterials(towerFloor)
+  if (droppableMaterials.length === 0) return null
+
+  // 应用掉落倍率
+  const dropMultiplier = gameState.devDropMultiplier || 1
+
+  for (const material of droppableMaterials) {
+    const dropRate = materialDropRates[material.grade] * dropMultiplier
+    if (Math.random() * 100 < dropRate) {
+      addMaterial(material.id, 1)
+      // 记录材料掉落统计
+      if (gameState.battle.battleStats && gameState.battle.battleStats.drops) {
+        if (!gameState.battle.battleStats.drops.materials) {
+          gameState.battle.battleStats.drops.materials = {}
+        }
+        gameState.battle.battleStats.drops.materials[material.id] = (gameState.battle.battleStats.drops.materials[material.id] || 0) + 1
+      }
+      return material
+    }
+  }
+  return null
 }

@@ -31,6 +31,7 @@
     <div class="nav-actions">
       <button @click="showSkillPanel = true" class="nav-btn skill">技能</button>
       <button @click="showPetPanel = true" class="nav-btn pet">宠物</button>
+      <button @click="showArtifactPanel = true" class="nav-btn artifact">法宝</button>
       <button @click="handleMeditationClick" class="nav-btn meditation">打坐</button>
       <button @click="showGuide = true" class="nav-btn guide">攻略</button>
       <button @click="showSettings = true" class="nav-btn settings">设置</button>
@@ -166,6 +167,14 @@
       <div class="modal-content">
         <button class="modal-close" @click="showPetPanel = false">×</button>
         <PetPanel />
+      </div>
+    </div>
+
+    <!-- 法宝打造面板弹窗 -->
+    <div v-if="showArtifactPanel" class="modal-overlay" @click.self="showArtifactPanel = false">
+      <div class="modal-content artifact-modal">
+        <button class="modal-close" @click="showArtifactPanel = false">×</button>
+        <ArtifactCraftPanel />
       </div>
     </div>
 
@@ -384,17 +393,20 @@ import { gameState, getCurrentRealm, getNextRealm, saveGame, loadGame, resetGame
 import { equipmentSets, petTypes, skills, getSkillById } from '../../data/gameData'
 import SkillPanel from './SkillPanel.vue'
 import PetPanel from './PetPanel.vue'
+import ArtifactCraftPanel from './ArtifactCraftPanel.vue'
 
 export default {
   name: 'NavBar',
   components: {
     SkillPanel,
-    PetPanel
+    PetPanel,
+    ArtifactCraftPanel
   },
   data() {
     return {
       showSkillPanel: false,
       showPetPanel: false,
+      showArtifactPanel: false,
       showMeditation: false,
       showCultivationChoice: false,
       showSettings: false,
@@ -825,6 +837,15 @@ export default {
   background: #6a5a3a;
 }
 
+.nav-btn.artifact {
+  background: #4a2a5a;
+  color: #cc99ff;
+}
+
+.nav-btn.artifact:hover {
+  background: #5a3a6a;
+}
+
 .nav-btn.dev {
   background: #6a2a6a;
   color: #ff99ff;
@@ -878,6 +899,10 @@ export default {
   max-width: 500px;
   max-height: 85vh;
   overflow: hidden;
+}
+
+.modal-content.artifact-modal {
+  max-width: 600px;
 }
 
 .modal-close {

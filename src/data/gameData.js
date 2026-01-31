@@ -42,7 +42,7 @@ export const qualityConfig = {
   orange: { name: '传说', color: '#e67e22', statMultiplier: 3, dropRate: 1 }
 }
 
-// 装备槽位
+// 装备槽位（法宝只能通过打造获得）
 export const equipSlots = {
   weapon: { name: '武器', icon: '⚔️' },
   armor: { name: '衣服', icon: '👘' },
@@ -50,7 +50,7 @@ export const equipSlots = {
   ring: { name: '戒指', icon: '💍' },
   necklace: { name: '项链', icon: '📿' },
   boots: { name: '鞋子', icon: '👢' },
-  artifact: { name: '法宝', icon: '🔮' }
+  artifact: { name: '法宝', icon: '🔮', craftOnly: true }  // 只能通过打造获得
 }
 
 // 武器类型 - 3种特色武器
@@ -3162,4 +3162,326 @@ export function openPetSkillBook(skillBook) {
 // 获取可学习技能列表（用于UI展示）
 export function getPetLearnableSkills() {
   return skills.filter(s => petLearnableSkillIds.includes(s.id))
+}
+
+// ==================== 法宝打造系统 ====================
+
+// 材料等级配置
+export const materialGrades = {
+  low: { name: '低级', color: '#2ecc71', weight: 1 },
+  mid: { name: '中级', color: '#3498db', weight: 3 },
+  high: { name: '高级', color: '#9b59b6', weight: 9 },
+  super: { name: '超级', color: '#e67e22', weight: 27 }
+}
+
+// 材料数据
+export const artifactMaterials = [
+  // 低级材料 - 1-3图掉落
+  { id: 'mat_spirit_stone', name: '灵石碎片', grade: 'low', icon: '💎', description: '蕴含微弱灵气的石头碎片', dropMaps: [1, 2, 3] },
+  { id: 'mat_iron_essence', name: '铁精', grade: 'low', icon: '⚙️', description: '精炼后的铁矿精华', dropMaps: [1, 2, 3] },
+  { id: 'mat_wood_spirit', name: '木灵', grade: 'low', icon: '🌿', description: '灵木中凝聚的精华', dropMaps: [1, 2, 3] },
+
+  // 中级材料 - 4-6图掉落
+  { id: 'mat_dark_iron', name: '玄铁', grade: 'mid', icon: '🔩', description: '深渊中的神秘金属', dropMaps: [4, 5, 6] },
+  { id: 'mat_spirit_jade', name: '灵玉', grade: 'mid', icon: '🟢', description: '通透的灵力结晶', dropMaps: [4, 5, 6] },
+  { id: 'mat_fire_crystal', name: '火晶', grade: 'mid', icon: '🔥', description: '永燃不灭的火焰结晶', dropMaps: [4, 5, 6] },
+
+  // 高级材料 - 7-9图掉落
+  { id: 'mat_meteor_iron', name: '天外陨铁', grade: 'high', icon: '☄️', description: '从天而降的神秘陨石', dropMaps: [7, 8, 9] },
+  { id: 'mat_dragon_crystal', name: '龙晶', grade: 'high', icon: '🐉', description: '真龙遗留的结晶', dropMaps: [7, 8, 9] },
+  { id: 'mat_phoenix_feather', name: '凤羽', grade: 'high', icon: '🪶', description: '凤凰脱落的神羽', dropMaps: [7, 8, 9] },
+
+  // 超级材料 - 锁妖塔400层以上掉落
+  { id: 'mat_chaos_essence', name: '混沌精华', grade: 'super', icon: '🌀', description: '混沌初开时的原始之力', dropTowerFloor: 400 },
+  { id: 'mat_hongmeng_qi', name: '鸿蒙之气', grade: 'super', icon: '✨', description: '天地未分时的至高能量', dropTowerFloor: 400 }
+]
+
+// 材料掉落率配置
+export const materialDropRates = {
+  low: 15,    // 低级材料 15%
+  mid: 8,     // 中级材料 8%
+  high: 3,    // 高级材料 3%
+  super: 0.5  // 超级材料 0.5%
+}
+
+// 法宝品质配置（根据投入材料决定）
+export const craftedArtifactQualities = {
+  common: {
+    name: '凡品',
+    color: '#ffffff',
+    minWeight: 0,      // 最低材料权重
+    maxLevel: 30,
+    growthRate: 1.0,
+    passiveSlots: 1,
+    activeSlots: 0
+  },
+  spirit: {
+    name: '灵品',
+    color: '#2ecc71',
+    minWeight: 3,      // 需要至少1个中级材料
+    maxLevel: 50,
+    growthRate: 1.5,
+    passiveSlots: 1,
+    activeSlots: 1
+  },
+  immortal: {
+    name: '仙品',
+    color: '#9b59b6',
+    minWeight: 9,      // 需要至少1个高级材料
+    maxLevel: 80,
+    growthRate: 2.0,
+    passiveSlots: 2,
+    activeSlots: 0
+  },
+  divine: {
+    name: '神品',
+    color: '#e67e22',
+    minWeight: 27,     // 需要至少1个超级材料
+    maxLevel: 100,
+    growthRate: 3.0,
+    passiveSlots: 2,
+    activeSlots: 1
+  }
+}
+
+// 法宝被动技能池
+export const artifactPassiveSkills = [
+  // 低级材料可出
+  { id: 'art_life_guard', name: '生命守护', description: '生命值提升', grade: 'low',
+    effect: 'hpPercent', minValue: 5, maxValue: 15, growthPerLevel: 0.2 },
+  { id: 'art_attack_boost', name: '攻击强化', description: '攻击力提升', grade: 'low',
+    effect: 'attackPercent', minValue: 3, maxValue: 10, growthPerLevel: 0.15 },
+  { id: 'art_defense_boost', name: '防御强化', description: '防御力提升', grade: 'low',
+    effect: 'defensePercent', minValue: 3, maxValue: 10, growthPerLevel: 0.15 },
+  { id: 'art_crit_boost', name: '致命一击', description: '暴击率提升', grade: 'low',
+    effect: 'critRate', minValue: 2, maxValue: 8, growthPerLevel: 0.1 },
+
+  // 中级材料可出
+  { id: 'art_bloodthirst', name: '嗜血本能', description: '攻击吸血', grade: 'mid',
+    effect: 'lifesteal', minValue: 3, maxValue: 10, growthPerLevel: 0.15 },
+  { id: 'art_iron_body', name: '金刚不坏', description: '受到伤害减少', grade: 'mid',
+    effect: 'damageReduction', minValue: 3, maxValue: 12, growthPerLevel: 0.15 },
+  { id: 'art_crit_damage', name: '暴击强化', description: '暴击伤害提升', grade: 'mid',
+    effect: 'critDamage', minValue: 10, maxValue: 30, growthPerLevel: 0.5 },
+  { id: 'art_penetration', name: '破甲之力', description: '忽视敌方防御', grade: 'mid',
+    effect: 'penetration', minValue: 3, maxValue: 10, growthPerLevel: 0.15 },
+  { id: 'art_heal_boost', name: '治疗增幅', description: '治疗效果提升', grade: 'mid',
+    effect: 'healBonus', minValue: 5, maxValue: 15, growthPerLevel: 0.2 },
+  { id: 'art_heal_received', name: '受疗增幅', description: '受到治疗效果提升', grade: 'mid',
+    effect: 'healReceivedBonus', minValue: 5, maxValue: 15, growthPerLevel: 0.2 },
+
+  // 高级材料可出
+  { id: 'art_judgment', name: '审判之力', description: '对负面状态敌人额外伤害', grade: 'high',
+    effect: 'debuffDamageBonus', minValue: 10, maxValue: 30, growthPerLevel: 0.4 },
+  { id: 'art_death_whisper', name: '死神低语', description: '击杀敌人回复生命', grade: 'high',
+    effect: 'killHealPercent', minValue: 5, maxValue: 15, growthPerLevel: 0.2 },
+  { id: 'art_thorns', name: '荆棘护体', description: '反弹受到的伤害', grade: 'high',
+    effect: 'thorns', minValue: 5, maxValue: 15, growthPerLevel: 0.2 },
+  { id: 'art_dodge', name: '幻影身法', description: '闪避率提升', grade: 'high',
+    effect: 'dodge', minValue: 3, maxValue: 10, growthPerLevel: 0.15 },
+
+  // 超级材料可出
+  { id: 'art_chaos_body', name: '混沌之体', description: '全属性提升', grade: 'super',
+    effect: 'allPercent', minValue: 3, maxValue: 8, growthPerLevel: 0.1 },
+  { id: 'art_nirvana', name: '涅槃重生', description: '死亡时恢复生命（每场战斗1次）', grade: 'super',
+    effect: 'revive', minValue: 20, maxValue: 40, growthPerLevel: 0.3 },
+  { id: 'art_immortal', name: '不灭意志', description: '生命低于30%时减伤大幅提升', grade: 'super',
+    effect: 'lowHpReduction', minValue: 15, maxValue: 30, growthPerLevel: 0.3 }
+]
+
+// 法宝主动技能池
+export const artifactActiveSkills = [
+  // 中级材料可出
+  { id: 'art_spirit_shield', name: '灵光护体', description: '获得护盾', grade: 'mid',
+    effect: 'shield', cooldown: 8, minValue: 100, maxValue: 200, growthPerLevel: 3 },
+  { id: 'art_heal_wave', name: '灵气疗伤', description: '恢复自身生命', grade: 'mid',
+    effect: 'heal', cooldown: 6, minValue: 10, maxValue: 20, growthPerLevel: 0.2 },
+
+  // 高级材料可出
+  { id: 'art_thunder_strike', name: '雷霆一击', description: '造成伤害并眩晕敌人', grade: 'high',
+    effect: 'damageStun', cooldown: 6, minValue: 150, maxValue: 250, stunDuration: 1, growthPerLevel: 3 },
+  { id: 'art_fire_burst', name: '烈焰爆发', description: '对所有敌人造成伤害', grade: 'high',
+    effect: 'aoeDamage', cooldown: 8, minValue: 80, maxValue: 150, growthPerLevel: 2 },
+  { id: 'art_weaken', name: '虚弱诅咒', description: '降低敌人攻击力', grade: 'high',
+    effect: 'attackDebuff', cooldown: 5, minValue: 20, maxValue: 35, duration: 3, growthPerLevel: 0.3 },
+
+  // 超级材料可出
+  { id: 'art_time_stop', name: '时间静止', description: '敌人跳过回合', grade: 'super',
+    effect: 'skipTurn', cooldown: 10, duration: 1, growthPerLevel: 0 },
+  { id: 'art_berserk', name: '狂暴之力', description: '大幅提升攻击力', grade: 'super',
+    effect: 'attackBuff', cooldown: 8, minValue: 30, maxValue: 50, duration: 3, growthPerLevel: 0.5 }
+]
+
+// 根据材料等级获取可用技能池
+export function getAvailableArtifactSkills(materialGrade, type = 'passive') {
+  const gradeOrder = ['low', 'mid', 'high', 'super']
+  const gradeIndex = gradeOrder.indexOf(materialGrade)
+  const pool = type === 'passive' ? artifactPassiveSkills : artifactActiveSkills
+
+  return pool.filter(skill => {
+    const skillGradeIndex = gradeOrder.indexOf(skill.grade)
+    return skillGradeIndex <= gradeIndex
+  })
+}
+
+// 计算材料总权重和最高等级
+export function calculateMaterialStats(materials) {
+  let totalWeight = 0
+  let highestGrade = 'low'
+  const gradeOrder = ['low', 'mid', 'high', 'super']
+
+  for (const mat of materials) {
+    const matData = artifactMaterials.find(m => m.id === mat.id)
+    if (matData) {
+      const gradeData = materialGrades[matData.grade]
+      totalWeight += gradeData.weight * mat.count
+
+      const currentIndex = gradeOrder.indexOf(matData.grade)
+      const highestIndex = gradeOrder.indexOf(highestGrade)
+      if (currentIndex > highestIndex) {
+        highestGrade = matData.grade
+      }
+    }
+  }
+
+  return { totalWeight, highestGrade }
+}
+
+// 根据最高材料等级决定法宝品质（必须含有对应等级材料才能打造对应品质）
+export function determineArtifactQuality(highestGrade) {
+  const gradeToQuality = {
+    'super': 'divine',   // 含超级材料 -> 神品
+    'high': 'immortal',  // 含高级材料 -> 仙品
+    'mid': 'spirit',     // 含中级材料 -> 灵品
+    'low': 'common'      // 纯低级材料 -> 凡品
+  }
+  return gradeToQuality[highestGrade] || 'common'
+}
+
+// 打造法宝
+export function craftArtifact(materials, artifactName = null) {
+  if (!materials || materials.length === 0) return null
+
+  const { totalWeight, highestGrade } = calculateMaterialStats(materials)
+  const quality = determineArtifactQuality(highestGrade)
+  const qualityConfig = craftedArtifactQualities[quality]
+
+  // 生成法宝名称
+  const namePool = {
+    common: ['灵石', '玄器', '古玉', '法印'],
+    spirit: ['灵宝', '仙器', '玉符', '神印'],
+    immortal: ['仙宝', '天器', '圣符', '道印'],
+    divine: ['神宝', '混沌器', '太极符', '鸿蒙印']
+  }
+  const prefix = ['青冥', '紫霄', '玄天', '九幽', '太虚', '混元', '无极', '造化'][Math.floor(Math.random() * 8)]
+  const suffix = namePool[quality][Math.floor(Math.random() * namePool[quality].length)]
+  const name = artifactName || (prefix + suffix)
+
+  // 选择技能
+  const passivePool = getAvailableArtifactSkills(highestGrade, 'passive')
+  const activePool = getAvailableArtifactSkills(highestGrade, 'active')
+
+  const selectedPassives = []
+  const selectedActives = []
+
+  // 选择被动技能
+  const passiveCount = qualityConfig.passiveSlots
+  const shuffledPassives = [...passivePool].sort(() => Math.random() - 0.5)
+  for (let i = 0; i < passiveCount && i < shuffledPassives.length; i++) {
+    const skill = shuffledPassives[i]
+    const value = skill.minValue + Math.random() * (skill.maxValue - skill.minValue)
+    selectedPassives.push({
+      ...skill,
+      baseValue: Math.round(value * 10) / 10
+    })
+  }
+
+  // 选择主动技能
+  const activeCount = qualityConfig.activeSlots
+  const shuffledActives = [...activePool].sort(() => Math.random() - 0.5)
+  for (let i = 0; i < activeCount && i < shuffledActives.length; i++) {
+    const skill = shuffledActives[i]
+    const value = skill.minValue + Math.random() * (skill.maxValue - skill.minValue)
+    selectedActives.push({
+      ...skill,
+      baseValue: Math.round(value * 10) / 10
+    })
+  }
+
+  // 生成基础属性（根据材料权重）
+  const baseAttack = Math.floor(10 + totalWeight * 2 + Math.random() * totalWeight)
+  const baseDefense = Math.floor(5 + totalWeight * 1 + Math.random() * totalWeight * 0.5)
+  const baseHp = Math.floor(20 + totalWeight * 5 + Math.random() * totalWeight * 2)
+
+  return {
+    id: `crafted_artifact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'craftedArtifact',
+    slot: 'artifact',
+    name,
+    quality,
+    qualityName: qualityConfig.name,
+    qualityColor: qualityConfig.color,
+    level: 1,
+    exp: 0,
+    maxLevel: qualityConfig.maxLevel,
+    growthRate: qualityConfig.growthRate,
+    // 基础属性
+    baseStats: {
+      attack: baseAttack,
+      defense: baseDefense,
+      hp: baseHp
+    },
+    // 技能
+    passiveSkills: selectedPassives,
+    activeSkills: selectedActives,
+    // 记录使用的材料
+    usedMaterials: materials.map(m => ({ id: m.id, count: m.count })),
+    totalWeight,
+    // 是否已使用涅槃重生（每场战斗重置）
+    reviveUsed: false
+  }
+}
+
+// 计算法宝升级所需经验
+export function getArtifactExpForLevel(level) {
+  return Math.floor(100 * level * (1 + level * 0.1))
+}
+
+// 计算法宝当前属性（含等级加成）
+export function getCraftedArtifactStats(artifact) {
+  if (!artifact || artifact.type !== 'craftedArtifact') return null
+
+  const level = artifact.level || 1
+  const growthRate = artifact.growthRate || 1
+  const levelBonus = 1 + (level - 1) * 0.02 * growthRate
+
+  const stats = {
+    attack: Math.floor(artifact.baseStats.attack * levelBonus),
+    defense: Math.floor(artifact.baseStats.defense * levelBonus),
+    hp: Math.floor(artifact.baseStats.hp * levelBonus)
+  }
+
+  // 计算被动技能属性
+  const passiveEffects = {}
+  for (const skill of artifact.passiveSkills || []) {
+    const skillValue = skill.baseValue + (level - 1) * skill.growthPerLevel
+    passiveEffects[skill.effect] = (passiveEffects[skill.effect] || 0) + skillValue
+  }
+
+  return { stats, passiveEffects, level, maxLevel: artifact.maxLevel }
+}
+
+// 获取材料数据
+export function getMaterialById(materialId) {
+  return artifactMaterials.find(m => m.id === materialId)
+}
+
+// 根据地图获取可掉落的材料
+export function getMapDroppableMaterials(mapId) {
+  return artifactMaterials.filter(m => m.dropMaps && m.dropMaps.includes(mapId))
+}
+
+// 根据锁妖塔层数获取可掉落的材料
+export function getTowerDroppableMaterials(towerFloor) {
+  return artifactMaterials.filter(m => m.dropTowerFloor && towerFloor >= m.dropTowerFloor)
 }

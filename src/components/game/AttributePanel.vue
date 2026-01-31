@@ -83,36 +83,36 @@
       </div>
 
       <div class="attr-group">
-        <h3>境界加成</h3>
+        <h3>百分比加成</h3>
         <div class="attr-item">
           <span class="attr-icon hp-bonus-icon"></span>
           <span class="attr-name">生命加成</span>
-          <span class="attr-value bonus">+{{ realmBonus.hpBonus }}%</span>
+          <span class="attr-value bonus">+{{ totalBonus.hpBonus.toFixed(1) }}%</span>
         </div>
         <div class="attr-item">
           <span class="attr-icon atk-bonus-icon"></span>
           <span class="attr-name">攻击加成</span>
-          <span class="attr-value bonus">+{{ realmBonus.attackBonus }}%</span>
+          <span class="attr-value bonus">+{{ totalBonus.attackBonus.toFixed(1) }}%</span>
         </div>
         <div class="attr-item">
           <span class="attr-icon def-bonus-icon"></span>
           <span class="attr-name">防御加成</span>
-          <span class="attr-value bonus">+{{ realmBonus.defenseBonus }}%</span>
+          <span class="attr-value bonus">+{{ totalBonus.defenseBonus.toFixed(1) }}%</span>
         </div>
         <div class="attr-item">
           <span class="attr-icon lifesteal-bonus-icon"></span>
-          <span class="attr-name">吸血加成</span>
-          <span class="attr-value bonus">+{{ realmBonus.lifestealBonus }}%</span>
+          <span class="attr-name">吸血</span>
+          <span class="attr-value bonus">+{{ totalBonus.lifesteal.toFixed(1) }}%</span>
         </div>
         <div class="attr-item">
           <span class="attr-icon heal-icon"></span>
           <span class="attr-name">治疗加成</span>
-          <span class="attr-value bonus">+{{ realmBonus.healBonus }}%</span>
+          <span class="attr-value bonus">+{{ totalBonus.healBonus.toFixed(1) }}%</span>
         </div>
         <div class="attr-item">
           <span class="attr-icon heal-recv-icon"></span>
           <span class="attr-name">受治疗加成</span>
-          <span class="attr-value bonus">+{{ realmBonus.healReceivedBonus }}%</span>
+          <span class="attr-value bonus">+{{ totalBonus.healReceivedBonus.toFixed(1) }}%</span>
         </div>
       </div>
 
@@ -169,7 +169,8 @@
 </template>
 
 <script>
-import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm, getMaxPassiveSlots, isMaxLevel } from '../../store/gameStore'
+import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm, getMaxPassiveSlots, isMaxLevel, getPassiveSkillBonus, getEquippedCraftedArtifact, getSetBonuses } from '../../store/gameStore'
+import { getCraftedArtifactStats } from '../../data/gameData'
 import { skillRarityConfig } from '../../data/gameData'
 
 export default {
@@ -249,16 +250,33 @@ export default {
       const prev = this.currentRealm.minExp
       return Math.min(100, ((this.player.realmExp - prev) / (next.minExp - prev)) * 100)
     },
-    realmBonus() {
+    // 总百分比加成（包含境界、被动技能、套装、法宝等）
+    totalBonus() {
+      const stats = getPlayerStats()
       const realm = this.currentRealm
+      const passiveStats = getPassiveSkillBonus()
+      const setBonuses = this.setBonus
+      const artPassive = this.artifactBonus
+
       return {
-        hpBonus: realm.hpBonus || 0,
-        attackBonus: realm.attackBonus || 0,
-        defenseBonus: realm.defenseBonus || 0,
-        lifestealBonus: realm.lifestealBonus || 0,
-        healBonus: realm.healBonus || 0,
-        healReceivedBonus: realm.healReceivedBonus || 0
+        hpBonus: (realm.hpBonus || 0) + (setBonuses.hp || 0) + (passiveStats.hpPercent || 0) + (artPassive.hpPercent || 0) + (artPassive.allPercent || 0),
+        attackBonus: (realm.attackBonus || 0) + (setBonuses.attack || 0) + (passiveStats.attackPercent || 0) + (artPassive.attackPercent || 0) + (artPassive.allPercent || 0),
+        defenseBonus: (realm.defenseBonus || 0) + (setBonuses.defense || 0) + (passiveStats.defensePercent || 0) + (artPassive.defensePercent || 0) + (artPassive.allPercent || 0),
+        lifesteal: stats.lifesteal || 0,
+        healBonus: stats.healBonus || 0,
+        healReceivedBonus: stats.healReceivedBonus || 0
       }
+    },
+    // 套装加成
+    setBonus() {
+      return getSetBonuses().bonuses || {}
+    },
+    // 法宝加成
+    artifactBonus() {
+      const artifact = getEquippedCraftedArtifact()
+      if (!artifact) return {}
+      const artStats = getCraftedArtifactStats(artifact)
+      return artStats?.passiveEffects || {}
     }
   },
   methods: {

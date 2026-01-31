@@ -19,6 +19,7 @@
           </option>
         </select>
         <button class="drop-table-btn" @click="showDropTable = true">掉落表</button>
+        <button class="stats-btn" @click="showBattleStats = true">统计</button>
       </div>
       <!-- 锁妖塔层数选择 -->
       <div class="tower-floor-select" v-if="selectedMapId === 'tower'">
@@ -382,7 +383,120 @@
                 <span class="drop-rate">{{ (drop.dropRate * 100).toFixed(1) }}%</span>
                 <span class="drop-type">{{ drop.type === 'passive' ? '被动' : '主动' }}</span>
               </div>
+              <!-- 材料掉落 -->
+              <div class="drop-category">法宝材料</div>
+              <div v-if="getMapMaterials(map.id).length === 0" class="no-drops">
+                无材料掉落
+              </div>
+              <div
+                v-for="mat in getMapMaterials(map.id)"
+                :key="mat.id"
+                class="drop-item"
+                :style="{ color: mat.color }"
+              >
+                <span class="drop-name">{{ mat.icon }} {{ mat.name }}</span>
+                <span class="drop-rate">{{ mat.dropRate }}%</span>
+                <span class="drop-type">{{ mat.gradeName }}</span>
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 战斗统计弹窗 -->
+    <div v-if="showBattleStats" class="modal-overlay" @click.self="showBattleStats = false">
+      <div class="battle-stats-modal">
+        <div class="modal-header">
+          <h3>战斗统计</h3>
+          <button class="modal-close" @click="showBattleStats = false">×</button>
+        </div>
+        <div class="battle-stats-content">
+          <!-- 时间统计 -->
+          <div class="stats-section">
+            <div class="stats-section-title">时间</div>
+            <div class="stats-row">
+              <span class="stats-label">挂机时长</span>
+              <span class="stats-value">{{ formatDuration(battleStats.elapsedSeconds) }}</span>
+            </div>
+          </div>
+
+          <!-- 效率统计 -->
+          <div class="stats-section">
+            <div class="stats-section-title">效率</div>
+            <div class="stats-row">
+              <span class="stats-label">击杀数</span>
+              <span class="stats-value">{{ battleStats.totalKills }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">击杀/分钟</span>
+              <span class="stats-value">{{ battleStats.killsPerMinute }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">总经验</span>
+              <span class="stats-value exp">{{ formatNumber(battleStats.totalExp) }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">经验/分钟</span>
+              <span class="stats-value exp">{{ formatNumber(battleStats.expPerMinute) }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">总灵石</span>
+              <span class="stats-value gold">{{ formatNumber(battleStats.totalGold) }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">灵石/分钟</span>
+              <span class="stats-value gold">{{ formatNumber(battleStats.goldPerMinute) }}</span>
+            </div>
+          </div>
+
+          <!-- 掉落统计 -->
+          <div class="stats-section">
+            <div class="stats-section-title">掉落统计</div>
+            <div class="stats-row">
+              <span class="stats-label quality-white">普通装备</span>
+              <span class="stats-value">{{ battleStats.drops.white }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label quality-green">优秀装备</span>
+              <span class="stats-value">{{ battleStats.drops.green }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label quality-blue">精良装备</span>
+              <span class="stats-value">{{ battleStats.drops.blue }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label quality-purple">史诗装备</span>
+              <span class="stats-value">{{ battleStats.drops.purple }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label quality-orange">传说装备</span>
+              <span class="stats-value">{{ battleStats.drops.orange }}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label quality-skill">技能书</span>
+              <span class="stats-value">{{ battleStats.drops.skillBooks }}</span>
+            </div>
+          </div>
+
+          <!-- 材料掉落统计 -->
+          <div class="stats-section" v-if="hasMaterialDrops">
+            <div class="stats-section-title">材料掉落</div>
+            <div
+              v-for="(count, matId) in battleStats.drops.materials"
+              :key="matId"
+              class="stats-row"
+            >
+              <span class="stats-label" :style="{ color: getMaterialColor(matId) }">
+                {{ getMaterialIcon(matId) }} {{ getMaterialName(matId) }}
+              </span>
+              <span class="stats-value">{{ count }}</span>
+            </div>
+          </div>
+
+          <!-- 重置按钮 -->
+          <div class="stats-actions">
+            <button class="reset-stats-btn" @click="handleResetStats">重置统计</button>
           </div>
         </div>
       </div>
@@ -391,14 +505,16 @@
 </template>
 
 <script>
-import { maps, skills, skillRarityConfig, towerConfig, getSkillById, getPetStats } from '../../data/gameData'
+import { maps, skills, skillRarityConfig, towerConfig, getSkillById, getPetStats, getMapDroppableMaterials, materialDropRates, materialGrades, getMaterialById } from '../../data/gameData'
 import {
   gameState,
   getPlayerStats,
   startAutoBattle,
   stopAutoBattle,
   getActivePet,
-  getPetPassiveEffects
+  getPetPassiveEffects,
+  getBattleStats,
+  resetBattleStats
 } from '../../store/gameStore'
 
 export default {
@@ -407,6 +523,7 @@ export default {
     return {
       maps,
       showDropTable: false,
+      showBattleStats: false,
       towerConfig,
       tooltipMonster: null,
       tooltipPlayer: false,
@@ -567,6 +684,15 @@ export default {
           typeLabel
         }
       }).filter(s => s)
+    },
+    // 战斗统计
+    battleStats() {
+      return getBattleStats()
+    },
+    // 是否有材料掉落
+    hasMaterialDrops() {
+      const stats = getBattleStats()
+      return stats.drops && stats.drops.materials && Object.keys(stats.drops.materials).length > 0
     }
   },
   watch: {
@@ -622,6 +748,34 @@ export default {
       // 装备掉落率基于怪物等级: Math.min(25, 8 + lvl * 0.3)
       const avgLevel = (map.levelRange[0] + map.levelRange[1]) / 2
       return Math.min(25, 8 + avgLevel * 0.3).toFixed(1)
+    },
+    // 获取地图可掉落的材料
+    getMapMaterials(mapId) {
+      const materials = getMapDroppableMaterials(mapId)
+      return materials.map(mat => ({
+        id: mat.id,
+        name: mat.name,
+        icon: mat.icon,
+        dropRate: materialDropRates[mat.grade].toFixed(1),
+        color: materialGrades[mat.grade]?.color || '#ffffff',
+        gradeName: materialGrades[mat.grade]?.name || mat.grade
+      }))
+    },
+    // 获取材料名称
+    getMaterialName(matId) {
+      const mat = getMaterialById(matId)
+      return mat?.name || matId
+    },
+    // 获取材料图标
+    getMaterialIcon(matId) {
+      const mat = getMaterialById(matId)
+      return mat?.icon || '📦'
+    },
+    // 获取材料颜色
+    getMaterialColor(matId) {
+      const mat = getMaterialById(matId)
+      if (!mat) return '#ffffff'
+      return materialGrades[mat.grade]?.color || '#ffffff'
     },
     showMonsterTooltip(event, monster) {
       this.tooltipMonster = monster
@@ -782,6 +936,31 @@ export default {
         return value + duration
       }
       return ''
+    },
+    // 格式化时间显示
+    formatDuration(seconds) {
+      if (!seconds || seconds <= 0) return '0秒'
+      const hours = Math.floor(seconds / 3600)
+      const mins = Math.floor((seconds % 3600) / 60)
+      const secs = seconds % 60
+      let result = ''
+      if (hours > 0) result += `${hours}小时`
+      if (mins > 0) result += `${mins}分`
+      if (secs > 0 || result === '') result += `${secs}秒`
+      return result
+    },
+    // 格式化数字显示
+    formatNumber(num) {
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(2) + 'M'
+      } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K'
+      }
+      return num.toString()
+    },
+    // 重置统计
+    handleResetStats() {
+      resetBattleStats()
     }
   }
 }
@@ -1549,5 +1728,109 @@ export default {
   font-size: 0.8em;
   color: #888;
   margin-left: auto;
+}
+
+/* 统计按钮样式 */
+.stats-btn {
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+  border: 1px solid #bb8fce;
+  border-radius: 4px;
+  color: #fff;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+}
+
+.stats-btn:hover {
+  background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
+  box-shadow: 0 2px 8px rgba(155, 89, 182, 0.4);
+}
+
+/* 战斗统计弹窗样式 */
+.battle-stats-modal {
+  background: linear-gradient(135deg, #1a1a2e 0%, #2a2a4a 100%);
+  border: 2px solid #9b59b6;
+  border-radius: 12px;
+  max-width: 360px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.battle-stats-content {
+  padding: 15px;
+}
+
+.stats-section {
+  background: rgba(155, 89, 182, 0.1);
+  border: 1px solid rgba(155, 89, 182, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.stats-section-title {
+  color: #bb8fce;
+  font-weight: bold;
+  font-size: 0.95em;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(155, 89, 182, 0.3);
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 0.9em;
+}
+
+.stats-label {
+  color: #aaa;
+}
+
+.stats-value {
+  color: #fff;
+  font-weight: bold;
+}
+
+.stats-value.exp {
+  color: #98fb98;
+}
+
+.stats-value.gold {
+  color: #ffd700;
+}
+
+/* 品质颜色 */
+.stats-label.quality-white { color: #cccccc; }
+.stats-label.quality-green { color: #2ecc71; }
+.stats-label.quality-blue { color: #3498db; }
+.stats-label.quality-purple { color: #9b59b6; }
+.stats-label.quality-orange { color: #e67e22; }
+.stats-label.quality-skill { color: #f39c12; }
+
+/* 重置按钮 */
+.stats-actions {
+  text-align: center;
+  padding-top: 10px;
+}
+
+.reset-stats-btn {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  border: 1px solid #ff6b6b;
+  border-radius: 6px;
+  color: #fff;
+  padding: 8px 20px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+
+.reset-stats-btn:hover {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
 }
 </style>

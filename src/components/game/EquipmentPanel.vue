@@ -330,6 +330,61 @@
       </div>
     </div>
 
+    <!-- 法宝详情面板 -->
+    <div v-if="viewingArtifact" class="item-detail-modal" @click.self="viewingArtifact = null">
+      <div class="artifact-detail-panel" :style="{ borderColor: viewingArtifact.qualityColor }">
+        <div class="artifact-header" :style="{ color: viewingArtifact.qualityColor }">
+          🔮 {{ viewingArtifact.name }}
+        </div>
+
+        <div class="artifact-info">
+          <div class="artifact-quality">{{ viewingArtifact.qualityName }}</div>
+          <div class="artifact-level">
+            <span>等级: {{ viewingArtifact.level }} / {{ viewingArtifact.maxLevel }}</span>
+            <div class="exp-bar">
+              <div class="exp-fill" :style="{ width: getArtifactExpPercent(viewingArtifact) + '%' }"></div>
+            </div>
+            <span class="exp-text">{{ viewingArtifact.exp || 0 }} / {{ getArtifactExpToNext(viewingArtifact) }}</span>
+          </div>
+        </div>
+
+        <div class="artifact-stats-section">
+          <div class="section-title">基础属性</div>
+          <div class="artifact-stats">
+            <div v-for="(value, stat) in viewingArtifact.baseStats" :key="stat" class="artifact-stat-row">
+              <span class="stat-name">{{ statNames[stat] || stat }}</span>
+              <span class="stat-value" :class="getStatClass(stat)">+{{ formatStat(stat, getArtifactStatValue(viewingArtifact, stat, value)) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="viewingArtifact.passiveSkills && viewingArtifact.passiveSkills.length > 0" class="artifact-skills-section">
+          <div class="section-title">被动技能</div>
+          <div v-for="skill in viewingArtifact.passiveSkills" :key="skill.id" class="artifact-skill">
+            <span class="skill-name">{{ skill.name }}</span>
+            <span class="skill-effect">{{ formatArtifactSkillEffect(skill, viewingArtifact.level) }}</span>
+          </div>
+        </div>
+
+        <div v-if="viewingArtifact.activeSkills && viewingArtifact.activeSkills.length > 0" class="artifact-skills-section">
+          <div class="section-title">主动技能</div>
+          <div v-for="skill in viewingArtifact.activeSkills" :key="skill.id" class="artifact-skill active">
+            <span class="skill-name">{{ skill.name }}</span>
+            <span class="skill-effect">{{ formatArtifactActiveSkill(skill, viewingArtifact.level) }}</span>
+          </div>
+        </div>
+
+        <div class="artifact-hint">
+          💡 法宝通过战斗获得经验升级
+        </div>
+
+        <div class="artifact-actions">
+          <button @click="handleUnequipArtifact" class="unequip-btn">卸下</button>
+          <button @click="viewingArtifact = null" class="close-btn">关闭</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 悬浮提示框 -->
     <div
       v-if="tooltipItem"
@@ -343,6 +398,30 @@
       <template v-if="tooltipItem.type === 'skillBook'">
         <div class="tooltip-quality">[{{ getRarityName(tooltipItem.rarity) }}] 技能书</div>
         <div class="tooltip-desc">使用后可学习技能</div>
+      </template>
+      <!-- 打造法宝 -->
+      <template v-else-if="tooltipItem.type === 'craftedArtifact'">
+        <div class="tooltip-quality">{{ tooltipItem.qualityName }} · Lv.{{ tooltipItem.level }}/{{ tooltipItem.maxLevel }}</div>
+        <div class="tooltip-stats">
+          <div v-for="(value, stat) in tooltipItem.baseStats" :key="stat" class="tooltip-stat">
+            <span>{{ statNames[stat] || stat }}</span>
+            <span :class="getStatClass(stat)">+{{ formatStat(stat, getArtifactStatValue(tooltipItem, stat, value)) }}</span>
+          </div>
+        </div>
+        <div v-if="tooltipItem.passiveSkills && tooltipItem.passiveSkills.length > 0" class="tooltip-skills">
+          <div class="tooltip-skill-title">被动技能</div>
+          <div v-for="skill in tooltipItem.passiveSkills" :key="skill.id" class="tooltip-skill">
+            <span class="skill-name">{{ skill.name }}</span>
+            <span class="skill-value">{{ formatArtifactSkillEffect(skill, tooltipItem.level) }}</span>
+          </div>
+        </div>
+        <div v-if="tooltipItem.activeSkills && tooltipItem.activeSkills.length > 0" class="tooltip-skills">
+          <div class="tooltip-skill-title">主动技能</div>
+          <div v-for="skill in tooltipItem.activeSkills" :key="skill.id" class="tooltip-skill active-skill">
+            <span class="skill-name">{{ skill.name }}</span>
+            <span class="skill-effect">{{ formatArtifactActiveSkill(skill, tooltipItem.level) }}</span>
+          </div>
+        </div>
       </template>
       <template v-else>
         <div class="tooltip-quality">{{ tooltipItem.qualityName }} · Lv.{{ tooltipItem.level }}</div>
@@ -366,7 +445,7 @@
 </template>
 
 <script>
-import { equipSlots, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhancedStatValue } from '../../data/gameData'
+import { equipSlots, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhancedStatValue, getArtifactExpForLevel } from '../../data/gameData'
 import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, enhanceItem, getEnhancedStats, getLootFilter, updateLootFilter, getInventoryLimit } from '../../store/gameStore'
 
 export default {
@@ -420,6 +499,8 @@ export default {
         { key: 'purple', name: '史诗', color: '#9b59b6' },
         { key: 'orange', name: '传说', color: '#e67e22' }
       ],
+      viewingArtifact: null,
+      viewingArtifactSlot: null,
       statNames: {
         hp: '生命值',
         attack: '攻击力',
@@ -561,8 +642,15 @@ export default {
     },
     handleSlotClick(slotType) {
       if (this.equipment[slotType]) {
-        // 打开强化面板
-        this.enhancingItem = this.equipment[slotType]
+        const item = this.equipment[slotType]
+        // 打造法宝使用单独的详情面板
+        if (item.type === 'craftedArtifact') {
+          this.viewingArtifact = item
+          this.viewingArtifactSlot = slotType
+          return
+        }
+        // 普通装备打开强化面板
+        this.enhancingItem = item
         this.enhanceSlotType = slotType
         this.enhanceFromInventory = false
         this.enhanceResult = null
@@ -799,6 +887,80 @@ export default {
         hint += '，不拾取技能书'
       }
       return hint
+    },
+    // 法宝属性值计算（含等级成长）
+    getArtifactStatValue(artifact, stat, baseValue) {
+      const levelBonus = 1 + (artifact.level - 1) * 0.05
+      return Math.floor(baseValue * levelBonus)
+    },
+    // 获取法宝升级所需经验
+    getArtifactExpToNext(artifact) {
+      return getArtifactExpForLevel(artifact.level || 1)
+    },
+    // 法宝经验百分比
+    getArtifactExpPercent(artifact) {
+      const exp = artifact.exp || 0
+      const expToNext = this.getArtifactExpToNext(artifact)
+      return Math.min(100, (exp / expToNext) * 100)
+    },
+    // 卸下法宝
+    handleUnequipArtifact() {
+      if (this.viewingArtifactSlot) {
+        unequipItem(this.viewingArtifactSlot)
+        this.viewingArtifact = null
+        this.viewingArtifactSlot = null
+      }
+    },
+    // 格式化法宝被动技能效果
+    formatArtifactSkillEffect(skill, artifactLevel) {
+      const baseValue = skill.baseValue || skill.value || 0
+      const levelBonus = (artifactLevel - 1) * (skill.growthPerLevel || 0)
+      const totalValue = baseValue + levelBonus
+      const effectFormats = {
+        hpPercent: { name: '生命', suffix: '%' },
+        attackPercent: { name: '攻击', suffix: '%' },
+        defensePercent: { name: '防御', suffix: '%' },
+        critRate: { name: '暴击率', suffix: '%' },
+        critDamage: { name: '暴击伤害', suffix: '%' },
+        lifesteal: { name: '吸血', suffix: '%' },
+        damageReduction: { name: '减伤', suffix: '%' },
+        penetration: { name: '穿透', suffix: '%' },
+        healBonus: { name: '治疗加成', suffix: '%' },
+        healReceivedBonus: { name: '受疗加成', suffix: '%' },
+        debuffDamageBonus: { name: '负面伤害加成', suffix: '%' },
+        killHealPercent: { name: '击杀回血', suffix: '%' },
+        thorns: { name: '反伤', suffix: '%' },
+        skillDamageBonus: { name: '技能伤害', suffix: '%' },
+        revive: { name: '复活回血', suffix: '%' },
+        allPercent: { name: '全属性', suffix: '%' },
+        lowHpReduction: { name: '低血减伤', suffix: '%' },
+        dodge: { name: '闪避', suffix: '%' }
+      }
+      const format = effectFormats[skill.effect]
+      if (format) {
+        return `${format.name} +${totalValue.toFixed(1)}${format.suffix}`
+      }
+      return `${skill.description || skill.effect} +${totalValue.toFixed(1)}`
+    },
+    // 格式化法宝主动技能效果
+    formatArtifactActiveSkill(skill, artifactLevel) {
+      const baseValue = skill.baseValue || skill.value || 0
+      const levelBonus = (artifactLevel - 1) * (skill.growthPerLevel || 0)
+      const totalValue = baseValue + levelBonus
+
+      const effectDescriptions = {
+        shield: `护盾 ${Math.floor(totalValue)}`,
+        heal: `回复 ${totalValue.toFixed(1)}% 生命`,
+        damageStun: `${Math.floor(totalValue)} 伤害 + 眩晕${skill.stunDuration || 1}回合`,
+        aoeDamage: `群体 ${Math.floor(totalValue)} 伤害`,
+        attackDebuff: `降低敌人 ${totalValue.toFixed(1)}% 攻击 ${skill.duration || 3}回合`,
+        skipTurn: `敌人跳过 ${skill.duration || 1} 回合`,
+        attackBuff: `攻击力 +${totalValue.toFixed(1)}% ${skill.duration || 3}回合`
+      }
+
+      const desc = effectDescriptions[skill.effect] || skill.description
+      const cooldown = skill.cooldown ? `(CD:${skill.cooldown}回合)` : ''
+      return `${desc} ${cooldown}`
     }
   }
 }
@@ -1331,6 +1493,52 @@ export default {
   text-align: right;
 }
 
+/* 法宝技能提示样式 */
+.tooltip-skills {
+  background: #2a2a4a;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 6px;
+}
+
+.tooltip-skill-title {
+  color: #ffd700;
+  font-size: 0.75em;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.tooltip-skill {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
+  padding: 2px 0;
+}
+
+.tooltip-skill .skill-name {
+  color: #9b59b6;
+}
+
+.tooltip-skill .skill-value {
+  color: #2ecc71;
+}
+
+.tooltip-skill .skill-desc {
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+.tooltip-skill.active-skill {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.tooltip-skill.active-skill .skill-effect {
+  color: #f39c12;
+  font-size: 0.85em;
+}
+
 /* 强化标签 */
 .enhance-tag {
   color: #ffd700;
@@ -1659,5 +1867,159 @@ export default {
   border-radius: 4px;
   margin-top: 10px;
   line-height: 1.4;
+}
+
+/* 法宝详情面板 */
+.artifact-detail-panel {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid;
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 320px;
+  max-width: 400px;
+}
+
+.artifact-header {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.artifact-info {
+  background: #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.artifact-quality {
+  text-align: center;
+  color: #aaa;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+.artifact-level {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.85em;
+}
+
+.artifact-level > span:first-child {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.exp-bar {
+  width: 100%;
+  height: 8px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.exp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #9b59b6, #8e44ad);
+  transition: width 0.3s;
+}
+
+.exp-text {
+  color: #888;
+  font-size: 0.8em;
+  text-align: right;
+}
+
+.artifact-stats-section,
+.artifact-skills-section {
+  background: #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  color: #ffd700;
+  font-size: 0.85em;
+  font-weight: bold;
+  margin-bottom: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #3a3a5a;
+}
+
+.artifact-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.artifact-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85em;
+}
+
+.artifact-stat-row .stat-name {
+  color: #aaa;
+}
+
+.artifact-stat-row .stat-value {
+  font-weight: bold;
+  color: #98fb98;
+}
+
+.artifact-skill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 0.85em;
+}
+
+.artifact-skill .skill-name {
+  color: #9b59b6;
+  font-weight: bold;
+}
+
+.artifact-skill .skill-effect {
+  color: #2ecc71;
+}
+
+.artifact-skill.active {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.artifact-skill .skill-desc {
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+.artifact-hint {
+  color: #888;
+  font-size: 0.8em;
+  text-align: center;
+  padding: 10px;
+  background: rgba(155, 89, 182, 0.1);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.artifact-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.artifact-actions button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
 }
 </style>

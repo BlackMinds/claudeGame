@@ -65,6 +65,11 @@ src/
   - 嗜血套装（武器+戒指+法宝）- 吸血向
   - 暴击套装（武器+头盔+项链）- 暴击向
 - `equipmentEffects`: 装备特效系统
+- **装备强化系统**:
+  - `MAX_ENHANCE_LEVEL`: 最高强化等级（12级）
+  - `getEnhanceSuccessRate(level)`: 获取强化成功率（+7开始有失败概率）
+  - `getEnhanceBonus(level)`: 获取强化加成（+1~+10每级5%，+11为10%，+12为15%）
+  - 强化失败会降低1-2级（不会低于+6）
 
 #### 技能系统
 - `skills`: 技能数据数组
@@ -113,9 +118,18 @@ gameState = {
     playerCurrentHp, battleLog, isAutoBattle,
     skillCooldowns: {}, playerBuffs: {},
     // 锁妖塔
-    towerFloor, towerMonsters, isInTower, towerBattleLog
+    towerFloor, towerMonsters, isInTower, towerBattleLog,
+    // 战斗统计
+    battleStats: {
+      startTime, totalExp, totalGold, totalKills,
+      drops: { white, green, blue, purple, orange, skillBooks }
+    }
   },
-  lootFilter: { enabled, minQuality, autoSellFiltered, pickupSkillBooks }
+  lootFilter: { enabled, minQuality, autoSellFiltered, pickupSkillBooks },
+  // 开发调试
+  devExpMultiplier,    // 经验倍率
+  devDropMultiplier,   // 掉落倍率
+  devGoldMultiplier    // 金币倍率
 }
 ```
 
@@ -131,6 +145,8 @@ gameState = {
 - `playerAttack(skillIndex)`: 玩家攻击
 - `monsterAttack()`: 怪物攻击
 - `calculateDamage()`: 伤害计算公式
+- `resetBattleStats()`: 重置战斗统计（自动战斗开始时调用）
+- `getBattleStats()`: 获取战斗统计数据（含效率计算）
 
 **锁妖塔**:
 - `enterTower()`: 进入锁妖塔
@@ -186,9 +202,12 @@ if (isCrit) finalDamage *= (1.5 + critDamage/100)
 
 ### 命中判定
 ```
-实际命中率 = 命中率 - 闪避率
+玩家命中率 = 玩家命中 - 怪物闪避（最低5%）
+怪物命中率 = 怪物命中 - 玩家闪避（最低5%）
 暴击率 = 暴击率 - 抗暴击
 ```
+- 普通怪物命中：70-90% + 等级*0.3
+- 锁妖塔怪物命中：80-95% + 层数*0.2
 
 ## 开发指南
 
