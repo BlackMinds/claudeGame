@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { realms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook } from '../data/gameData'
+import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook } from '../data/gameData'
 import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 获取网络时间（返回日期字符串 YYYY-MM-DD）
@@ -92,6 +92,7 @@ export const gameState = Vue.observable({
     exp: 0,
     realmId: 1,
     realmExp: 0,
+    cultivationType: 'none', // 'none' | 'xian' | 'mo' 修炼类型
     gold: 100,
     // 技能系统
     learnedSkills: {},       // { skillId: { level: 1, exp: 0 } }
@@ -159,14 +160,43 @@ export const gameState = Vue.observable({
   devExpMultiplier: 1
 })
 
+// 获取当前使用的境界表
+export function getCurrentRealmTable() {
+  const type = gameState.player.cultivationType
+  if (type === 'mo') return moRealms
+  if (type === 'xian') return xianRealms
+  // 未选择时默认使用仙修表（凡人境界是一样的）
+  return xianRealms
+}
+
 // 获取当前境界
 export function getCurrentRealm() {
-  return realms.find(r => r.id === gameState.player.realmId) || realms[0]
+  const realmTable = getCurrentRealmTable()
+  return realmTable.find(r => r.id === gameState.player.realmId) || realmTable[0]
 }
 
 // 获取下一个境界
 export function getNextRealm() {
-  return realms.find(r => r.id === gameState.player.realmId + 1)
+  const realmTable = getCurrentRealmTable()
+  return realmTable.find(r => r.id === gameState.player.realmId + 1)
+}
+
+// 获取修炼类型
+export function getCultivationType() {
+  return gameState.player.cultivationType
+}
+
+// 设置修炼类型（只能设置一次）
+export function setCultivationType(type) {
+  if (gameState.player.cultivationType !== 'none') {
+    return false // 已经选择过了
+  }
+  if (type !== 'xian' && type !== 'mo') {
+    return false // 无效类型
+  }
+  gameState.player.cultivationType = type
+  autoSave()
+  return true
 }
 
 // 获取升级所需经验
@@ -253,9 +283,13 @@ export function getPassiveSkillBonus() {
 export function getPlayerStats() {
   const realm = getCurrentRealm()
   const p = gameState.player
-  const realmBonus = realm.statBonus
   const equipStats = getEquipmentStats()
   const passiveStats = getPassiveSkillBonus()
+
+  // 境界百分比加成
+  const hpBonus = 1 + (realm.hpBonus || 0) / 100
+  const attackBonus = 1 + (realm.attackBonus || 0) / 100
+  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100
 
   // 获取临时buff加成
   const buffs = gameState.battle.playerBuffs || {}
@@ -263,11 +297,14 @@ export function getPlayerStats() {
   const defenseBuffPercent = buffs.defenseBuff?.value || 0
   const critBuffValue = buffs.critBuff?.value || 0
 
-  const baseAttack = Math.floor((p.baseAttack + equipStats.attack + passiveStats.attack) * realmBonus)
-  const baseDefense = Math.floor((p.baseDefense + equipStats.defense + passiveStats.defense) * realmBonus)
+  const baseAttack = Math.floor((p.baseAttack + equipStats.attack + passiveStats.attack) * attackBonus)
+  const baseDefense = Math.floor((p.baseDefense + equipStats.defense + passiveStats.defense) * defenseBonus)
+
+  // 吸血 = 被动技能吸血 + 境界吸血加成
+  const totalLifesteal = (passiveStats.lifesteal || 0) + (realm.lifestealBonus || 0)
 
   return {
-    maxHp: Math.floor((p.baseHp + equipStats.hp + passiveStats.hp) * realmBonus),
+    maxHp: Math.floor((p.baseHp + equipStats.hp + passiveStats.hp) * hpBonus),
     attack: Math.floor(baseAttack * (1 + attackBuffPercent / 100)),
     defense: Math.floor(baseDefense * (1 + defenseBuffPercent / 100)),
     critRate: p.critRate + equipStats.critRate + passiveStats.critRate + critBuffValue,
@@ -278,9 +315,11 @@ export function getPlayerStats() {
     penetration: p.penetration + equipStats.penetration + passiveStats.penetration,
     skillDamage: equipStats.skillDamage + passiveStats.skillDamage,
     dropRate: equipStats.dropRate,
-    lifesteal: passiveStats.lifesteal || 0,
+    lifesteal: totalLifesteal,
     damageReduction: passiveStats.damageReduction || 0,
-    hpRegen: passiveStats.hpRegen || 0
+    hpRegen: passiveStats.hpRegen || 0,
+    healBonus: realm.healBonus || 0,
+    healReceivedBonus: realm.healReceivedBonus || 0
   }
 }
 
@@ -341,23 +380,84 @@ export function checkLevelUp() {
   return leveledUp
 }
 
-// 检查并突破境界
+// 检查境界经验是否足够突破（不再自动突破，需要通过打坐晋升）
 export function checkRealmBreakthrough() {
+  // 不再自动突破，只返回是否可以突破
   const nextRealm = getNextRealm()
   if (!nextRealm) return false
+  return gameState.player.realmExp >= nextRealm.minExp
+}
 
-  if (gameState.player.realmExp >= nextRealm.minExp) {
+// 检查打坐功能是否解锁（锁妖塔10层）
+export function isMeditationUnlocked() {
+  return gameState.battle.towerHighestFloor >= 10
+}
+
+// 获取晋升成功率（基础60%，修为越多成功率越高，最高90%）
+export function getBreakthroughSuccessRate() {
+  const nextRealm = getNextRealm()
+  if (!nextRealm) return 0
+
+  const currentExp = gameState.player.realmExp
+  const requiredExp = nextRealm.minExp
+
+  if (currentExp < requiredExp) return 0
+
+  // 基础成功率60%
+  let successRate = 60
+
+  // 超出所需经验的部分，每超出10%增加3%成功率，最高+30%
+  const excessRatio = (currentExp - requiredExp) / requiredExp
+  successRate += Math.min(30, Math.floor(excessRatio * 10) * 3)
+
+  return Math.min(90, successRate)
+}
+
+// 尝试晋升境界
+// 检查是否需要选择修炼类型（第一次晋升时）
+export function needsChooseCultivationType() {
+  return gameState.player.realmId === 1 && gameState.player.cultivationType === 'none'
+}
+
+export function attemptBreakthrough() {
+  const nextRealm = getNextRealm()
+  if (!nextRealm) {
+    return { success: false, message: '已达最高境界' }
+  }
+
+  if (gameState.player.realmExp < nextRealm.minExp) {
+    return { success: false, message: '修为不足，无法晋升' }
+  }
+
+  // 第一次晋升需要先选择修炼类型
+  if (needsChooseCultivationType()) {
+    return { success: false, needChoose: true, message: '请先选择修炼道路' }
+  }
+
+  const successRate = getBreakthroughSuccessRate()
+  const roll = Math.random() * 100
+
+  if (roll < successRate) {
+    // 晋升成功
     gameState.player.realmId = nextRealm.id
     gameState.player.baseHp += 50
     gameState.player.baseAttack += 15
     gameState.player.baseDefense += 10
     gameState.player.critDamage += 10
 
-    addLog(`突破了！进入【${nextRealm.name}】！`, 'success')
+    const typeText = gameState.player.cultivationType === 'mo' ? '魔修' : '仙修'
+    addLog(`${typeText}晋升成功！进入【${nextRealm.name}】！`, 'success')
     autoSave()
-    return true
+    return { success: true, message: `晋升成功！进入【${nextRealm.name}】！` }
+  } else {
+    // 晋升失败，损失20%修为
+    const lostExp = Math.floor(gameState.player.realmExp * 0.2)
+    gameState.player.realmExp -= lostExp
+
+    addLog(`晋升失败！损失了 ${lostExp} 点修为`, 'danger')
+    autoSave()
+    return { success: false, message: `晋升失败！损失了 ${lostExp} 点修为` }
   }
-  return false
 }
 
 // 添加日志
@@ -2405,6 +2505,15 @@ export function loadGame() {
       }
       if (!data.player.aptitudePills) {
         data.player.aptitudePills = []
+      }
+      // 修炼类型兼容（旧存档默认仙修，如果已经有境界则保持仙修）
+      if (!data.player.cultivationType) {
+        // 如果已经突破过境界，设为仙修（保持兼容）
+        if (data.player.realmId > 1) {
+          data.player.cultivationType = 'xian'
+        } else {
+          data.player.cultivationType = 'none'
+        }
       }
       // 迁移背包中的宠物蛋和资质丹到新存储
       if (data.player.inventory) {

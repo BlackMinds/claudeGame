@@ -1,15 +1,37 @@
-// 修仙境界
-export const realms = [
-  { id: 1, name: '凡人', minExp: 0, statBonus: 1 },
-  { id: 2, name: '练气期', minExp: 1500, statBonus: 1.3 },
-  { id: 3, name: '筑基期', minExp: 6000, statBonus: 1.7 },
-  { id: 4, name: '金丹期', minExp: 25000, statBonus: 2.2 },
-  { id: 5, name: '元婴期', minExp: 100000, statBonus: 3 },
-  { id: 6, name: '化神期', minExp: 350000, statBonus: 4 },
-  { id: 7, name: '合体期', minExp: 1200000, statBonus: 5.5 },
-  { id: 8, name: '大乘期', minExp: 4000000, statBonus: 7.5 },
-  { id: 9, name: '渡劫期', minExp: 12000000, statBonus: 10 }
+// 仙修境界 - 平衡型：生命+5% 攻击+5% 防御+5%
+export const xianRealms = [
+  { id: 1, name: '凡人', minExp: 0, hpBonus: 0, attackBonus: 0, defenseBonus: 0, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 2, name: '炼气期', minExp: 4500, hpBonus: 5, attackBonus: 5, defenseBonus: 5, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 3, name: '筑基期', minExp: 18000, hpBonus: 10, attackBonus: 10, defenseBonus: 10, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 4, name: '金丹期', minExp: 75000, hpBonus: 15, attackBonus: 15, defenseBonus: 15, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 5, name: '元婴期', minExp: 300000, hpBonus: 20, attackBonus: 20, defenseBonus: 20, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 6, name: '化神期', minExp: 1050000, hpBonus: 25, attackBonus: 25, defenseBonus: 25, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 7, name: '炼虚期', minExp: 3600000, hpBonus: 30, attackBonus: 30, defenseBonus: 30, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 8, name: '合体期', minExp: 12000000, hpBonus: 35, attackBonus: 35, defenseBonus: 35, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 9, name: '大乘期', minExp: 36000000, hpBonus: 40, attackBonus: 40, defenseBonus: 40, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 10, name: '渡劫期', minExp: 105000000, hpBonus: 45, attackBonus: 45, defenseBonus: 45, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 11, name: '真仙', minExp: 300000000, hpBonus: 50, attackBonus: 50, defenseBonus: 50, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 12, name: '天仙', minExp: 900000000, hpBonus: 55, attackBonus: 55, defenseBonus: 55, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 }
 ]
+
+// 魔修境界 - 攻击型：生命+2% 攻击+8% 防御+0% 吸血+2%
+export const moRealms = [
+  { id: 1, name: '凡人', minExp: 0, hpBonus: 0, attackBonus: 0, defenseBonus: 0, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
+  { id: 2, name: '凝煞期', minExp: 4500, hpBonus: 2, attackBonus: 8, defenseBonus: 0, lifestealBonus: 2, healBonus: 0, healReceivedBonus: 0 },
+  { id: 3, name: '魔童期', minExp: 18000, hpBonus: 4, attackBonus: 16, defenseBonus: 0, lifestealBonus: 4, healBonus: 0, healReceivedBonus: 0 },
+  { id: 4, name: '魔丹期', minExp: 75000, hpBonus: 6, attackBonus: 24, defenseBonus: 0, lifestealBonus: 6, healBonus: 0, healReceivedBonus: 0 },
+  { id: 5, name: '魔婴期', minExp: 300000, hpBonus: 8, attackBonus: 32, defenseBonus: 0, lifestealBonus: 8, healBonus: 0, healReceivedBonus: 0 },
+  { id: 6, name: '化魔期', minExp: 1050000, hpBonus: 10, attackBonus: 40, defenseBonus: 0, lifestealBonus: 10, healBonus: 0, healReceivedBonus: 0 },
+  { id: 7, name: '炼域期', minExp: 3600000, hpBonus: 12, attackBonus: 48, defenseBonus: 0, lifestealBonus: 12, healBonus: 0, healReceivedBonus: 0 },
+  { id: 8, name: '自在期', minExp: 12000000, hpBonus: 14, attackBonus: 56, defenseBonus: 0, lifestealBonus: 14, healBonus: 0, healReceivedBonus: 0 },
+  { id: 9, name: '真魔期', minExp: 36000000, hpBonus: 16, attackBonus: 64, defenseBonus: 0, lifestealBonus: 16, healBonus: 0, healReceivedBonus: 0 },
+  { id: 10, name: '逆劫期', minExp: 105000000, hpBonus: 18, attackBonus: 72, defenseBonus: 0, lifestealBonus: 18, healBonus: 0, healReceivedBonus: 0 },
+  { id: 11, name: '真魔', minExp: 300000000, hpBonus: 20, attackBonus: 80, defenseBonus: 0, lifestealBonus: 20, healBonus: 0, healReceivedBonus: 0 },
+  { id: 12, name: '玄魔', minExp: 900000000, hpBonus: 22, attackBonus: 88, defenseBonus: 0, lifestealBonus: 22, healBonus: 0, healReceivedBonus: 0 }
+]
+
+// 兼容旧代码，默认使用仙修
+export const realms = xianRealms
 
 // 装备品质
 export const qualityConfig = {
@@ -1473,16 +1495,22 @@ export function getPassiveSkillStats(skill, level) {
 // 稀有度倍率: common=1, uncommon=1.3, rare=1.6, epic=2, legendary=2.5
 const rarityExpMultiplier = {
   common: 1,
-  uncommon: 1.3,
-  rare: 1.6,
-  epic: 2,
-  legendary: 2.5
+  uncommon: 1.5,
+  rare: 2,
+  epic: 3,
+  legendary: 4
 }
 
 export function getSkillExpForLevel(level, rarity = 'common') {
-  const baseExp = Math.floor(200 * level * (1 + level * 0.45))
+  const baseExp = Math.floor(600 * level * (1 + level * 0.45)) // 基础经验×3
   const multiplier = rarityExpMultiplier[rarity] || 1
-  return Math.floor(baseExp * multiplier)
+  // 等级递增倍率：1→2级×3，2→3级×4，3→4级×5，4→5级×6
+  let levelMultiplier = 3
+  if (level === 2) levelMultiplier = 4
+  else if (level === 3) levelMultiplier = 5
+  else if (level === 4) levelMultiplier = 6
+  else if (level >= 5) levelMultiplier = 7 // 5级以上保持×7
+  return Math.floor(baseExp * multiplier * levelMultiplier)
 }
 
 // 根据技能ID获取技能

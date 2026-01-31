@@ -61,9 +61,48 @@
           <span class="attr-value">{{ stats.hit.toFixed(1) }}%</span>
         </div>
         <div class="attr-item">
+          <span class="attr-icon lifesteal-icon"></span>
+          <span class="attr-name">吸血</span>
+          <span class="attr-value">{{ stats.lifesteal.toFixed(1) }}%</span>
+        </div>
+        <div class="attr-item">
           <span class="attr-icon drop-icon"></span>
           <span class="attr-name">掉落率</span>
           <span class="attr-value">+{{ stats.dropRate.toFixed(1) }}%</span>
+        </div>
+      </div>
+
+      <div class="attr-group">
+        <h3>境界加成</h3>
+        <div class="attr-item">
+          <span class="attr-icon hp-bonus-icon"></span>
+          <span class="attr-name">生命加成</span>
+          <span class="attr-value bonus">+{{ realmBonus.hpBonus }}%</span>
+        </div>
+        <div class="attr-item">
+          <span class="attr-icon atk-bonus-icon"></span>
+          <span class="attr-name">攻击加成</span>
+          <span class="attr-value bonus">+{{ realmBonus.attackBonus }}%</span>
+        </div>
+        <div class="attr-item">
+          <span class="attr-icon def-bonus-icon"></span>
+          <span class="attr-name">防御加成</span>
+          <span class="attr-value bonus">+{{ realmBonus.defenseBonus }}%</span>
+        </div>
+        <div class="attr-item">
+          <span class="attr-icon lifesteal-bonus-icon"></span>
+          <span class="attr-name">吸血加成</span>
+          <span class="attr-value bonus">+{{ realmBonus.lifestealBonus }}%</span>
+        </div>
+        <div class="attr-item">
+          <span class="attr-icon heal-icon"></span>
+          <span class="attr-name">治疗加成</span>
+          <span class="attr-value bonus">+{{ realmBonus.healBonus }}%</span>
+        </div>
+        <div class="attr-item">
+          <span class="attr-icon heal-recv-icon"></span>
+          <span class="attr-name">受治疗加成</span>
+          <span class="attr-value bonus">+{{ realmBonus.healReceivedBonus }}%</span>
         </div>
       </div>
 
@@ -190,6 +229,17 @@ export default {
       if (!next) return 100
       const prev = this.currentRealm.minExp
       return Math.min(100, ((this.player.realmExp - prev) / (next.minExp - prev)) * 100)
+    },
+    realmBonus() {
+      const realm = this.currentRealm
+      return {
+        hpBonus: realm.hpBonus || 0,
+        attackBonus: realm.attackBonus || 0,
+        defenseBonus: realm.defenseBonus || 0,
+        lifestealBonus: realm.lifestealBonus || 0,
+        healBonus: realm.healBonus || 0,
+        healReceivedBonus: realm.healReceivedBonus || 0
+      }
     }
   },
   methods: {
@@ -296,7 +346,14 @@ export default {
 .pen-icon { background: linear-gradient(135deg, #6c5ce7, #5b4cdb); }
 .dodge-icon { background: linear-gradient(135deg, #1dd1a1, #10b897); }
 .hit-icon { background: linear-gradient(135deg, #feca57, #f9b62a); }
+.lifesteal-icon { background: linear-gradient(135deg, #e74c3c, #c0392b); }
 .drop-icon { background: linear-gradient(135deg, #f39c12, #e67e22); }
+.hp-bonus-icon { background: linear-gradient(135deg, #e91e63, #c2185b); }
+.atk-bonus-icon { background: linear-gradient(135deg, #ff5722, #e64a19); }
+.def-bonus-icon { background: linear-gradient(135deg, #2196f3, #1976d2); }
+.lifesteal-bonus-icon { background: linear-gradient(135deg, #9c27b0, #7b1fa2); }
+.heal-icon { background: linear-gradient(135deg, #4caf50, #388e3c); }
+.heal-recv-icon { background: linear-gradient(135deg, #8bc34a, #689f38); }
 
 .attr-name {
   flex: 1;
@@ -308,6 +365,10 @@ export default {
   color: #fff;
   font-weight: bold;
   font-size: 0.85em;
+}
+
+.attr-value.bonus {
+  color: #2ecc71;
 }
 
 .no-skills {

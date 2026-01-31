@@ -31,12 +31,13 @@
     <div class="nav-actions">
       <button @click="showSkillPanel = true" class="nav-btn skill">技能</button>
       <button @click="showPetPanel = true" class="nav-btn pet">宠物</button>
+      <button v-if="meditationUnlocked" @click="showMeditation = true" class="nav-btn meditation">打坐</button>
       <button @click="showSettings = true" class="nav-btn settings">设置</button>
       <button @click="handleSave" class="nav-btn save">保存</button>
       <!-- <button @click="handleLoad" class="nav-btn load">读取</button> -->
       <button @click="handleReset" class="nav-btn reset">重置</button>
-      <!-- <button v-if="isDevEnvironment" @click="handleAddTestEquipment" class="nav-btn dev">测试装备</button> -->
-      <!-- <button v-if="isDevEnvironment" @click="handleToggleExpMultiplier" class="nav-btn dev" :class="{ active: expMultiplier > 1 }">{{ expMultiplier > 1 ? '100x经验' : '1x经验' }}</button> -->
+      <button v-if="isDevEnvironment" @click="handleAddTestEquipment" class="nav-btn dev">测试装备</button>
+      <button v-if="isDevEnvironment" @click="handleToggleExpMultiplier" class="nav-btn dev" :class="{ active: expMultiplier > 1 }">{{ expMultiplier > 1 ? '100x经验' : '1x经验' }}</button>
     </div>
 
     <!-- 设置面板 -->
@@ -166,11 +167,104 @@
         <PetPanel />
       </div>
     </div>
+
+    <!-- 打坐面板弹窗 -->
+    <div v-if="showMeditation" class="modal-overlay" @click.self="showMeditation = false">
+      <div class="meditation-panel">
+        <button class="modal-close" @click="showMeditation = false">×</button>
+        <h3>打坐修炼</h3>
+
+        <div class="meditation-info">
+          <!-- 修炼类型显示 -->
+          <div class="cultivation-type-display" v-if="cultivationType !== 'none'">
+            <span class="type-label">修炼道路：</span>
+            <span class="type-value" :class="cultivationType">{{ cultivationType === 'xian' ? '仙修' : '魔修' }}</span>
+          </div>
+
+          <div class="realm-display">
+            <div class="current-realm">
+              <span class="label">当前境界</span>
+              <span class="value">{{ currentRealm.name }}</span>
+            </div>
+            <div class="arrow">→</div>
+            <div class="next-realm">
+              <span class="label">下一境界</span>
+              <span class="value">{{ nextRealmInfo ? nextRealmInfo.name : '已达巅峰' }}</span>
+            </div>
+          </div>
+
+          <div class="exp-progress">
+            <div class="exp-label">
+              <span>修为进度</span>
+              <span>{{ player.realmExp }} / {{ nextRealmInfo ? nextRealmInfo.minExp : '---' }}</span>
+            </div>
+            <div class="exp-bar">
+              <div class="exp-fill" :style="{ width: realmExpPercent + '%' }"></div>
+            </div>
+          </div>
+
+          <div class="success-rate" v-if="canBreakthrough && !needChoosePath">
+            <span class="label">晋升成功率</span>
+            <span class="value" :class="successRateClass">{{ breakthroughRate }}%</span>
+          </div>
+
+          <div class="breakthrough-tips">
+            <p v-if="!canBreakthrough">修为不足，继续修炼以积累更多修为</p>
+            <p v-else-if="needChoosePath">修为充足，请选择你的修炼道路</p>
+            <p v-else>修为充足，可以尝试晋升。修为越多，成功率越高</p>
+            <p class="warning" v-if="canBreakthrough && !needChoosePath">晋升失败将损失20%修为</p>
+          </div>
+
+          <div v-if="breakthroughResult" class="breakthrough-result" :class="breakthroughResult.success ? 'success' : 'fail'">
+            {{ breakthroughResult.message }}
+          </div>
+
+          <!-- 修炼类型选择（第一次晋升时显示） -->
+          <div v-if="showCultivationChoice || needChoosePath" class="cultivation-choice">
+            <h4>选择修炼道路</h4>
+            <p class="choice-warning">此选择不可更改，请慎重选择！</p>
+
+            <div class="choice-options">
+              <div class="choice-option xian" @click="chooseCultivation('xian')">
+                <div class="choice-title">仙修</div>
+                <div class="choice-desc">平衡型成长</div>
+                <div class="choice-stats">
+                  <span>生命 +5%/级</span>
+                  <span>攻击 +5%/级</span>
+                  <span>防御 +5%/级</span>
+                </div>
+                <div class="choice-feature">稳健成长，攻守兼备</div>
+              </div>
+
+              <div class="choice-option mo" @click="chooseCultivation('mo')">
+                <div class="choice-title">魔修</div>
+                <div class="choice-desc">攻击型成长</div>
+                <div class="choice-stats">
+                  <span>生命 +2%/级</span>
+                  <span>攻击 +8%/级</span>
+                  <span>吸血 +2%/级</span>
+                </div>
+                <div class="choice-feature">高风险高回报</div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            v-if="!needChoosePath"
+            class="breakthrough-btn"
+            :disabled="!canBreakthrough"
+            @click="handleBreakthrough"
+          >
+            {{ canBreakthrough ? '尝试晋升' : '修为不足' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </nav>
 </template>
 
 <script>
-import { gameState, getCurrentRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter, getMaxPassiveSlots, addTestEquipment, toggleExpMultiplier, getExpMultiplier, useRedeemCode } from '../../store/gameStore'
+import { gameState, getCurrentRealm, getNextRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter, getMaxPassiveSlots, addTestEquipment, toggleExpMultiplier, getExpMultiplier, useRedeemCode, isMeditationUnlocked, getBreakthroughSuccessRate, attemptBreakthrough, getCultivationType, setCultivationType, needsChooseCultivationType } from '../../store/gameStore'
 import SkillPanel from './SkillPanel.vue'
 import PetPanel from './PetPanel.vue'
 
@@ -184,9 +278,12 @@ export default {
     return {
       showSkillPanel: false,
       showPetPanel: false,
+      showMeditation: false,
+      showCultivationChoice: false,
       showSettings: false,
       showImportInput: false,
       importData: '',
+      breakthroughResult: null,
       currentBgColor: 'default',
       customColor1: '#0a0a1a',
       customColor2: '#1a1a3a',
@@ -253,6 +350,35 @@ export default {
     },
     expMultiplier() {
       return getExpMultiplier()
+    },
+    meditationUnlocked() {
+      return isMeditationUnlocked()
+    },
+    nextRealmInfo() {
+      return getNextRealm()
+    },
+    realmExpPercent() {
+      if (!this.nextRealmInfo) return 100
+      return Math.min(100, (this.player.realmExp / this.nextRealmInfo.minExp) * 100)
+    },
+    canBreakthrough() {
+      if (!this.nextRealmInfo) return false
+      return this.player.realmExp >= this.nextRealmInfo.minExp
+    },
+    breakthroughRate() {
+      return getBreakthroughSuccessRate()
+    },
+    successRateClass() {
+      const rate = this.breakthroughRate
+      if (rate >= 80) return 'high'
+      if (rate >= 60) return 'medium'
+      return 'low'
+    },
+    cultivationType() {
+      return getCultivationType()
+    },
+    needChoosePath() {
+      return needsChooseCultivationType() && this.canBreakthrough
     }
   },
   methods: {
@@ -385,6 +511,33 @@ export default {
         setTimeout(() => {
           this.redeemResult = null
         }, 3000)
+      }
+    },
+    handleBreakthrough() {
+      const result = attemptBreakthrough()
+      this.breakthroughResult = result
+      // 如果需要选择修炼类型，显示选择界面
+      if (result.needChoose) {
+        this.showCultivationChoice = true
+      }
+      // 3秒后清除提示
+      setTimeout(() => {
+        this.breakthroughResult = null
+      }, 3000)
+    },
+    chooseCultivation(type) {
+      if (confirm(`确定选择${type === 'xian' ? '仙修' : '魔修'}道路吗？此选择不可更改！`)) {
+        const success = setCultivationType(type)
+        if (success) {
+          this.showCultivationChoice = false
+          this.breakthroughResult = {
+            success: true,
+            message: `已选择${type === 'xian' ? '仙修' : '魔修'}道路，可以开始晋升了！`
+          }
+          setTimeout(() => {
+            this.breakthroughResult = null
+          }, 3000)
+        }
       }
     }
   }
@@ -920,5 +1073,310 @@ export default {
   background: rgba(231, 76, 60, 0.2);
   border: 1px solid #e74c3c;
   color: #e74c3c;
+}
+
+/* 打坐按钮样式 */
+.nav-btn.meditation {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+}
+
+.nav-btn.meditation:hover {
+  background: linear-gradient(135deg, #8e44ad, #9b59b6);
+}
+
+/* 打坐面板样式 */
+.meditation-panel {
+  background: linear-gradient(180deg, #1a1a3a 0%, #2a2a4a 100%);
+  border-radius: 12px;
+  padding: 25px;
+  width: 400px;
+  max-width: 90vw;
+  position: relative;
+  border: 2px solid #9b59b6;
+  box-shadow: 0 0 30px rgba(155, 89, 182, 0.3);
+}
+
+.meditation-panel h3 {
+  color: #dda0dd;
+  margin-bottom: 20px;
+  font-size: 1.3em;
+  text-align: center;
+}
+
+.meditation-info {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.realm-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.current-realm, .next-realm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.realm-display .label {
+  color: #888;
+  font-size: 0.85em;
+}
+
+.realm-display .value {
+  color: #ffd700;
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.realm-display .arrow {
+  color: #9b59b6;
+  font-size: 1.5em;
+}
+
+.exp-progress {
+  background: #1a1a2e;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.exp-label {
+  display: flex;
+  justify-content: space-between;
+  color: #aaa;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+
+.exp-bar {
+  height: 12px;
+  background: #333;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.exp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #9b59b6, #e74c3c);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.success-rate {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #1a1a2e;
+  border-radius: 8px;
+}
+
+.success-rate .label {
+  color: #888;
+}
+
+.success-rate .value {
+  font-size: 1.3em;
+  font-weight: bold;
+}
+
+.success-rate .value.high {
+  color: #2ecc71;
+}
+
+.success-rate .value.medium {
+  color: #f39c12;
+}
+
+.success-rate .value.low {
+  color: #e74c3c;
+}
+
+.breakthrough-tips {
+  text-align: center;
+  padding: 10px;
+}
+
+.breakthrough-tips p {
+  color: #888;
+  font-size: 0.85em;
+  margin: 5px 0;
+}
+
+.breakthrough-tips .warning {
+  color: #e74c3c;
+}
+
+.breakthrough-result {
+  text-align: center;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 1em;
+  margin-bottom: 10px;
+}
+
+.breakthrough-result.success {
+  background: rgba(46, 204, 113, 0.2);
+  border: 1px solid #2ecc71;
+  color: #2ecc71;
+}
+
+.breakthrough-result.fail {
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+}
+
+.breakthrough-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  color: white;
+}
+
+.breakthrough-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8e44ad, #9b59b6);
+  transform: scale(1.02);
+  box-shadow: 0 0 20px rgba(155, 89, 182, 0.5);
+}
+
+.breakthrough-btn:disabled {
+  background: #444;
+  color: #888;
+  cursor: not-allowed;
+}
+
+/* 修炼类型显示 */
+.cultivation-type-display {
+  text-align: center;
+  padding: 10px;
+  background: #1a1a2e;
+  border-radius: 8px;
+}
+
+.type-label {
+  color: #888;
+  margin-right: 10px;
+}
+
+.type-value {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.type-value.xian {
+  color: #87ceeb;
+  text-shadow: 0 0 10px rgba(135, 206, 235, 0.5);
+}
+
+.type-value.mo {
+  color: #e74c3c;
+  text-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+}
+
+/* 修炼类型选择 */
+.cultivation-choice {
+  background: #1a1a2e;
+  padding: 20px;
+  border-radius: 10px;
+  border: 2px solid #ffd700;
+}
+
+.cultivation-choice h4 {
+  color: #ffd700;
+  text-align: center;
+  margin: 0 0 10px 0;
+  font-size: 1.1em;
+}
+
+.choice-warning {
+  color: #e74c3c;
+  text-align: center;
+  font-size: 0.85em;
+  margin-bottom: 15px;
+}
+
+.choice-options {
+  display: flex;
+  gap: 15px;
+}
+
+.choice-option {
+  flex: 1;
+  padding: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.choice-option.xian {
+  background: linear-gradient(135deg, #1a3a5a, #2a5a8a);
+  border: 2px solid #87ceeb;
+}
+
+.choice-option.xian:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(135, 206, 235, 0.5);
+}
+
+.choice-option.mo {
+  background: linear-gradient(135deg, #3a1a1a, #5a2a2a);
+  border: 2px solid #e74c3c;
+}
+
+.choice-option.mo:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+}
+
+.choice-title {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.choice-option.xian .choice-title {
+  color: #87ceeb;
+}
+
+.choice-option.mo .choice-title {
+  color: #e74c3c;
+}
+
+.choice-desc {
+  color: #aaa;
+  font-size: 0.85em;
+  margin-bottom: 10px;
+}
+
+.choice-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.choice-stats span {
+  color: #2ecc71;
+  font-size: 0.8em;
+}
+
+.choice-feature {
+  color: #ffd700;
+  font-size: 0.85em;
+  font-style: italic;
 }
 </style>

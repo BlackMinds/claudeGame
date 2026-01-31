@@ -48,8 +48,8 @@ export function validatePlayerData(player) {
     errors.push('经验异常')
   }
 
-  // 境界检查 (1-9)
-  if (player.realmId < 1 || player.realmId > 9) {
+  // 境界检查 (1-12)
+  if (player.realmId < 1 || player.realmId > 12) {
     errors.push('境界异常')
   }
 
