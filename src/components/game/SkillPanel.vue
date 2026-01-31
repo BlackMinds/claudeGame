@@ -188,7 +188,7 @@
           <div v-else>
             <div>属性加成 (Lv.{{ selectedSkill.currentLevel }}):</div>
             <div v-for="(value, stat) in getPassiveBonus(selectedSkill)" :key="stat" class="passive-bonus">
-              {{ statNames[stat] }}: +{{ value }}
+              {{ statNames[stat] || stat }}: +{{ value }}{{ percentStats.includes(stat) ? '%' : '' }}
             </div>
           </div>
         </div>
@@ -272,8 +272,16 @@ export default {
         skillDamage: '技能伤害',
         lifesteal: '吸血',
         damageReduction: '减伤',
-        hpRegen: '回复'
-      }
+        hpRegen: '回复',
+        thorns: '反伤',
+        hpPercent: '生命',
+        attackPercent: '攻击',
+        defensePercent: '防御',
+        conditionalDamageReduction: '条件减伤',
+        lowHpDefenseBonus: '低血防御',
+        fatalReflect: '致命反伤'
+      },
+      percentStats: ['hpPercent', 'attackPercent', 'defensePercent', 'conditionalDamageReduction', 'lowHpDefenseBonus', 'fatalReflect']
     }
   },
   computed: {
@@ -401,7 +409,11 @@ export default {
       const texts = []
       for (const [stat, value] of Object.entries(skill.bonusStats)) {
         const name = this.statNames[stat] || stat
-        texts.push(`${name}+${value}`)
+        if (this.percentStats.includes(stat)) {
+          texts.push(`${name}+${value}%`)
+        } else {
+          texts.push(`${name}+${value}`)
+        }
       }
       return texts.join(' ')
     },
