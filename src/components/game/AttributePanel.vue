@@ -70,6 +70,16 @@
           <span class="attr-name">掉落率</span>
           <span class="attr-value">+{{ stats.dropRate.toFixed(1) }}%</span>
         </div>
+        <div class="attr-item">
+          <span class="attr-icon damage-reduce-icon"></span>
+          <span class="attr-name">减伤</span>
+          <span class="attr-value">{{ stats.damageReduction.toFixed(1) }}%</span>
+        </div>
+        <div class="attr-item">
+          <span class="attr-icon thorns-icon"></span>
+          <span class="attr-name">反伤</span>
+          <span class="attr-value">{{ stats.thorns.toFixed(1) }}%</span>
+        </div>
       </div>
 
       <div class="attr-group">
@@ -179,6 +189,7 @@ export default {
         skillDamage: '技伤',
         lifesteal: '吸血',
         damageReduction: '减伤',
+        thorns: '反伤',
         hpRegen: '回复'
       }
     }
@@ -348,6 +359,8 @@ export default {
 .hit-icon { background: linear-gradient(135deg, #feca57, #f9b62a); }
 .lifesteal-icon { background: linear-gradient(135deg, #e74c3c, #c0392b); }
 .drop-icon { background: linear-gradient(135deg, #f39c12, #e67e22); }
+.damage-reduce-icon { background: linear-gradient(135deg, #3498db, #2980b9); }
+.thorns-icon { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
 .hp-bonus-icon { background: linear-gradient(135deg, #e91e63, #c2185b); }
 .atk-bonus-icon { background: linear-gradient(135deg, #ff5722, #e64a19); }
 .def-bonus-icon { background: linear-gradient(135deg, #2196f3, #1976d2); }

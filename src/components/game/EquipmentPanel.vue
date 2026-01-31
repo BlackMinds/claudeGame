@@ -433,6 +433,8 @@ export default {
         skillDamage: '技能伤害',
         dropRate: '掉落率',
         damageReduction: '伤害减免',
+        thorns: '反伤',
+        lifesteal: '吸血',
         hpRegen: '生命回复'
       }
     }

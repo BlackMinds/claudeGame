@@ -144,6 +144,7 @@ export const gameState = Vue.observable({
     playerCurrentHp: 100,
     playerBuffs: {}, // 玩家增益效果
     skillCooldowns: {}, // 技能冷却
+    petSkillCooldowns: {}, // 宠物技能冷却
     roundCount: 0, // 回合计数
     battleLog: [],
     selectedMapId: 1,
@@ -227,7 +228,10 @@ export function getEquipmentStats() {
     hit: 0,
     penetration: 0,
     skillDamage: 0,
-    dropRate: 0
+    dropRate: 0,
+    damageReduction: 0,
+    thorns: 0,
+    lifesteal: 0
   }
 
   for (const equip of Object.values(gameState.player.equipment)) {
@@ -262,7 +266,12 @@ export function getPassiveSkillBonus() {
     damageReduction: 0,
     hpRegen: 0,
     hpPercent: 0,
-    attackPercent: 0
+    attackPercent: 0,
+    defensePercent: 0,
+    thorns: 0,
+    conditionalDamageReduction: 0,
+    lowHpDefenseBonus: 0,
+    fatalReflect: 0
   }
 
   for (const skillId of gameState.player.equippedPassiveSkills) {
@@ -291,7 +300,9 @@ export function getSetBonuses() {
     critDamage: 0,
     penetration: 0,
     dodge: 0,
-    damageReduction: 0
+    damageReduction: 0,
+    thorns: 0,
+    lifesteal: 0
   }
 
   // 统计每个套装装备的数量
@@ -343,7 +354,7 @@ export function getPlayerStats() {
   // 境界百分比加成 + 套装百分比加成 + 被动技能百分比加成
   const hpBonus = 1 + (realm.hpBonus || 0) / 100 + (setBonuses.hp || 0) / 100 + (passiveStats.hpPercent || 0) / 100
   const attackBonus = 1 + (realm.attackBonus || 0) / 100 + (setBonuses.attack || 0) / 100 + (passiveStats.attackPercent || 0) / 100
-  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100 + (setBonuses.defense || 0) / 100
+  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100 + (setBonuses.defense || 0) / 100 + (passiveStats.defensePercent || 0) / 100
 
   // 获取临时buff加成
   const buffs = gameState.battle.playerBuffs || {}
@@ -354,11 +365,14 @@ export function getPlayerStats() {
   const baseAttack = Math.floor((p.baseAttack + equipStats.attack + passiveStats.attack) * attackBonus)
   const baseDefense = Math.floor((p.baseDefense + equipStats.defense + passiveStats.defense) * defenseBonus)
 
-  // 吸血 = 被动技能吸血 + 境界吸血加成
-  const totalLifesteal = (passiveStats.lifesteal || 0) + (realm.lifestealBonus || 0)
+  // 吸血 = 装备吸血 + 被动技能吸血 + 境界吸血加成 + 套装吸血
+  const totalLifesteal = (equipStats.lifesteal || 0) + (passiveStats.lifesteal || 0) + (realm.lifestealBonus || 0) + (setBonuses.lifesteal || 0)
 
-  // 套装提供的伤害减免
-  const totalDamageReduction = (passiveStats.damageReduction || 0) + (setBonuses.damageReduction || 0)
+  // 伤害减免 = 装备减伤 + 被动技能减伤 + 套装减伤
+  const totalDamageReduction = (equipStats.damageReduction || 0) + (passiveStats.damageReduction || 0) + (setBonuses.damageReduction || 0)
+
+  // 反伤 = 装备反伤 + 被动技能反伤 + 套装反伤
+  const totalThorns = (equipStats.thorns || 0) + (passiveStats.thorns || 0) + (setBonuses.thorns || 0)
 
   return {
     maxHp: Math.floor((p.baseHp + equipStats.hp + passiveStats.hp) * hpBonus),
@@ -376,7 +390,11 @@ export function getPlayerStats() {
     damageReduction: totalDamageReduction,
     hpRegen: passiveStats.hpRegen || 0,
     healBonus: realm.healBonus || 0,
-    healReceivedBonus: realm.healReceivedBonus || 0
+    healReceivedBonus: realm.healReceivedBonus || 0,
+    thorns: totalThorns,
+    conditionalDamageReduction: passiveStats.conditionalDamageReduction || 0,
+    lowHpDefenseBonus: passiveStats.lowHpDefenseBonus || 0,
+    fatalReflect: passiveStats.fatalReflect || 0
   }
 }
 
@@ -1555,8 +1573,12 @@ export function startBattle() {
   gameState.battle.currentMonsterIndex = 0
   gameState.battle.playerCurrentHp = stats.maxHp
   gameState.battle.skillCooldowns = {}
+  gameState.battle.petSkillCooldowns = {}
+  gameState.battle.petBuffs = {}
   gameState.battle.playerBuffs = {}
   gameState.battle.roundCount = 0
+  gameState.battle.fatalReflectUsed = false
+  gameState.battle.chaosStrikeActive = false
 
   // 重置宠物血量
   const activePet = getActivePet()
@@ -1600,8 +1622,12 @@ export function startTowerBattle() {
   gameState.battle.currentMonsterIndex = 0
   gameState.battle.playerCurrentHp = stats.maxHp
   gameState.battle.skillCooldowns = {}
+  gameState.battle.petSkillCooldowns = {}
+  gameState.battle.petBuffs = {}
   gameState.battle.playerBuffs = {}
   gameState.battle.roundCount = 0
+  gameState.battle.fatalReflectUsed = false
+  gameState.battle.chaosStrikeActive = false
 
   // 重置宠物血量
   const activePet = getActivePet()
@@ -1792,7 +1818,7 @@ function showActiveDebuffs() {
       }
     }
     if (activeDebuffs.length > 0) {
-      addBattleLog(`📊 ${monster.name} 减益: ${activeDebuffs.join(' | ')}`, 'debuff')
+      addBattleLog(`📊 ${getMonsterNameWithStatus(monster)} 减益: ${activeDebuffs.join(' | ')}`, 'debuff')
     }
   }
 }
@@ -1817,7 +1843,12 @@ function getBuffName(buffType) {
     critBuff: '致命本能',
     defenseBuff: '铁甲术',
     shield: '金钟罩',
-    charge: '蓄力'
+    charge: '蓄力',
+    regen: '生命回复',
+    absoluteDefense: '绝对防御',
+    reflect: '以牙还牙',
+    critDamageBuff: '暴击强化',
+    dodgeBuff: '闪避强化'
   }
   return names[buffType] || buffType
 }
@@ -1832,7 +1863,7 @@ function updateMonsterDebuffs() {
         monster.debuffs[debuffName].duration--
         if (monster.debuffs[debuffName].duration <= 0) {
           delete monster.debuffs[debuffName]
-          addBattleLog(`⏱️ ${monster.name} 的【${getDebuffName(debuffName)}】效果结束`, 'info')
+          addBattleLog(`⏱️ ${getMonsterNameWithStatus(monster)} 的【${getDebuffName(debuffName)}】效果结束`, 'info')
         }
       }
     }
@@ -1841,9 +1872,74 @@ function updateMonsterDebuffs() {
 
 function getDebuffName(debuffType) {
   const names = {
-    vulnerable: '易伤'
+    vulnerable: '易伤',
+    bleed: '流血',
+    poison: '中毒',
+    burn: '灼烧',
+    stun: '眩晕',
+    weaken: '虚弱',
+    curse: '诅咒',
+    freeze: '冰冻'
   }
   return names[debuffType] || debuffType
+}
+
+// 获取状态效果图标
+function getStatusIcon(statusType) {
+  const icons = {
+    bleed: '🩸',
+    poison: '☠️',
+    burn: '🔥',
+    stun: '💫',
+    weaken: '💔',
+    curse: '💀',
+    freeze: '❄️',
+    vulnerable: '💢'
+  }
+  return icons[statusType] || ''
+}
+
+// 获取怪物名称（带状态图标）
+function getMonsterNameWithStatus(monster) {
+  if (!monster) return ''
+  let name = monster.name
+  if (monster.debuffs) {
+    const icons = []
+    for (const debuffType of Object.keys(monster.debuffs)) {
+      if (monster.debuffs[debuffType].duration > 0) {
+        const icon = getStatusIcon(debuffType)
+        if (icon) icons.push(icon)
+      }
+    }
+    if (icons.length > 0) {
+      name = `${name}${icons.join('')}`
+    }
+  }
+  return name
+}
+
+// 获取玩家状态图标
+function getPlayerStatusIcons() {
+  const icons = []
+  const buffs = gameState.battle.playerBuffs || {}
+
+  if (buffs.dodgeBuff) icons.push('🛡️')
+  if (buffs.shield) icons.push('🔰')
+  if (buffs.critBuff) icons.push('⚡')
+  if (buffs.attackBuff) icons.push('⚔️')
+  if (buffs.defenseBuff) icons.push('🛡️')
+
+  return icons.join('')
+}
+
+// 获取宠物状态图标
+function getPetStatusIcons() {
+  const icons = []
+  const buffs = gameState.battle.petBuffs || {}
+
+  if (buffs.rageBonus) icons.push('🔥')
+
+  return icons.join('')
 }
 
 // 执行一回合战斗
@@ -1880,11 +1976,19 @@ export function battleRound() {
     return 'win'
   }
 
-  // 生命回复（每回合）
+  // 生命回复（每回合 - 被动技能）
   if (stats.hpRegen > 0 && gameState.battle.playerCurrentHp < maxHp) {
     const healAmount = Math.floor(maxHp * stats.hpRegen / 100)
     gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
     addBattleLog(`💚 生命之源 恢复 ${healAmount} 点生命`, 'heal')
+  }
+
+  // 回复buff（圣光治愈等技能）
+  const regenBuff = gameState.battle.playerBuffs.regen
+  if (regenBuff && regenBuff.duration > 0 && gameState.battle.playerCurrentHp < maxHp) {
+    const healAmount = Math.floor(maxHp * regenBuff.value / 100)
+    gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+    addBattleLog(`💚 持续回复 ${healAmount} 点生命`, 'heal')
   }
 
   let result = null
@@ -1995,6 +2099,45 @@ export function battleRound() {
       skipAttack = true
     }
 
+    // 圣光治愈（治疗+持续回复）
+    if (selectedSkill.effect === 'healAndRegen') {
+      const healAmount = Math.floor(stats.attack * skillMultiplier)
+      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+      gameState.battle.playerBuffs.regen = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
+      addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 生命，获得${selectedSkill.effectDuration}回合回复效果`, 'heal')
+      skipAttack = true
+    }
+
+    // 生命绽放（牺牲当前生命换最大生命百分比恢复）
+    if (selectedSkill.effect === 'lifeBloom') {
+      const sacrificeHp = Math.floor(gameState.battle.playerCurrentHp * selectedSkill.sacrificePercent / 100)
+      const healAmount = Math.floor(maxHp * selectedSkill.healPercent / 100)
+      gameState.battle.playerCurrentHp -= sacrificeHp
+      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+      addBattleLog(`🌸 【${selectedSkill.name}】消耗 ${sacrificeHp} 生命，恢复 ${healAmount} 生命`, 'heal')
+      skipAttack = true
+    }
+
+    // 绝对防御（超高减伤buff）
+    if (selectedSkill.effect === 'absoluteDefense') {
+      gameState.battle.playerBuffs.absoluteDefense = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
+      addBattleLog(`🛡️ 【${selectedSkill.name}】${selectedSkill.effectDuration}回合内受伤-${selectedSkill.effectValue}%`, 'buff')
+      skipAttack = true
+    }
+
+    // 以牙还牙（反伤buff）
+    if (selectedSkill.effect === 'reflectBuff') {
+      gameState.battle.playerBuffs.reflect = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
+      addBattleLog(`🔄 【${selectedSkill.name}】${selectedSkill.effectDuration}回合内反弹${selectedSkill.effectValue}%伤害`, 'buff')
+      skipAttack = true
+    }
+
+    // 混沌之力（伤害+随机debuff）
+    if (selectedSkill.effect === 'chaosStrike') {
+      // 不跳过攻击，正常造成伤害，在伤害逻辑中处理随机debuff
+      gameState.battle.chaosStrikeActive = true
+    }
+
     // 牺牲技能（消耗生命换伤害）
     if (selectedSkill.effect === 'sacrifice') {
       const sacrificeHp = Math.floor(gameState.battle.playerCurrentHp * selectedSkill.effectValue / 100)
@@ -2076,6 +2219,12 @@ export function battleRound() {
         damage = Math.floor(damage * (1 + vulnerableBonus))
       }
 
+      // 检查诅咒debuff（增加受到的伤害）
+      if (targetMonster.debuffs && targetMonster.debuffs.curse) {
+        const curseBonus = targetMonster.debuffs.curse.value / 100
+        damage = Math.floor(damage * (1 + curseBonus))
+      }
+
       // 反伤护盾
       const reflectSkill = targetMonster.skills.find(s => s.effect === 'reflect')
       if (reflectSkill) {
@@ -2103,7 +2252,18 @@ export function battleRound() {
           value: chargeDebuff.value,
           duration: chargeDebuff.duration
         }
-        addBattleLog(`💔 ${targetMonster.name}【易伤】受伤+${chargeDebuff.value}% (${chargeDebuff.duration}回合)`, 'debuff')
+        addBattleLog(`💔 ${getMonsterNameWithStatus(targetMonster)}【易伤】受伤+${chargeDebuff.value}% (${chargeDebuff.duration}回合)`, 'debuff')
+      }
+
+      // 混沌之力随机debuff
+      if (gameState.battle.chaosStrikeActive) {
+        if (!targetMonster.debuffs) targetMonster.debuffs = {}
+        const chaosEffects = ['bleed', 'poison', 'burn', 'weaken', 'curse']
+        const randomEffect = chaosEffects[Math.floor(Math.random() * chaosEffects.length)]
+        targetMonster.debuffs[randomEffect] = { value: 15, duration: 3 }
+        const effectNames = { bleed: '流血', poison: '中毒', burn: '灼烧', weaken: '虚弱', curse: '诅咒' }
+        addBattleLog(`🌀 混沌之力附加【${effectNames[randomEffect]}】效果！`, 'debuff')
+        gameState.battle.chaosStrikeActive = false
       }
 
       // 吸血效果
@@ -2115,15 +2275,15 @@ export function battleRound() {
 
       if (selectedSkill) {
         if (isCrit) {
-          addBattleLog(`💥 【${selectedSkill.name}】暴击！对 ${targetMonster.name} 造成 ${damage} 伤害`, 'critical')
+          addBattleLog(`💥 【${selectedSkill.name}】暴击！对 ${getMonsterNameWithStatus(targetMonster)} 造成 ${damage} 伤害`, 'critical')
         } else {
-          addBattleLog(`【${selectedSkill.name}】对 ${targetMonster.name} 造成 ${damage} 伤害`, 'success')
+          addBattleLog(`【${selectedSkill.name}】对 ${getMonsterNameWithStatus(targetMonster)} 造成 ${damage} 伤害`, 'success')
         }
       } else {
         if (isCrit) {
-          addBattleLog(`💥 暴击！对 ${targetMonster.name} 造成 ${damage} 伤害`, 'critical')
+          addBattleLog(`💥 暴击！对 ${getMonsterNameWithStatus(targetMonster)} 造成 ${damage} 伤害`, 'critical')
         } else {
-          addBattleLog(`对 ${targetMonster.name} 造成 ${damage} 伤害`, 'success')
+          addBattleLog(`对 ${getMonsterNameWithStatus(targetMonster)} 造成 ${damage} 伤害`, 'success')
         }
       }
 
@@ -2134,7 +2294,7 @@ export function battleRound() {
         if (reviveSkill && !targetMonster.reviveUsed) {
           targetMonster.reviveUsed = true
           targetMonster.currentHp = Math.floor(targetMonster.hp * reviveSkill.value / 100)
-          addBattleLog(`${targetMonster.name} 发动【不屈意志】复活，恢复 ${reviveSkill.value}% 血量！`, 'warning')
+          addBattleLog(`${getMonsterNameWithStatus(targetMonster)} 发动【不屈意志】复活，恢复 ${reviveSkill.value}% 血量！`, 'warning')
         } else {
           targetMonster.currentHp = 0
           gameState.battle.killCount++
@@ -2160,7 +2320,7 @@ export function battleRound() {
             addPetExp(activePetForExp.id, Math.floor(expGain / 4))
           }
 
-          addBattleLog(`击败 ${targetMonster.name}！+${expGain}经验 +${targetMonster.gold}灵石`, 'success')
+          addBattleLog(`击败 ${getMonsterNameWithStatus(targetMonster)}！+${expGain}经验 +${targetMonster.gold}灵石`, 'success')
 
           // 装备掉落（加上dropRate属性加成）
           const effectiveDropRate = targetMonster.dropRate + stats.dropRate
@@ -2239,7 +2399,7 @@ export function battleRound() {
         }
       }
     } else {
-      addBattleLog(`💨 ${targetMonster.name} 闪避了攻击！`, 'normal')
+      addBattleLog(`💨 ${getMonsterNameWithStatus(targetMonster)} 闪避了攻击！`, 'normal')
     }
   } // end of hit loop
 
@@ -2249,8 +2409,78 @@ export function battleRound() {
     const petStats = getPetStats(activePet)
     const aliveForPet = monsters.filter(m => m.currentHp > 0)
 
+    // 初始化宠物技能冷却
+    if (!gameState.battle.petSkillCooldowns) {
+      gameState.battle.petSkillCooldowns = {}
+    }
+    // 初始化宠物buff
+    if (!gameState.battle.petBuffs) {
+      gameState.battle.petBuffs = {}
+    }
+
+    // 检查条件触发技能（如暴怒临界）
+    if (activePet.skills && activePet.skills.length > 0) {
+      const hpPercent = (activePet.currentHp / petStats.maxHp) * 100
+      for (const skillId of activePet.skills) {
+        const skill = getSkillById(skillId)
+        if (!skill) continue
+
+        // 暴怒临界类技能：生命低于阈值时触发
+        if (skill.effect === 'rageThreshold' && skill.triggerThreshold) {
+          const currentCd = gameState.battle.petSkillCooldowns[skillId] || 0
+          if (currentCd <= 0 && hpPercent < skill.triggerThreshold) {
+            // 触发技能
+            const healToHp = Math.floor(petStats.maxHp * skill.healTo / 100)
+            activePet.currentHp = Math.min(petStats.maxHp, Math.max(activePet.currentHp, healToHp))
+
+            // 添加攻防buff
+            if (skill.statBonus) {
+              gameState.battle.petBuffs.rageBonus = {
+                attack: skill.statBonus,
+                defense: skill.statBonus,
+                duration: skill.effectDuration
+              }
+            }
+
+            // 设置冷却
+            gameState.battle.petSkillCooldowns[skillId] = skill.cooldown
+
+            addBattleLog(`🔥 宠物【${activePet.name}】触发【${skill.name}】！生命恢复至${skill.healTo}%，攻防+${skill.statBonus}%`, 'buff')
+          }
+        }
+      }
+    }
+
     if (aliveForPet.length > 0) {
       const petTarget = aliveForPet[0]
+
+      // 检查宠物是否有可用技能
+      let petUseSkill = null
+      let petSkillDamageMultiplier = 1
+
+      if (activePet.skills && activePet.skills.length > 0) {
+
+        // 查找可用的主动技能（有冷却且不是被动的）
+        for (const skillId of activePet.skills) {
+          const skill = getSkillById(skillId)
+          if (!skill) continue
+
+          // 跳过被动技能（cooldown为0或type为petLearnablePassive）
+          if (skill.cooldown === 0 || skill.type === 'petLearnablePassive') continue
+
+          const currentCd = gameState.battle.petSkillCooldowns[skillId] || 0
+          if (currentCd <= 0) {
+            petUseSkill = skill
+            if (skill.baseDamageMultiplier) {
+              petSkillDamageMultiplier = skill.baseDamageMultiplier
+            }
+            // 设置冷却
+            gameState.battle.petSkillCooldowns[skillId] = skill.cooldown
+            break
+          }
+        }
+      }
+
       // 使用怪物自身的闪避属性
       const petTargetDodge = petTarget.dodge || 0
 
@@ -2268,11 +2498,161 @@ export function battleRound() {
           petStats.critDamage
         )
 
-        petTarget.currentHp -= petDamage
-        if (petCrit) {
-          addBattleLog(`💥 宠物【${activePet.name}】暴击！对 ${petTarget.name} 造成 ${petDamage} 伤害`, 'critical')
+        // 应用技能伤害倍率
+        petDamage = Math.floor(petDamage * petSkillDamageMultiplier)
+
+        // 应用宠物buff（如暴怒临界的攻击加成）
+        if (gameState.battle.petBuffs && gameState.battle.petBuffs.rageBonus) {
+          const rageBonus = gameState.battle.petBuffs.rageBonus
+          petDamage = Math.floor(petDamage * (1 + rageBonus.attack / 100))
+        }
+
+        // 应用诅咒效果（增加怪物受到的伤害）
+        if (petTarget.debuffs && petTarget.debuffs.curse) {
+          const curseBonus = petTarget.debuffs.curse.value / 100
+          petDamage = Math.floor(petDamage * (1 + curseBonus))
+        }
+
+        // 处理技能效果
+        if (petUseSkill) {
+          const skillEffect = petUseSkill.effect
+          let skillHandled = false
+
+          // 治疗主人
+          if (skillEffect === 'healOwner') {
+            const healAmount = Math.floor(stats.maxHp * petUseSkill.effectValue / 100)
+            gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
+            addBattleLog(`💚 宠物【${activePet.name}】使用【${petUseSkill.name}】，治疗主人 ${healAmount} 点生命`, 'heal')
+            skillHandled = true
+          }
+          // 主人闪避buff
+          else if (skillEffect === 'ownerDodgeBuff') {
+            gameState.battle.playerBuffs.dodgeBuff = { value: petUseSkill.effectValue, duration: petUseSkill.effectDuration }
+            addBattleLog(`🛡️ 宠物【${activePet.name}】使用【${petUseSkill.name}】，主人闪避+${petUseSkill.effectValue}%`, 'buff')
+            skillHandled = true
+          }
+          // 主人护盾
+          else if (skillEffect === 'ownerShield') {
+            const shieldAmount = Math.floor(petStats.maxHp * petUseSkill.effectValue / 100)
+            gameState.battle.playerBuffs.shield = { value: shieldAmount, duration: 3 }
+            addBattleLog(`🛡️ 宠物【${activePet.name}】使用【${petUseSkill.name}】，为主人生成 ${shieldAmount} 点护盾`, 'buff')
+            skillHandled = true
+          }
+          // 主人暴击buff
+          else if (skillEffect === 'ownerCritBuff') {
+            gameState.battle.playerBuffs.critBuff = { value: petUseSkill.critRateBonus, duration: petUseSkill.effectDuration }
+            gameState.battle.playerBuffs.critDamageBuff = { value: petUseSkill.critDamageBonus, duration: petUseSkill.effectDuration }
+            addBattleLog(`✨ 宠物【${activePet.name}】使用【${petUseSkill.name}】，主人暴击+${petUseSkill.critRateBonus}%，暴伤+${petUseSkill.critDamageBonus}%`, 'buff')
+            skillHandled = true
+          }
+          // 虚弱debuff（减少敌人攻击）
+          else if (skillEffect === 'weaken') {
+            if (!petTarget.debuffs) petTarget.debuffs = {}
+            petTarget.debuffs.weaken = { value: petUseSkill.effectValue, duration: petUseSkill.effectDuration }
+            addBattleLog(`💫 宠物【${activePet.name}】使用【${petUseSkill.name}】，${getMonsterNameWithStatus(petTarget)} 攻击力-${petUseSkill.effectValue}%`, 'debuff')
+            skillHandled = true
+          }
+          // 诅咒（增加敌人受到的伤害）
+          else if (skillEffect === 'curse') {
+            if (!petTarget.debuffs) petTarget.debuffs = {}
+            petTarget.debuffs.curse = { value: petUseSkill.effectValue, duration: petUseSkill.effectDuration }
+            addBattleLog(`💀 宠物【${activePet.name}】使用【${petUseSkill.name}】，${getMonsterNameWithStatus(petTarget)} 受伤增加${petUseSkill.effectValue}%`, 'debuff')
+            skillHandled = true
+          }
+          // AOE攻击（攻击所有敌人）
+          else if (skillEffect === 'aoe') {
+            const aoeTargets = aliveForPet
+            for (const target of aoeTargets) {
+              let aoeDamage = calculateDamage(petStats.attack, target.defense, 0, 0, petCrit, petStats.critDamage)
+              aoeDamage = Math.floor(aoeDamage * petSkillDamageMultiplier)
+              target.currentHp -= aoeDamage
+              // 地狱业火的灼烧效果
+              if (petUseSkill.burn) {
+                if (!target.debuffs) target.debuffs = {}
+                target.debuffs.burn = { value: 5, duration: petUseSkill.burnDuration || 3 }
+              }
+            }
+            addBattleLog(`🔥 宠物【${activePet.name}】使用【${petUseSkill.name}】，对全体敌人造成伤害！`, 'success')
+            skillHandled = true
+          }
+          // 真实伤害（无视防御）
+          else if (skillEffect === 'trueDamage') {
+            const trueDmg = Math.floor(petStats.attack * petSkillDamageMultiplier * (petCrit ? 1.5 + petStats.critDamage / 100 : 1))
+            petTarget.currentHp -= trueDmg
+            if (petCrit) {
+              addBattleLog(`💥 宠物【${activePet.name}】使用【${petUseSkill.name}】暴击！无视防御造成 ${trueDmg} 真实伤害`, 'critical')
+            } else {
+              addBattleLog(`⚡ 宠物【${activePet.name}】使用【${petUseSkill.name}】无视防御造成 ${trueDmg} 真实伤害`, 'success')
+            }
+            skillHandled = true
+          }
+          // 吸血攻击
+          else if (skillEffect === 'lifesteal') {
+            petTarget.currentHp -= petDamage
+            const healAmt = Math.floor(petDamage * petUseSkill.effectValue / 100)
+            activePet.currentHp = Math.min(petStats.maxHp, activePet.currentHp + healAmt)
+            if (petCrit) {
+              addBattleLog(`💥 宠物【${activePet.name}】使用【${petUseSkill.name}】暴击！造成 ${petDamage} 伤害，回复 ${healAmt} 生命`, 'critical')
+            } else {
+              addBattleLog(`🩸 宠物【${activePet.name}】使用【${petUseSkill.name}】造成 ${petDamage} 伤害，回复 ${healAmt} 生命`, 'success')
+            }
+            skillHandled = true
+          }
+          // 眩晕攻击
+          else if (skillEffect === 'stun') {
+            petTarget.currentHp -= petDamage
+            if (Math.random() * 100 < petUseSkill.effectValue) {
+              if (!petTarget.debuffs) petTarget.debuffs = {}
+              petTarget.debuffs.stun = { duration: petUseSkill.effectDuration }
+              addBattleLog(`⚡ 宠物【${activePet.name}】使用【${petUseSkill.name}】造成 ${petDamage} 伤害，${getMonsterNameWithStatus(petTarget)} 被眩晕！`, 'success')
+            } else {
+              addBattleLog(`✨ 宠物【${activePet.name}】使用【${petUseSkill.name}】造成 ${petDamage} 伤害`, 'success')
+            }
+            skillHandled = true
+          }
+          // 混沌攻击（随机负面效果）
+          else if (skillEffect === 'chaos') {
+            petTarget.currentHp -= petDamage
+            if (!petTarget.debuffs) petTarget.debuffs = {}
+            const chaosEffects = ['bleed', 'poison', 'burn', 'weaken']
+            const randomEffect = chaosEffects[Math.floor(Math.random() * chaosEffects.length)]
+            petTarget.debuffs[randomEffect] = { value: 10, duration: 3 }
+            addBattleLog(`🌀 宠物【${activePet.name}】使用【${petUseSkill.name}】造成 ${petDamage} 伤害，附加${randomEffect === 'bleed' ? '流血' : randomEffect === 'poison' ? '中毒' : randomEffect === 'burn' ? '灼烧' : '虚弱'}效果！`, 'success')
+            skillHandled = true
+          }
+          // 其他攻击类技能（有伤害倍率的）
+          else if (petSkillDamageMultiplier > 1) {
+            petTarget.currentHp -= petDamage
+            // 处理持续伤害效果
+            if (skillEffect === 'bleed' || skillEffect === 'poison' || skillEffect === 'burn') {
+              if (!petTarget.debuffs) petTarget.debuffs = {}
+              petTarget.debuffs[skillEffect] = {
+                value: petUseSkill.effectValue,
+                duration: petUseSkill.effectDuration,
+                source: 'pet'
+              }
+            }
+            if (petCrit) {
+              addBattleLog(`💥 宠物【${activePet.name}】使用【${petUseSkill.name}】暴击！对 ${getMonsterNameWithStatus(petTarget)} 造成 ${petDamage} 伤害`, 'critical')
+            } else {
+              addBattleLog(`✨ 宠物【${activePet.name}】使用【${petUseSkill.name}】对 ${getMonsterNameWithStatus(petTarget)} 造成 ${petDamage} 伤害`, 'success')
+            }
+            skillHandled = true
+          }
+
+          // 如果技能没有被处理，做普通攻击
+          if (!skillHandled) {
+            petTarget.currentHp -= petDamage
+            addBattleLog(`🐾 宠物【${activePet.name}】对 ${getMonsterNameWithStatus(petTarget)} 造成 ${petDamage} 伤害`, 'success')
+          }
         } else {
-          addBattleLog(`🐾 宠物【${activePet.name}】对 ${petTarget.name} 造成 ${petDamage} 伤害`, 'success')
+          // 普通攻击
+          petTarget.currentHp -= petDamage
+          if (petCrit) {
+            addBattleLog(`💥 宠物【${activePet.name}】暴击！对 ${getMonsterNameWithStatus(petTarget)} 造成 ${petDamage} 伤害`, 'critical')
+          } else {
+            addBattleLog(`🐾 宠物【${activePet.name}】对 ${getMonsterNameWithStatus(petTarget)} 造成 ${petDamage} 伤害`, 'success')
+          }
         }
 
         // 检查怪物死亡
@@ -2289,7 +2669,7 @@ export function battleRound() {
           // 宠物获得经验（应用倍率）
           addPetExp(activePet.id, Math.floor(petExpGain / 3))
 
-          addBattleLog(`宠物击败 ${petTarget.name}！+${petExpGain}经验 +${petTarget.gold}灵石`, 'success')
+          addBattleLog(`宠物击败 ${getMonsterNameWithStatus(petTarget)}！+${petExpGain}经验 +${petTarget.gold}灵石`, 'success')
 
           checkLevelUp()
           checkRealmBreakthrough()
@@ -2310,12 +2690,39 @@ export function battleRound() {
     }
   }
 
+  // 更新宠物技能冷却
+  if (gameState.battle.petSkillCooldowns) {
+    for (const skillId in gameState.battle.petSkillCooldowns) {
+      if (gameState.battle.petSkillCooldowns[skillId] > 0) {
+        gameState.battle.petSkillCooldowns[skillId]--
+      }
+    }
+  }
+
+  // 更新宠物buff持续时间
+  if (gameState.battle.petBuffs) {
+    for (const buffKey in gameState.battle.petBuffs) {
+      if (gameState.battle.petBuffs[buffKey].duration > 0) {
+        gameState.battle.petBuffs[buffKey].duration--
+        if (gameState.battle.petBuffs[buffKey].duration <= 0) {
+          delete gameState.battle.petBuffs[buffKey]
+        }
+      }
+    }
+  }
+
   // 所有存活怪物攻击
   const currentAliveMonsters = monsters.filter(m => m.currentHp > 0)
   const petForDefense = getActivePet()
 
   for (const monster of currentAliveMonsters) {
     if (gameState.battle.playerCurrentHp <= 0) break
+
+    // 检查眩晕状态
+    if (monster.debuffs && monster.debuffs.stun && monster.debuffs.stun.duration > 0) {
+      addBattleLog(`💫 ${getMonsterNameWithStatus(monster)} 处于眩晕状态，无法行动！`, 'info')
+      continue
+    }
 
     // 检查是否使用技能
     let monsterUseSkill = null
@@ -2336,14 +2743,19 @@ export function battleRound() {
         } else {
           monster.buffs[monsterUseSkill.stat] = monsterUseSkill.value
         }
-        addBattleLog(`${monster.name} 使用【${monsterUseSkill.name}】！${monsterUseSkill.description}`, 'warning')
+        addBattleLog(`${getMonsterNameWithStatus(monster)} 使用【${monsterUseSkill.name}】！${monsterUseSkill.description}`, 'warning')
         continue // buff技能不攻击
       }
     }
 
     // 决定攻击目标：如果宠物存活，50%概率攻击宠物
     const attackPet = petForDefense && petForDefense.currentHp > 0 && Math.random() < 0.5
-    const effectiveAttack = monster.buffs.attack ? monster.attack * (1 + monster.buffs.attack / 100) : monster.attack
+
+    // 计算有效攻击力（考虑buff和虚弱debuff）
+    let effectiveAttack = monster.buffs.attack ? monster.attack * (1 + monster.buffs.attack / 100) : monster.attack
+    if (monster.debuffs && monster.debuffs.weaken) {
+      effectiveAttack = effectiveAttack * (1 - monster.debuffs.weaken.value / 100)
+    }
 
     if (attackPet) {
       // 攻击宠物
@@ -2380,15 +2792,15 @@ export function battleRound() {
 
         if (monsterUseSkill && monsterUseSkill.type === 'attack') {
           if (monsterCrit) {
-            addBattleLog(`💥 ${monster.name}【${monsterUseSkill.name}】暴击！对宠物造成 ${monsterDamage} 伤害`, 'critical')
+            addBattleLog(`💥 ${getMonsterNameWithStatus(monster)}【${monsterUseSkill.name}】暴击！对宠物造成 ${monsterDamage} 伤害`, 'critical')
           } else {
-            addBattleLog(`${monster.name} 使用【${monsterUseSkill.name}】对宠物造成 ${monsterDamage} 伤害`, 'warning')
+            addBattleLog(`${getMonsterNameWithStatus(monster)} 使用【${monsterUseSkill.name}】对宠物造成 ${monsterDamage} 伤害`, 'warning')
           }
         } else {
           if (monsterCrit) {
-            addBattleLog(`💥 ${monster.name} 暴击！对宠物【${petForDefense.name}】造成 ${monsterDamage} 伤害`, 'critical')
+            addBattleLog(`💥 ${getMonsterNameWithStatus(monster)} 暴击！对宠物【${petForDefense.name}】造成 ${monsterDamage} 伤害`, 'critical')
           } else {
-            addBattleLog(`${monster.name} 对宠物【${petForDefense.name}】造成 ${monsterDamage} 伤害`, 'warning')
+            addBattleLog(`${getMonsterNameWithStatus(monster)} 对宠物【${petForDefense.name}】造成 ${monsterDamage} 伤害`, 'warning')
           }
         }
 
@@ -2397,7 +2809,7 @@ export function battleRound() {
           addBattleLog(`宠物【${petForDefense.name}】倒下了！`, 'danger')
         }
       } else {
-        addBattleLog(`💨 宠物【${petForDefense.name}】闪避了 ${monster.name} 的攻击！`, 'success')
+        addBattleLog(`💨 宠物【${petForDefense.name}】闪避了 ${getMonsterNameWithStatus(monster)} 的攻击！`, 'success')
       }
     } else {
       // 攻击玩家
@@ -2411,9 +2823,16 @@ export function battleRound() {
 
         // 使用怪物的穿透属性
         const monsterPenetration = monster.penetration || 0
+
+        // 钢铁意志：生命低于30%时防御翻倍
+        let effectiveDefense = stats.defense
+        if (stats.lowHpDefenseBonus > 0 && gameState.battle.playerCurrentHp < stats.maxHp * 0.3) {
+          effectiveDefense = Math.floor(stats.defense * (1 + stats.lowHpDefenseBonus / 100))
+        }
+
         let monsterDamage = calculateDamage(
           effectiveAttack,
-          stats.defense,
+          effectiveDefense,
           monsterPenetration,
           0,
           monsterCrit,
@@ -2424,8 +2843,21 @@ export function battleRound() {
         monsterDamage = Math.floor(monsterDamage * skillDamageMultiplier)
 
         // 应用伤害减免
-        if (stats.damageReduction > 0) {
-          monsterDamage = Math.floor(monsterDamage * (1 - stats.damageReduction / 100))
+        let totalReduction = stats.damageReduction || 0
+
+        // 不灭金身：生命高于50%时额外减伤
+        if (stats.conditionalDamageReduction > 0 && gameState.battle.playerCurrentHp > stats.maxHp * 0.5) {
+          totalReduction += stats.conditionalDamageReduction
+        }
+
+        // 绝对防御buff
+        const absoluteDefense = gameState.battle.playerBuffs.absoluteDefense
+        if (absoluteDefense && absoluteDefense.duration > 0) {
+          totalReduction += absoluteDefense.value
+        }
+
+        if (totalReduction > 0) {
+          monsterDamage = Math.floor(monsterDamage * (1 - Math.min(totalReduction, 90) / 100))
         }
 
         // 护盾吸收伤害
@@ -2442,6 +2874,21 @@ export function battleRound() {
           }
         }
 
+        // 荆棘护甲反伤
+        if (stats.thorns > 0 && monsterDamage > 0) {
+          const thornsDamage = Math.floor(monsterDamage * stats.thorns / 100)
+          monster.currentHp -= thornsDamage
+          addBattleLog(`🌵 荆棘护甲反弹 ${thornsDamage} 伤害`, 'success')
+        }
+
+        // 以牙还牙反伤buff
+        const reflectBuff = gameState.battle.playerBuffs.reflect
+        if (reflectBuff && reflectBuff.duration > 0 && monsterDamage > 0) {
+          const reflectDamage = Math.floor(monsterDamage * reflectBuff.value / 100)
+          monster.currentHp -= reflectDamage
+          addBattleLog(`🔄 以牙还牙反弹 ${reflectDamage} 伤害`, 'success')
+        }
+
         gameState.battle.playerCurrentHp -= monsterDamage
 
         // 怪物吸血效果（自身属性 + buff）
@@ -2450,7 +2897,7 @@ export function battleRound() {
           const healAmount = Math.floor(monsterDamage * totalLifesteal / 100)
           monster.currentHp = Math.min(monster.hp, monster.currentHp + healAmount)
           if (healAmount > 0) {
-            addBattleLog(`🩸 ${monster.name} 吸血恢复 ${healAmount} 生命`, 'warning')
+            addBattleLog(`🩸 ${getMonsterNameWithStatus(monster)} 吸血恢复 ${healAmount} 生命`, 'warning')
           }
         }
 
@@ -2463,29 +2910,42 @@ export function battleRound() {
 
         if (monsterUseSkill && monsterUseSkill.type === 'attack') {
           if (monsterCrit) {
-            addBattleLog(`💥 ${monster.name}【${monsterUseSkill.name}】暴击！造成 ${monsterDamage} 伤害`, 'critical')
+            addBattleLog(`💥 ${getMonsterNameWithStatus(monster)}【${monsterUseSkill.name}】暴击！造成 ${monsterDamage} 伤害`, 'critical')
           } else {
-            addBattleLog(`${monster.name} 使用【${monsterUseSkill.name}】造成 ${monsterDamage} 伤害`, 'danger')
+            addBattleLog(`${getMonsterNameWithStatus(monster)} 使用【${monsterUseSkill.name}】造成 ${monsterDamage} 伤害`, 'danger')
           }
         } else {
           if (monsterCrit) {
-            addBattleLog(`💥 ${monster.name} 暴击！造成 ${monsterDamage} 伤害`, 'critical')
+            addBattleLog(`💥 ${getMonsterNameWithStatus(monster)} 暴击！造成 ${monsterDamage} 伤害`, 'critical')
           } else {
-            addBattleLog(`${monster.name} 造成 ${monsterDamage} 伤害`, 'danger')
+            addBattleLog(`${getMonsterNameWithStatus(monster)} 造成 ${monsterDamage} 伤害`, 'danger')
           }
         }
 
         if (gameState.battle.playerCurrentHp <= 0) {
-          gameState.battle.playerCurrentHp = 0
-          result = 'lose'
-          addBattleLog(`你被击败了...`, 'danger')
-          applyDeathPenalty()
-          gameState.battle.isInBattle = false
-          stopAutoBattle()
-          return result
+          // 因果律：受到致命伤害时反弹伤害（每场战斗1次）
+          if (stats.fatalReflect > 0 && !gameState.battle.fatalReflectUsed) {
+            gameState.battle.fatalReflectUsed = true
+            const fatalReflectDamage = Math.floor(monsterDamage * (100 + stats.fatalReflect) / 100)
+            monster.currentHp -= fatalReflectDamage
+            gameState.battle.playerCurrentHp = 1
+            addBattleLog(`⚖️ 【因果律】触发！反弹 ${fatalReflectDamage} 伤害，保留1点生命`, 'success')
+            if (monster.currentHp <= 0) {
+              monster.currentHp = 0
+              addBattleLog(`${getMonsterNameWithStatus(monster)} 被因果律击杀！`, 'success')
+            }
+          } else {
+            gameState.battle.playerCurrentHp = 0
+            result = 'lose'
+            addBattleLog(`你被击败了...`, 'danger')
+            applyDeathPenalty()
+            gameState.battle.isInBattle = false
+            stopAutoBattle()
+            return result
+          }
         }
       } else {
-        addBattleLog(`💨 闪避了 ${monster.name} 的攻击！`, 'success')
+        addBattleLog(`💨 闪避了 ${getMonsterNameWithStatus(monster)} 的攻击！`, 'success')
       }
     } // end attackPet else
   } // end monster loop
@@ -2973,6 +3433,7 @@ export function resetGame() {
     playerCurrentHp: 150,
     playerBuffs: {},
     skillCooldowns: {},
+    petSkillCooldowns: {},
     roundCount: 0,
     battleLog: [],
     selectedMapId: 1,

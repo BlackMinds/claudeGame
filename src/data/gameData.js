@@ -136,9 +136,15 @@ export const armorSubTypes = {
   },
   heavy: {
     name: '重甲',
-    description: '坚固厚重，防御极强',
-    statBonus: { defense: 0.3, hp: 0.15, dodge: -0.1 },
+    description: '坚固厚重，防御极强，带有减伤',
+    statBonus: { defense: 0.3, hp: 0.15, dodge: -0.1, damageReduction: 0.03 },
     prefixes: ['铁壁', '磐石', '不动', '金刚', '泰山']
+  },
+  thorns: {
+    name: '荆棘甲',
+    description: '以伤还伤，带有反伤效果',
+    statBonus: { defense: 0.15, hp: 0.1, thorns: 0.06 },
+    prefixes: ['荆棘', '刺藤', '棘刺', '针锋', '复仇']
   }
 }
 
@@ -151,8 +157,8 @@ export const helmetSubTypes = {
   },
   helm: {
     name: '战盔',
-    description: '坚固护头，提升防御',
-    statBonus: { defense: 0.2, hp: 0.1 },
+    description: '坚固护头，提升防御和减伤',
+    statBonus: { defense: 0.2, hp: 0.1, damageReduction: 0.02 },
     prefixes: ['勇士', '战神', '征服', '霸王', '无畏']
   },
   mask: {
@@ -172,8 +178,8 @@ export const ringSubTypes = {
   },
   defense: {
     name: '守戒',
-    description: '护体之力，提升防御',
-    statBonus: { defense: 0.15, hp: 0.08 },
+    description: '护体之力，提升防御和减伤',
+    statBonus: { defense: 0.15, hp: 0.08, damageReduction: 0.02 },
     prefixes: ['守护', '坚韧', '不屈', '永固', '万古']
   },
   special: {
@@ -181,6 +187,12 @@ export const ringSubTypes = {
     description: '蕴含特殊之力',
     statBonus: { penetration: 0.1, lifesteal: 0.05 },
     prefixes: ['秘法', '奥术', '神秘', '太古', '混沌']
+  },
+  thorns: {
+    name: '荆棘戒',
+    description: '以牙还牙，带有反伤',
+    statBonus: { defense: 0.1, thorns: 0.04 },
+    prefixes: ['报复', '刺痛', '反噬', '逆鳞', '天罚']
   }
 }
 
@@ -193,8 +205,8 @@ export const necklaceSubTypes = {
   },
   guard: {
     name: '护心链',
-    description: '守护心脉，提升生命',
-    statBonus: { hp: 0.15, damageReduction: 0.05 },
+    description: '守护心脉，提升生命和减伤',
+    statBonus: { hp: 0.15, damageReduction: 0.04 },
     prefixes: ['护心', '养神', '固本', '培元', '长生']
   },
   ward: {
@@ -202,6 +214,12 @@ export const necklaceSubTypes = {
     description: '驱邪避害，提升抗性',
     statBonus: { critResist: 0.15, defense: 0.05 },
     prefixes: ['辟邪', '镇魔', '伏妖', '降魔', '灭邪']
+  },
+  blood: {
+    name: '嗜血链',
+    description: '以敌之血，养我之身',
+    statBonus: { attack: 0.08, lifesteal: 0.04 },
+    prefixes: ['嗜血', '血祭', '噬魂', '吸髓', '夺魄']
   }
 }
 
@@ -236,7 +254,7 @@ export const artifactSubTypes = {
   defense: {
     name: '护体法宝',
     description: '护体保命，防御生命双增',
-    statBonus: { defense: 0.1, hp: 0.12, damageReduction: 0.03 },
+    statBonus: { defense: 0.1, hp: 0.12, damageReduction: 0.04 },
     prefixes: ['护法', '金身', '不灭', '永恒', '万劫']
   },
   balance: {
@@ -244,6 +262,12 @@ export const artifactSubTypes = {
     description: '阴阳调和，诸般属性均衡',
     statBonus: { attack: 0.05, defense: 0.05, hp: 0.05, critRate: 0.03, dodge: 0.03 },
     prefixes: ['太极', '混元', '无极', '鸿蒙', '造化']
+  },
+  thorns: {
+    name: '逆鳞法宝',
+    description: '触之必伤，高反伤效果',
+    statBonus: { defense: 0.08, hp: 0.08, thorns: 0.08 },
+    prefixes: ['逆鳞', '反噬', '天谴', '因果', '轮回']
   }
 }
 
@@ -321,8 +345,8 @@ export const equipmentSets = {
     color: '#3498db',
     pieces: ['armor', 'helmet', 'boots'],
     bonuses: {
-      2: { hp: 10, defense: 10, description: '生命+10%, 防御+10%' },
-      3: { hp: 15, defense: 20, damageReduction: 5, description: '生命+15%, 防御+20%, 伤害减免+5%' }
+      2: { hp: 6, defense: 6, description: '生命+6%, 防御+6%' },
+      3: { hp: 10, defense: 12, damageReduction: 3, description: '生命+10%, 防御+12%, 减伤+3%' }
     }
   },
   zhuque: {
@@ -331,8 +355,8 @@ export const equipmentSets = {
     color: '#e74c3c',
     pieces: ['weapon', 'ring', 'necklace'],
     bonuses: {
-      2: { attack: 12, critRate: 5, description: '攻击+12%, 暴击+5%' },
-      3: { attack: 20, critRate: 10, critDamage: 15, description: '攻击+20%, 暴击+10%, 暴伤+15%' }
+      2: { attack: 8, critRate: 3, description: '攻击+8%, 暴击+3%' },
+      3: { attack: 12, critRate: 6, critDamage: 10, description: '攻击+12%, 暴击+6%, 暴伤+10%' }
     }
   },
   qinglong: {
@@ -341,8 +365,8 @@ export const equipmentSets = {
     color: '#2ecc71',
     pieces: ['weapon', 'armor', 'artifact'],
     bonuses: {
-      2: { attack: 8, defense: 8, description: '攻击+8%, 防御+8%' },
-      3: { attack: 15, defense: 15, hp: 10, description: '攻击+15%, 防御+15%, 生命+10%' }
+      2: { attack: 5, defense: 5, description: '攻击+5%, 防御+5%' },
+      3: { attack: 10, defense: 10, hp: 6, description: '攻击+10%, 防御+10%, 生命+6%' }
     }
   },
   baihu: {
@@ -351,8 +375,8 @@ export const equipmentSets = {
     color: '#f39c12',
     pieces: ['weapon', 'helmet', 'ring'],
     bonuses: {
-      2: { critDamage: 15, penetration: 8, description: '暴伤+15%, 穿透+8%' },
-      3: { critDamage: 30, penetration: 15, critRate: 8, description: '暴伤+30%, 穿透+15%, 暴击+8%' }
+      2: { critDamage: 10, penetration: 5, description: '暴伤+10%, 穿透+5%' },
+      3: { critDamage: 18, penetration: 10, critRate: 5, description: '暴伤+18%, 穿透+10%, 暴击+5%' }
     }
   },
   qilin: {
@@ -361,8 +385,8 @@ export const equipmentSets = {
     color: '#9b59b6',
     pieces: ['necklace', 'boots', 'artifact'],
     bonuses: {
-      2: { hp: 5, attack: 5, defense: 5, description: '生命+5%, 攻击+5%, 防御+5%' },
-      3: { hp: 10, attack: 10, defense: 10, critRate: 5, dodge: 5, description: '全属性+10%, 暴击+5%, 闪避+5%' }
+      2: { hp: 3, attack: 3, defense: 3, description: '生命+3%, 攻击+3%, 防御+3%' },
+      3: { hp: 6, attack: 6, defense: 6, critRate: 3, dodge: 3, description: '全属性+6%, 暴击+3%, 闪避+3%' }
     }
   },
   hundun: {
@@ -371,9 +395,40 @@ export const equipmentSets = {
     color: '#8e44ad',
     pieces: ['weapon', 'armor', 'helmet', 'ring', 'necklace', 'boots', 'artifact'],
     bonuses: {
-      3: { attack: 10, defense: 10, hp: 10, description: '攻击+10%, 防御+10%, 生命+10%' },
-      5: { attack: 20, defense: 20, hp: 20, critRate: 10, description: '攻击+20%, 防御+20%, 生命+20%, 暴击+10%' },
-      7: { attack: 35, defense: 35, hp: 35, critRate: 15, critDamage: 25, penetration: 10, description: '全属性+35%, 暴击+15%, 暴伤+25%, 穿透+10%' }
+      3: { attack: 6, defense: 6, hp: 6, description: '攻击+6%, 防御+6%, 生命+6%' },
+      5: { attack: 12, defense: 12, hp: 12, critRate: 6, description: '攻击+12%, 防御+12%, 生命+12%, 暴击+6%' },
+      7: { attack: 20, defense: 20, hp: 20, critRate: 10, critDamage: 15, penetration: 6, description: '全属性+20%, 暴击+10%, 暴伤+15%, 穿透+6%' }
+    }
+  },
+  // 新增套装
+  tiebi: {
+    name: '铁壁套装',
+    description: '铜墙铁壁，固若金汤',
+    color: '#5d6d7e',
+    pieces: ['armor', 'helmet', 'artifact'],
+    bonuses: {
+      2: { defense: 8, damageReduction: 3, description: '防御+8%, 减伤+3%' },
+      3: { defense: 15, damageReduction: 6, thorns: 8, description: '防御+15%, 减伤+6%, 反伤+8%' }
+    }
+  },
+  xixue: {
+    name: '嗜血套装',
+    description: '以血养血，生生不息',
+    color: '#c0392b',
+    pieces: ['weapon', 'ring', 'artifact'],
+    bonuses: {
+      2: { attack: 5, lifesteal: 3, description: '攻击+5%, 吸血+3%' },
+      3: { attack: 10, lifesteal: 6, hp: 8, description: '攻击+10%, 吸血+6%, 生命+8%' }
+    }
+  },
+  baoji: {
+    name: '暴击套装',
+    description: '一击必杀，暴击为王',
+    color: '#e67e22',
+    pieces: ['weapon', 'helmet', 'necklace'],
+    bonuses: {
+      2: { critRate: 6, critDamage: 12, description: '暴击+6%, 暴伤+12%' },
+      3: { critRate: 12, critDamage: 25, penetration: 5, description: '暴击+12%, 暴伤+25%, 穿透+5%' }
     }
   }
 }
@@ -808,11 +863,12 @@ export const skills = [
   {
     id: 13,
     name: '生命强化',
-    description: '增加最大生命值',
+    description: '大幅增加最大生命值，满级额外+10%生命',
     type: 'passive',
     rarity: 'rare',
     maxLevel: 5,
-    bonusPerLevel: { hp: 30 },
+    bonusPerLevel: { hp: 100 },
+    maxLevelBonus: { hpPercent: 10 },
     shopPrice: 0,
     dropFromMaps: [3, 4, 5],
     dropRate: 0.01
@@ -995,6 +1051,201 @@ export const skills = [
     shopPrice: 0,
     dropFromMaps: [8, 9, 10],
     dropRate: 0.005
+  },
+  // ========== 60-100级地图掉落技能 ==========
+  // 回复类技能
+  {
+    id: 26,
+    name: '圣光治愈',
+    description: '释放圣光恢复大量生命（150%攻击力），并获得3回合生命恢复效果',
+    type: 'active',
+    rarity: 'epic',
+    maxLevel: 5,
+    baseDamageMultiplier: 1.5,
+    levelBonusMultiplier: 0.2,
+    cooldown: 6,
+    effect: 'healAndRegen',
+    effectValue: 5,
+    effectDuration: 3,
+    shopPrice: 0,
+    dropFromMaps: [12, 13, 14],
+    dropRate: 0.005
+  },
+  {
+    id: 27,
+    name: '生命绽放',
+    description: '牺牲10%当前生命，恢复30%最大生命',
+    type: 'active',
+    rarity: 'legendary',
+    maxLevel: 5,
+    baseDamageMultiplier: 0,
+    levelBonusMultiplier: 0,
+    cooldown: 8,
+    effect: 'lifeBloom',
+    sacrificePercent: 10,
+    healPercent: 30,
+    shopPrice: 0,
+    dropFromMaps: [15, 16, 17],
+    dropRate: 0.003
+  },
+  // 肉盾类技能
+  {
+    id: 28,
+    name: '不灭金身',
+    description: '生命高于50%时，受到伤害降低15%，满级额外+5%减伤',
+    type: 'passive',
+    rarity: 'epic',
+    maxLevel: 5,
+    bonusPerLevel: { conditionalDamageReduction: 3 },
+    maxLevelBonus: { conditionalDamageReduction: 5 },
+    conditionType: 'hpAbove',
+    conditionValue: 50,
+    shopPrice: 0,
+    dropFromMaps: [12, 13, 14],
+    dropRate: 0.005
+  },
+  {
+    id: 29,
+    name: '铜墙铁壁',
+    description: '大幅提升防御力，满级额外+10%防御',
+    type: 'passive',
+    rarity: 'epic',
+    maxLevel: 5,
+    bonusPerLevel: { defense: 80 },
+    maxLevelBonus: { defensePercent: 10 },
+    shopPrice: 0,
+    dropFromMaps: [13, 14, 15],
+    dropRate: 0.005
+  },
+  {
+    id: 30,
+    name: '绝对防御',
+    description: '2回合内受到伤害降低80%',
+    type: 'active',
+    rarity: 'legendary',
+    maxLevel: 5,
+    baseDamageMultiplier: 0,
+    levelBonusMultiplier: 0,
+    cooldown: 12,
+    effect: 'absoluteDefense',
+    effectValue: 80,
+    effectDuration: 2,
+    shopPrice: 0,
+    dropFromMaps: [16, 17, 18],
+    dropRate: 0.002
+  },
+  {
+    id: 31,
+    name: '钢铁意志',
+    description: '生命低于30%时，防御力翻倍',
+    type: 'passive',
+    rarity: 'legendary',
+    maxLevel: 5,
+    bonusPerLevel: { lowHpDefenseBonus: 20 },
+    conditionType: 'hpBelow',
+    conditionValue: 30,
+    shopPrice: 0,
+    dropFromMaps: [15, 16, 17],
+    dropRate: 0.003
+  },
+  // 反伤类技能
+  {
+    id: 32,
+    name: '荆棘护甲',
+    description: '受到攻击时反弹伤害',
+    type: 'passive',
+    rarity: 'epic',
+    maxLevel: 5,
+    bonusPerLevel: { thorns: 5 },
+    shopPrice: 0,
+    dropFromMaps: [12, 13, 14],
+    dropRate: 0.005
+  },
+  {
+    id: 33,
+    name: '以牙还牙',
+    description: '3回合内，受到伤害的50%反弹给攻击者',
+    type: 'active',
+    rarity: 'epic',
+    maxLevel: 5,
+    baseDamageMultiplier: 0,
+    levelBonusMultiplier: 0,
+    cooldown: 8,
+    effect: 'reflectBuff',
+    effectValue: 50,
+    effectDuration: 3,
+    shopPrice: 0,
+    dropFromMaps: [14, 15, 16],
+    dropRate: 0.005
+  },
+  {
+    id: 34,
+    name: '因果律',
+    description: '受到致命伤害时，反弹100%伤害给攻击者（每场战斗1次）',
+    type: 'passive',
+    rarity: 'legendary',
+    maxLevel: 5,
+    bonusPerLevel: { fatalReflect: 20 },
+    shopPrice: 0,
+    dropFromMaps: [17, 18],
+    dropRate: 0.002
+  },
+  // 高级攻击技能
+  {
+    id: 35,
+    name: '神罚',
+    description: '召唤神圣之力，对全体敌人造成450%伤害',
+    type: 'active',
+    rarity: 'legendary',
+    maxLevel: 5,
+    baseDamageMultiplier: 4.5,
+    levelBonusMultiplier: 0.5,
+    cooldown: 10,
+    effect: 'aoe',
+    hitCount: 6,
+    shopPrice: 0,
+    dropFromMaps: [14, 15, 16],
+    dropRate: 0.003
+  },
+  {
+    id: 36,
+    name: '混沌之力',
+    description: '释放混沌能量，造成600%伤害并附加随机负面效果',
+    type: 'active',
+    rarity: 'legendary',
+    maxLevel: 5,
+    baseDamageMultiplier: 6.0,
+    levelBonusMultiplier: 0.7,
+    cooldown: 12,
+    effect: 'chaosStrike',
+    shopPrice: 0,
+    dropFromMaps: [16, 17, 18],
+    dropRate: 0.002
+  },
+  {
+    id: 37,
+    name: '暴击强化',
+    description: '提高暴击伤害',
+    type: 'passive',
+    rarity: 'epic',
+    maxLevel: 5,
+    bonusPerLevel: { critDamage: 10 },
+    shopPrice: 0,
+    dropFromMaps: [12, 13, 14],
+    dropRate: 0.005
+  },
+  {
+    id: 38,
+    name: '战神之力',
+    description: '大幅提升攻击力，满级额外+10%攻击',
+    type: 'passive',
+    rarity: 'legendary',
+    maxLevel: 5,
+    bonusPerLevel: { attack: 50 },
+    maxLevelBonus: { attackPercent: 10 },
+    shopPrice: 0,
+    dropFromMaps: [15, 16, 17, 18],
+    dropRate: 0.003
   },
   // ========== 宠物专属技能 (ID: 101-116) ==========
   // 每个宠物孵化时固定携带的技能
