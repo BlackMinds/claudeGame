@@ -1522,8 +1522,15 @@ export function startBattle() {
     return false
   }
 
-  // 新手村只生成1个怪物，其他地图随机1-5个
-  const monsterCount = map.id === 1 ? 1 : Math.floor(Math.random() * 5) + 1
+  // 根据地图决定怪物数量：新手村1个，青云山脚和幽暗森林1-3个，其他1-5个
+  let monsterCount
+  if (map.id === 1) {
+    monsterCount = 1
+  } else if (map.id === 2 || map.id === 3) {
+    monsterCount = Math.floor(Math.random() * 3) + 1
+  } else {
+    monsterCount = Math.floor(Math.random() * 5) + 1
+  }
   const monsters = []
 
   for (let i = 0; i < monsterCount; i++) {

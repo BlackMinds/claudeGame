@@ -32,6 +32,7 @@
       <button @click="showSkillPanel = true" class="nav-btn skill">技能</button>
       <button @click="showPetPanel = true" class="nav-btn pet">宠物</button>
       <button @click="handleMeditationClick" class="nav-btn meditation">打坐</button>
+      <button @click="showGuide = true" class="nav-btn guide">攻略</button>
       <button @click="showSettings = true" class="nav-btn settings">设置</button>
       <button @click="handleSave" class="nav-btn save">保存</button>
       <!-- <button @click="handleLoad" class="nav-btn load">读取</button> -->
@@ -168,6 +169,121 @@
       </div>
     </div>
 
+    <!-- 攻略面板弹窗 -->
+    <div v-if="showGuide" class="modal-overlay" @click.self="showGuide = false">
+      <div class="guide-panel">
+        <button class="modal-close" @click="showGuide = false">×</button>
+        <h3>游戏攻略</h3>
+
+        <div class="guide-tabs">
+          <button :class="{ active: guideTab === 'sets' }" @click="guideTab = 'sets'">套装</button>
+          <button :class="{ active: guideTab === 'tower' }" @click="guideTab = 'tower'">锁妖塔</button>
+          <button :class="{ active: guideTab === 'pets' }" @click="guideTab = 'pets'">宠物</button>
+          <button :class="{ active: guideTab === 'petSkills' }" @click="guideTab = 'petSkills'">宠物技能</button>
+        </div>
+
+        <div class="guide-content">
+          <!-- 套装加成 -->
+          <div v-if="guideTab === 'sets'" class="guide-section">
+            <div v-for="(set, key) in equipmentSetsData" :key="key" class="set-item">
+              <div class="set-header" :style="{ color: set.color }">
+                {{ set.name }}
+              </div>
+              <div class="set-desc">{{ set.description }}</div>
+              <div class="set-pieces">部件：{{ getPieceNames(set.pieces) }}</div>
+              <div class="set-bonuses">
+                <div v-for="(bonus, count) in set.bonuses" :key="count" class="bonus-row">
+                  <span class="bonus-count">{{ count }}件：</span>
+                  <span class="bonus-desc">{{ bonus.description }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 锁妖塔掉落 -->
+          <div v-if="guideTab === 'tower'" class="guide-section">
+            <div class="tower-info">
+              <p class="tower-tip">锁妖塔需要10级才能进入，每层3只怪物</p>
+            </div>
+            <div class="tower-drops">
+              <div class="drop-item">
+                <span class="drop-floor">10层</span>
+                <span class="drop-reward">初级宠物蛋（品质上限精良，资质上限6）</span>
+              </div>
+              <div class="drop-item">
+                <span class="drop-floor">90层</span>
+                <span class="drop-reward">资质丹（+0.05~0.09，上限9）</span>
+              </div>
+              <div class="drop-item">
+                <span class="drop-floor">100层</span>
+                <span class="drop-reward">高级宠物蛋（品质上限史诗，资质上限7）</span>
+              </div>
+              <div class="drop-item">
+                <span class="drop-floor">110-170层</span>
+                <span class="drop-reward">初级宠物技能书（开出初级技能）</span>
+              </div>
+              <div class="drop-item">
+                <span class="drop-floor">180-190层</span>
+                <span class="drop-reward">中级宠物技能书（开出初/中级技能）</span>
+              </div>
+              <div class="drop-item">
+                <span class="drop-floor">190层</span>
+                <span class="drop-reward">高级资质丹（+0.10~0.20，上限10）</span>
+              </div>
+              <div class="drop-item">
+                <span class="drop-floor">200层</span>
+                <span class="drop-reward">至尊宠物蛋（品质上限传说，资质上限8）</span>
+              </div>
+              <div class="drop-item">
+                <span class="drop-floor">300/400层</span>
+                <span class="drop-reward">高级宠物技能书（开出全档位技能）</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 宠物介绍 -->
+          <div v-if="guideTab === 'pets'" class="guide-section">
+            <div class="pets-list">
+              <div v-for="pet in petTypesData" :key="pet.id" class="pet-info-item">
+                <div class="pet-info-header">
+                  <span class="pet-icon">{{ pet.icon }}</span>
+                  <span class="pet-name">{{ pet.name }}</span>
+                  <span class="pet-role" :class="getRoleClass(pet.role)">{{ pet.role }}</span>
+                </div>
+                <div class="pet-info-skills">
+                  <span class="skills-label">固有技能：</span>
+                  <span v-for="skillId in pet.fixedSkills" :key="skillId" class="skill-tag">
+                    {{ getSkillNameById(skillId) }}
+                  </span>
+                </div>
+                <div v-if="pet.hiddenSkill" class="pet-info-hidden">
+                  <span class="hidden-label">隐藏技能：</span>
+                  <span class="hidden-skill">{{ getSkillNameById(pet.hiddenSkill) }}</span>
+                  <span class="hidden-tip">（10%概率觉醒）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 宠物技能 -->
+          <div v-if="guideTab === 'petSkills'" class="guide-section">
+            <div class="skill-category">
+              <h4>可学习技能（通过技能书获得）</h4>
+              <div class="skills-grid">
+                <div v-for="skill in learnableSkillsData" :key="skill.id" class="skill-info-item" :class="'tier-' + skill.tier">
+                  <div class="skill-info-header">
+                    <span class="skill-name">{{ skill.name }}</span>
+                    <span class="skill-tier">{{ getTierName(skill.tier) }}</span>
+                  </div>
+                  <div class="skill-info-desc">{{ skill.description }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 打坐面板弹窗 -->
     <div v-if="showMeditation" class="modal-overlay" @click.self="showMeditation = false">
       <div class="meditation-panel">
@@ -265,6 +381,7 @@
 
 <script>
 import { gameState, getCurrentRealm, getNextRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter, getMaxPassiveSlots, addTestEquipment, toggleExpMultiplier, getExpMultiplier, useRedeemCode, isMeditationUnlocked, getBreakthroughSuccessRate, attemptBreakthrough, getCultivationType, setCultivationType, needsChooseCultivationType } from '../../store/gameStore'
+import { equipmentSets, petTypes, skills, getSkillById } from '../../data/gameData'
 import SkillPanel from './SkillPanel.vue'
 import PetPanel from './PetPanel.vue'
 
@@ -281,6 +398,8 @@ export default {
       showMeditation: false,
       showCultivationChoice: false,
       showSettings: false,
+      showGuide: false,
+      guideTab: 'sets',
       showImportInput: false,
       importData: '',
       breakthroughResult: null,
@@ -379,6 +498,16 @@ export default {
     },
     needChoosePath() {
       return needsChooseCultivationType() && this.canBreakthrough
+    },
+    equipmentSetsData() {
+      return equipmentSets
+    },
+    petTypesData() {
+      return petTypes
+    },
+    learnableSkillsData() {
+      // 可学习技能ID范围：301-324
+      return skills.filter(s => s.id >= 301 && s.id <= 324).sort((a, b) => a.tier - b.tier)
     }
   },
   methods: {
@@ -546,6 +675,29 @@ export default {
           }, 3000)
         }
       }
+    },
+    getPieceNames(pieces) {
+      const names = {
+        weapon: '武器', armor: '防具', helmet: '头盔', ring: '戒指',
+        necklace: '项链', boots: '鞋子', artifact: '法宝'
+      }
+      return pieces.map(p => names[p] || p).join('、')
+    },
+    getRoleClass(role) {
+      // 根据中文角色名返回CSS类
+      if (['输出', '爆发', '群攻', '毁灭', '狂暴', '穿透'].includes(role)) return 'attacker'
+      if (['坦克', '防御'].includes(role)) return 'defender'
+      if (['治疗', '辅助', '续航', '增益'].includes(role)) return 'support'
+      if (['控制', '持续伤害', '减益', '混乱'].includes(role)) return 'balanced'
+      return 'balanced'
+    },
+    getSkillNameById(skillId) {
+      const skill = getSkillById(skillId)
+      return skill ? skill.name : '未知技能'
+    },
+    getTierName(tier) {
+      const names = { 1: '初级', 2: '中级', 3: '高级' }
+      return names[tier] || '未知'
     }
   }
 }
@@ -1385,5 +1537,338 @@ export default {
   color: #ffd700;
   font-size: 0.85em;
   font-style: italic;
+}
+
+/* 攻略按钮样式 */
+.nav-btn.guide {
+  background: linear-gradient(135deg, #e67e22, #d35400);
+  color: white;
+}
+
+.nav-btn.guide:hover {
+  background: linear-gradient(135deg, #d35400, #e67e22);
+}
+
+/* 攻略面板样式 */
+.guide-panel {
+  background: linear-gradient(180deg, #1a1a3a 0%, #2a2a4a 100%);
+  border-radius: 12px;
+  padding: 20px;
+  width: 600px;
+  max-width: 95vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  border: 2px solid #e67e22;
+  box-shadow: 0 0 30px rgba(230, 126, 34, 0.3);
+}
+
+.guide-panel h3 {
+  color: #ffd700;
+  margin-bottom: 15px;
+  font-size: 1.3em;
+  text-align: center;
+}
+
+.guide-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #4a4a6a;
+  padding-bottom: 10px;
+}
+
+.guide-tabs button {
+  flex: 1;
+  padding: 8px 12px;
+  background: #2a2a4a;
+  border: 1px solid #4a4a6a;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9em;
+}
+
+.guide-tabs button.active {
+  background: #e67e22;
+  color: white;
+  border-color: #e67e22;
+}
+
+.guide-tabs button:hover:not(.active) {
+  background: #3a3a5a;
+  color: #ccc;
+}
+
+.guide-content {
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.guide-section {
+  padding: 10px 0;
+}
+
+/* 套装样式 */
+.set-item {
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #3a3a5a;
+}
+
+.set-header {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.set-desc {
+  color: #888;
+  font-size: 0.85em;
+  margin-bottom: 8px;
+}
+
+.set-pieces {
+  color: #87ceeb;
+  font-size: 0.85em;
+  margin-bottom: 8px;
+}
+
+.set-bonuses {
+  background: #2a2a4a;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.bonus-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.85em;
+}
+
+.bonus-row:last-child {
+  margin-bottom: 0;
+}
+
+.bonus-count {
+  color: #ffd700;
+  min-width: 50px;
+}
+
+.bonus-desc {
+  color: #2ecc71;
+}
+
+/* 锁妖塔掉落样式 */
+.tower-info {
+  background: #2a2a4a;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.tower-tip {
+  color: #87ceeb;
+  margin: 0;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.tower-drops {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drop-item {
+  display: flex;
+  gap: 15px;
+  padding: 10px;
+  background: #1a1a2e;
+  border-radius: 6px;
+  border-left: 3px solid #e67e22;
+}
+
+.drop-floor {
+  color: #ffd700;
+  font-weight: bold;
+  min-width: 80px;
+}
+
+.drop-reward {
+  color: #ccc;
+  font-size: 0.9em;
+}
+
+/* 宠物介绍样式 */
+.pets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pet-info-item {
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #3a3a5a;
+}
+
+.pet-info-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pet-info-header .pet-icon {
+  font-size: 1.5em;
+}
+
+.pet-info-header .pet-name {
+  font-weight: bold;
+  color: #fff;
+  font-size: 1em;
+}
+
+.pet-info-header .pet-role {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  margin-left: auto;
+}
+
+.pet-role.attacker {
+  background: rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+
+.pet-role.defender {
+  background: rgba(52, 152, 219, 0.3);
+  color: #3498db;
+}
+
+.pet-role.support {
+  background: rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
+}
+
+.pet-role.balanced {
+  background: rgba(155, 89, 182, 0.3);
+  color: #9b59b6;
+}
+
+.pet-info-skills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.skills-label {
+  color: #87ceeb;
+  font-size: 0.85em;
+}
+
+.skill-tag {
+  background: #4a2a6a;
+  color: #d8b4fe;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+}
+
+.pet-info-hidden {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+}
+
+.hidden-label {
+  color: #f39c12;
+}
+
+.hidden-skill {
+  color: #e67e22;
+  font-weight: bold;
+}
+
+.hidden-tip {
+  color: #666;
+  font-size: 0.8em;
+}
+
+/* 宠物技能样式 */
+.skill-category h4 {
+  color: #ffd700;
+  margin: 0 0 12px 0;
+  font-size: 1em;
+}
+
+.skills-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-info-item {
+  background: #1a1a2e;
+  border-radius: 6px;
+  padding: 10px;
+  border-left: 3px solid #888;
+}
+
+.skill-info-item.tier-1 {
+  border-left-color: #888;
+}
+
+.skill-info-item.tier-2 {
+  border-left-color: #3498db;
+}
+
+.skill-info-item.tier-3 {
+  border-left-color: #9b59b6;
+}
+
+.skill-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.skill-info-header .skill-name {
+  font-weight: bold;
+  color: #fff;
+}
+
+.skill-info-header .skill-tier {
+  font-size: 0.8em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #2a2a4a;
+}
+
+.skill-info-item.tier-1 .skill-tier {
+  color: #888;
+}
+
+.skill-info-item.tier-2 .skill-tier {
+  color: #3498db;
+}
+
+.skill-info-item.tier-3 .skill-tier {
+  color: #9b59b6;
+}
+
+.skill-info-desc {
+  color: #aaa;
+  font-size: 0.85em;
 }
 </style>
