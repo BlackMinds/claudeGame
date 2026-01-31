@@ -157,8 +157,9 @@ export const gameState = Vue.observable({
     towerStartFloor: 1
   },
   logs: [],
-  // 开发用：经验倍率
-  devExpMultiplier: 1
+  // 开发用：经验倍率和掉落倍率
+  devExpMultiplier: 1,
+  devDropMultiplier: 1
 })
 
 // 获取当前使用的境界表
@@ -2396,8 +2397,8 @@ export function battleRound() {
 
           addBattleLog(`击败 ${getMonsterNameWithStatus(targetMonster)}！+${expGain}经验 +${targetMonster.gold}灵石`, 'success')
 
-          // 装备掉落（加上dropRate属性加成）
-          const effectiveDropRate = targetMonster.dropRate + stats.dropRate
+          // 装备掉落（加上dropRate属性加成和开发倍率）
+          const effectiveDropRate = (targetMonster.dropRate + stats.dropRate) * gameState.devDropMultiplier
           if (Math.random() * 100 < effectiveDropRate) {
             const slots = Object.keys(equipSlots)
             const randomSlot = slots[Math.floor(Math.random() * slots.length)]
@@ -3953,7 +3954,7 @@ export function addTestEquipment() {
   console.log('测试法宝已装备！')
 }
 
-// 开发测试：切换百倍经验（仅开发环境可用）
+// 开发测试：切换百倍经验和掉落（仅开发环境可用）
 export function toggleExpMultiplier() {
   if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
     console.log('仅开发环境可用')
@@ -3961,13 +3962,15 @@ export function toggleExpMultiplier() {
   }
   if (gameState.devExpMultiplier === 1) {
     gameState.devExpMultiplier = 100
-    addLog('百倍经验已开启！', 'success')
-    console.log('百倍经验已开启！')
+    gameState.devDropMultiplier = 100
+    addLog('百倍经验+百倍爆率已开启！', 'success')
+    console.log('百倍经验+百倍爆率已开启！')
     return true
   } else {
     gameState.devExpMultiplier = 1
-    addLog('百倍经验已关闭', 'normal')
-    console.log('百倍经验已关闭')
+    gameState.devDropMultiplier = 1
+    addLog('百倍经验+百倍爆率已关闭', 'normal')
+    console.log('百倍经验+百倍爆率已关闭')
     return false
   }
 }
