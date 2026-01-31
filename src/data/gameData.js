@@ -2688,9 +2688,17 @@ export function getEnhanceDropLevels(enhanceLevel) {
   return Math.floor(Math.random() * maxDrop) + 1
 }
 
-// 计算强化后的属性加成（每级+5%）
+// 计算强化后的属性加成
 export function getEnhanceBonus(enhanceLevel) {
-  // +1=5%, +2=10%, +3=15%, ..., +12=60%
+  // +1~+10: 每级+5%, +11: +10%, +12: +15%
+  // +10=50%, +11=60%, +12=75%
+  if (enhanceLevel <= 10) {
+    return enhanceLevel * 0.05
+  } else if (enhanceLevel === 11) {
+    return 0.50 + 0.10  // 60%
+  } else if (enhanceLevel === 12) {
+    return 0.60 + 0.15  // 75%
+  }
   return enhanceLevel * 0.05
 }
 
