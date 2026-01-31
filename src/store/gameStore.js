@@ -2889,6 +2889,7 @@ export function battleRound() {
             const minHit = petUseSkill.minHitCount || 1
             const maxHit = petUseSkill.maxHitCount || 3
             const hitCount = Math.floor(Math.random() * (maxHit - minHit + 1)) + minHit
+            addBattleLog(`👊 宠物【${activePet.name}】使用【${petUseSkill.name}】，发动 ${hitCount} 连击！`, 'success')
             let totalDamage = 0
             for (let i = 0; i < hitCount; i++) {
               const hitCrit = Math.random() * 100 < petStats.critRate
@@ -2896,8 +2897,13 @@ export function battleRound() {
               hitDamage = Math.floor(hitDamage * petSkillDamageMultiplier)
               petTarget.currentHp -= hitDamage
               totalDamage += hitDamage
+              if (hitCrit) {
+                addBattleLog(`  💥 第${i + 1}击暴击！造成 ${hitDamage} 伤害`, 'critical')
+              } else {
+                addBattleLog(`  ✊ 第${i + 1}击造成 ${hitDamage} 伤害`, 'normal')
+              }
             }
-            addBattleLog(`👊 宠物【${activePet.name}】使用【${petUseSkill.name}】，连续攻击 ${hitCount} 次，共造成 ${totalDamage} 伤害！`, 'success')
+            addBattleLog(`👊 连击结束，共造成 ${totalDamage} 伤害！`, 'success')
             skillHandled = true
           }
           // 混沌领域（群体随机debuff）
