@@ -2655,14 +2655,18 @@ export function generateEquipment(level, slotType, forceQuality = null) {
 
 // ==================== 装备强化系统 ====================
 
-// 强化成功率（+6之后开始有失败概率）
+// 强化上限
+export const MAX_ENHANCE_LEVEL = 12
+
+// 强化成功率（+7之后开始有失败概率）
 export function getEnhanceSuccessRate(enhanceLevel) {
-  if (enhanceLevel < 6) return 100
+  if (enhanceLevel < 7) return 100
   const rates = {
-    6: 80,   // +6 -> +7: 80%
-    7: 65,   // +7 -> +8: 65%
-    8: 50,   // +8 -> +9: 50%
-    9: 35    // +9 -> +10: 35%
+    7: 80,    // +7 -> +8: 80%
+    8: 65,    // +8 -> +9: 65%
+    9: 50,    // +9 -> +10: 50%
+    10: 35,   // +10 -> +11: 35%
+    11: 20    // +11 -> +12: 20%
   }
   return rates[enhanceLevel] || 0
 }
@@ -2678,15 +2682,15 @@ export function getEnhanceCost(equipLevel, enhanceLevel) {
 
 // 强化失败时掉落的等级数（1-3）
 export function getEnhanceDropLevels(enhanceLevel) {
-  if (enhanceLevel <= 6) return 0
+  if (enhanceLevel < 7) return 0
   // +7及以上失败会掉1-3级
-  const maxDrop = Math.min(3, enhanceLevel - 5)
+  const maxDrop = Math.min(3, enhanceLevel - 6)
   return Math.floor(Math.random() * maxDrop) + 1
 }
 
 // 计算强化后的属性加成（每级+5%）
 export function getEnhanceBonus(enhanceLevel) {
-  // +1=5%, +2=10%, +3=15%, ..., +10=50%
+  // +1=5%, +2=10%, +3=15%, ..., +12=60%
   return enhanceLevel * 0.05
 }
 

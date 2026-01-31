@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook, equipmentSets } from '../data/gameData'
+import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, MAX_ENHANCE_LEVEL, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook, equipmentSets } from '../data/gameData'
 import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 获取网络时间（返回日期字符串 YYYY-MM-DD）
@@ -715,9 +715,9 @@ export function enhanceEquipment(slotType) {
   }
 
   // 检查是否已满级
-  if (item.enhanceLevel >= 10) {
-    addLog(`【${item.name}】已达到最高强化等级`, 'warning')
-    return { success: false, message: '已达到最高强化等级' }
+  if (item.enhanceLevel >= MAX_ENHANCE_LEVEL) {
+    addLog(`【${item.name}】已达到最高强化等级(+${MAX_ENHANCE_LEVEL})`, 'warning')
+    return { success: false, message: `已达到最高强化等级(+${MAX_ENHANCE_LEVEL})` }
   }
 
   // 计算费用
@@ -778,9 +778,9 @@ export function enhanceItem(item) {
   }
 
   // 检查是否已满级
-  if (item.enhanceLevel >= 10) {
-    addLog(`【${item.name}】已达到最高强化等级`, 'warning')
-    return { success: false, message: '已达到最高强化等级' }
+  if (item.enhanceLevel >= MAX_ENHANCE_LEVEL) {
+    addLog(`【${item.name}】已达到最高强化等级(+${MAX_ENHANCE_LEVEL})`, 'warning')
+    return { success: false, message: `已达到最高强化等级(+${MAX_ENHANCE_LEVEL})` }
   }
 
   // 计算费用
