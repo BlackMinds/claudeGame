@@ -557,6 +557,7 @@ function generateMonsters() {
           // 特殊属性：固定随机范围
           critRate: Math.floor(Math.random() * 60) + 1,      // 暴击率 1%-60%
           dodge: Math.floor(Math.random() * 40) + 1,         // 闪避率 1%-40%
+          hit: Math.floor(70 + lvl * 0.3 + Math.random() * 20), // 命中率 70-90%+等级加成
           penetration: Math.floor(Math.random() * 25) + 1,   // 穿透 1%-25%
           lifesteal: Math.floor(Math.random() * 20) + 1,     // 吸血 1%-20%
           exp: Math.floor(15 + lvl * 6 + Math.pow(lvl, 1.3)),
@@ -651,6 +652,7 @@ export function generateTowerFloorMonsters(floor) {
       // 特殊属性：锁妖塔怪物更强（固定随机范围）
       critRate: Math.floor(Math.random() * 61) + 20,    // 暴击率 20%-80%
       dodge: Math.floor(Math.random() * 21) + 20,       // 闪避率 20%-40%
+      hit: Math.floor(80 + floor * 0.2 + Math.random() * 15), // 命中率 80-95%+层数加成
       penetration: Math.floor(Math.random() * 21) + 20, // 穿透 20%-40%
       lifesteal: Math.floor(Math.random() * 11) + 10,   // 吸血 10%-20%
       exp: Math.floor((20 + floor * 8) * difficultyMult),

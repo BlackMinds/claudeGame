@@ -3189,7 +3189,11 @@ export function battleRound() {
         petDodge += gameState.battle.petBuffs.superDodge.value
       }
 
-      if (monsterHitRoll >= petDodge) {
+      // 怪物命中率 = 怪物命中 - 宠物闪避
+      const monsterHit = monster.hit || 85
+      const effectiveHitRate = Math.max(5, monsterHit - petDodge) // 最低5%命中率
+
+      if (monsterHitRoll < effectiveHitRate) {
         const monsterCritRoll = Math.random() * 100
         // 使用怪物自身的暴击率
         const baseCritRate = monster.critRate || 0
@@ -3272,7 +3276,11 @@ export function battleRound() {
     } else {
       // 攻击玩家
       const monsterHitRoll = Math.random() * 100
-      if (monsterHitRoll >= stats.dodge) {
+      // 怪物命中率 = 怪物命中 - 玩家闪避
+      const monsterHit = monster.hit || 85
+      const effectiveHitRate = Math.max(5, monsterHit - stats.dodge) // 最低5%命中率
+
+      if (monsterHitRoll < effectiveHitRate) {
         const monsterCritRoll = Math.random() * 100
         // 使用怪物自身的暴击率
         const baseCritRate = monster.critRate || 0
