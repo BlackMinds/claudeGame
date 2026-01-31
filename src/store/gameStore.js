@@ -260,7 +260,9 @@ export function getPassiveSkillBonus() {
     skillDamage: 0,
     lifesteal: 0,
     damageReduction: 0,
-    hpRegen: 0
+    hpRegen: 0,
+    hpPercent: 0,
+    attackPercent: 0
   }
 
   for (const skillId of gameState.player.equippedPassiveSkills) {
@@ -338,9 +340,9 @@ export function getPlayerStats() {
   const passiveStats = getPassiveSkillBonus()
   const { bonuses: setBonuses } = getSetBonuses()
 
-  // 境界百分比加成 + 套装百分比加成
-  const hpBonus = 1 + (realm.hpBonus || 0) / 100 + (setBonuses.hp || 0) / 100
-  const attackBonus = 1 + (realm.attackBonus || 0) / 100 + (setBonuses.attack || 0) / 100
+  // 境界百分比加成 + 套装百分比加成 + 被动技能百分比加成
+  const hpBonus = 1 + (realm.hpBonus || 0) / 100 + (setBonuses.hp || 0) / 100 + (passiveStats.hpPercent || 0) / 100
+  const attackBonus = 1 + (realm.attackBonus || 0) / 100 + (setBonuses.attack || 0) / 100 + (passiveStats.attackPercent || 0) / 100
   const defenseBonus = 1 + (realm.defenseBonus || 0) / 100 + (setBonuses.defense || 0) / 100
 
   // 获取临时buff加成

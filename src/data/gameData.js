@@ -782,11 +782,12 @@ export const skills = [
   {
     id: 11,
     name: '铁壁',
-    description: '增强防御力',
+    description: '增强防御力和生命值，满级额外+5%生命',
     type: 'passive',
     rarity: 'common',
     maxLevel: 5,
-    bonusPerLevel: { defense: 5 },
+    bonusPerLevel: { defense: 40, hp: 50 },
+    maxLevelBonus: { hpPercent: 5 },
     shopPrice: 0,
     dropFromMaps: [1, 2],
     dropRate: 0.02
@@ -794,11 +795,12 @@ export const skills = [
   {
     id: 12,
     name: '强壮',
-    description: '增强攻击力',
+    description: '增强攻击力和暴击率，满级额外+5%攻击',
     type: 'passive',
     rarity: 'common',
     maxLevel: 5,
-    bonusPerLevel: { attack: 5 },
+    bonusPerLevel: { attack: 20, critRate: 1 },
+    maxLevelBonus: { attackPercent: 5 },
     shopPrice: 0,
     dropFromMaps: [1, 2],
     dropRate: 0.02
@@ -2155,6 +2157,12 @@ export function getPassiveSkillStats(skill, level) {
   const stats = {}
   for (const [stat, perLevel] of Object.entries(skill.bonusPerLevel)) {
     stats[stat] = perLevel * level
+  }
+  // 满级额外加成
+  if (level >= skill.maxLevel && skill.maxLevelBonus) {
+    for (const [stat, value] of Object.entries(skill.maxLevelBonus)) {
+      stats[stat] = (stats[stat] || 0) + value
+    }
   }
   return stats
 }
