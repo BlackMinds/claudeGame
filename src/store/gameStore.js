@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook } from '../data/gameData'
+import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook, equipmentSets } from '../data/gameData'
 import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 获取网络时间（返回日期字符串 YYYY-MM-DD）
@@ -279,17 +279,69 @@ export function getPassiveSkillBonus() {
   return stats
 }
 
+// 计算套装加成
+export function getSetBonuses() {
+  const bonuses = {
+    hp: 0,
+    attack: 0,
+    defense: 0,
+    critRate: 0,
+    critDamage: 0,
+    penetration: 0,
+    dodge: 0,
+    damageReduction: 0
+  }
+
+  // 统计每个套装装备的数量
+  const setCounts = {}
+  for (const equip of Object.values(gameState.player.equipment)) {
+    if (equip && equip.setId) {
+      setCounts[equip.setId] = (setCounts[equip.setId] || 0) + 1
+    }
+  }
+
+  // 计算套装加成
+  const activeSets = []
+  for (const [setId, count] of Object.entries(setCounts)) {
+    const setConfig = equipmentSets[setId]
+    if (!setConfig) continue
+
+    // 找到满足的最高阶套装效果
+    const thresholds = Object.keys(setConfig.bonuses).map(Number).sort((a, b) => b - a)
+    for (const threshold of thresholds) {
+      if (count >= threshold) {
+        const setBonus = setConfig.bonuses[threshold]
+        for (const [stat, value] of Object.entries(setBonus)) {
+          if (stat !== 'description' && bonuses.hasOwnProperty(stat)) {
+            bonuses[stat] += value
+          }
+        }
+        activeSets.push({
+          name: setConfig.name,
+          count,
+          threshold,
+          description: setBonus.description
+        })
+        break // 只取最高阶效果
+      }
+    }
+  }
+
+  return { bonuses, activeSets }
+}
+
 // 计算最终属性
 export function getPlayerStats() {
   const realm = getCurrentRealm()
   const p = gameState.player
   const equipStats = getEquipmentStats()
   const passiveStats = getPassiveSkillBonus()
+  const { bonuses: setBonuses } = getSetBonuses()
 
-  // 境界百分比加成
-  const hpBonus = 1 + (realm.hpBonus || 0) / 100
-  const attackBonus = 1 + (realm.attackBonus || 0) / 100
-  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100
+  // 境界百分比加成 + 套装百分比加成
+  const hpBonus = 1 + (realm.hpBonus || 0) / 100 + (setBonuses.hp || 0) / 100
+  const attackBonus = 1 + (realm.attackBonus || 0) / 100 + (setBonuses.attack || 0) / 100
+  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100 + (setBonuses.defense || 0) / 100
 
   // 获取临时buff加成
   const buffs = gameState.battle.playerBuffs || {}
@@ -303,20 +355,23 @@ export function getPlayerStats() {
   // 吸血 = 被动技能吸血 + 境界吸血加成
   const totalLifesteal = (passiveStats.lifesteal || 0) + (realm.lifestealBonus || 0)
 
+  // 套装提供的伤害减免
+  const totalDamageReduction = (passiveStats.damageReduction || 0) + (setBonuses.damageReduction || 0)
+
   return {
     maxHp: Math.floor((p.baseHp + equipStats.hp + passiveStats.hp) * hpBonus),
     attack: Math.floor(baseAttack * (1 + attackBuffPercent / 100)),
     defense: Math.floor(baseDefense * (1 + defenseBuffPercent / 100)),
-    critRate: p.critRate + equipStats.critRate + passiveStats.critRate + critBuffValue,
+    critRate: p.critRate + equipStats.critRate + passiveStats.critRate + critBuffValue + (setBonuses.critRate || 0),
     critResist: p.critResist + equipStats.critResist + passiveStats.critResist,
-    critDamage: p.critDamage + equipStats.critDamage + passiveStats.critDamage,
-    dodge: p.dodge + equipStats.dodge + passiveStats.dodge,
+    critDamage: p.critDamage + equipStats.critDamage + passiveStats.critDamage + (setBonuses.critDamage || 0),
+    dodge: p.dodge + equipStats.dodge + passiveStats.dodge + (setBonuses.dodge || 0),
     hit: p.hit + equipStats.hit + passiveStats.hit,
-    penetration: p.penetration + equipStats.penetration + passiveStats.penetration,
+    penetration: p.penetration + equipStats.penetration + passiveStats.penetration + (setBonuses.penetration || 0),
     skillDamage: equipStats.skillDamage + passiveStats.skillDamage,
     dropRate: equipStats.dropRate,
     lifesteal: totalLifesteal,
-    damageReduction: passiveStats.damageReduction || 0,
+    damageReduction: totalDamageReduction,
     hpRegen: passiveStats.hpRegen || 0,
     healBonus: realm.healBonus || 0,
     healReceivedBonus: realm.healReceivedBonus || 0
@@ -480,6 +535,16 @@ export function addBattleLog(message, type = 'normal') {
 // 清空战斗日志
 export function clearBattleLog() {
   gameState.battle.battleLog = []
+}
+
+// 处理玩家死亡惩罚（扣除1%修为经验）
+function applyDeathPenalty() {
+  const currentRealmExp = gameState.player.realmExp
+  const penalty = Math.floor(currentRealmExp * 0.01)
+  if (penalty > 0) {
+    gameState.player.realmExp -= penalty
+    addBattleLog(`💀 死亡惩罚：损失 ${penalty} 点修为经验`, 'danger')
+  }
 }
 
 // 背包容量上限
@@ -1683,6 +1748,39 @@ function checkAndGrantTowerRewards() {
   }
 }
 
+// 显示当前生效的buff状态
+function showActiveBuffs() {
+  const buffs = gameState.battle.playerBuffs
+  const activeBuffs = []
+  for (const buffName of Object.keys(buffs)) {
+    if (buffName === 'shield') {
+      activeBuffs.push(`护盾${buffs[buffName].value}`)
+    } else if (buffs[buffName].duration > 0) {
+      activeBuffs.push(`${getBuffName(buffName)}(${buffs[buffName].duration})`)
+    }
+  }
+  if (activeBuffs.length > 0) {
+    addBattleLog(`📊 当前增益: ${activeBuffs.join(' | ')}`, 'info')
+  }
+}
+
+// 显示当前怪物的debuff状态
+function showActiveDebuffs() {
+  const monsters = gameState.battle.currentMonsters
+  for (const monster of monsters) {
+    if (!monster.debuffs || monster.currentHp <= 0) continue
+    const activeDebuffs = []
+    for (const debuffName of Object.keys(monster.debuffs)) {
+      if (monster.debuffs[debuffName].duration > 0) {
+        activeDebuffs.push(`${getDebuffName(debuffName)}(${monster.debuffs[debuffName].duration})`)
+      }
+    }
+    if (activeDebuffs.length > 0) {
+      addBattleLog(`📊 ${monster.name} 减益: ${activeDebuffs.join(' | ')}`, 'debuff')
+    }
+  }
+}
+
 // 更新玩家buff持续时间
 function updatePlayerBuffs() {
   const buffs = gameState.battle.playerBuffs
@@ -1691,7 +1789,7 @@ function updatePlayerBuffs() {
       buffs[buffName].duration--
       if (buffs[buffName].duration <= 0) {
         delete buffs[buffName]
-        addBattleLog(`${getBuffName(buffName)}效果已消失`, 'normal')
+        addBattleLog(`⏱️ 【${getBuffName(buffName)}】效果结束`, 'info')
       }
     }
   }
@@ -1718,7 +1816,7 @@ function updateMonsterDebuffs() {
         monster.debuffs[debuffName].duration--
         if (monster.debuffs[debuffName].duration <= 0) {
           delete monster.debuffs[debuffName]
-          addBattleLog(`${monster.name} 的【${getDebuffName(debuffName)}】效果已消失`, 'normal')
+          addBattleLog(`⏱️ ${monster.name} 的【${getDebuffName(debuffName)}】效果结束`, 'info')
         }
       }
     }
@@ -1745,6 +1843,13 @@ export function battleRound() {
   }
 
   gameState.battle.roundCount++
+
+  // 每5回合显示一次当前增益/减益状态
+  if (gameState.battle.roundCount % 5 === 1) {
+    showActiveBuffs()
+    showActiveDebuffs()
+  }
+
   updateCooldowns()
   updatePlayerBuffs()
   updateMonsterDebuffs()
@@ -1763,7 +1868,7 @@ export function battleRound() {
   if (stats.hpRegen > 0 && gameState.battle.playerCurrentHp < maxHp) {
     const healAmount = Math.floor(maxHp * stats.hpRegen / 100)
     gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-    addBattleLog(`生命之源恢复 ${healAmount} 点生命`, 'success')
+    addBattleLog(`💚 生命之源 恢复 ${healAmount} 点生命`, 'heal')
   }
 
   let result = null
@@ -1775,7 +1880,7 @@ export function battleRound() {
   if (chargeState) {
     chargeBonus = chargeState.value
     delete gameState.battle.playerBuffs.charge
-    addBattleLog(`蓄力完成，释放强力攻击！`, 'warning')
+    addBattleLog(`⚡ 蓄力完成，释放强力攻击！`, 'warning')
   }
 
   // 选择要使用的技能
@@ -1824,7 +1929,7 @@ export function battleRound() {
         debuffDuration: selectedSkill.debuffDuration,
         duration: 1
       }
-      addBattleLog(`使用【${selectedSkill.name}】开始蓄力...`, 'warning')
+      addBattleLog(`⚡ 【${selectedSkill.name}】开始蓄力...`, 'buff')
       skipAttack = true
     }
 
@@ -1832,7 +1937,7 @@ export function battleRound() {
     if (selectedSkill.effect === 'heal') {
       const healAmount = Math.floor(stats.attack * skillMultiplier)
       gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-      addBattleLog(`使用【${selectedSkill.name}】恢复 ${healAmount} 点生命`, 'success')
+      addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 点生命`, 'heal')
       skipAttack = true
     }
 
@@ -1842,7 +1947,7 @@ export function battleRound() {
         value: selectedSkill.effectValue,
         duration: selectedSkill.effectDuration
       }
-      addBattleLog(`使用【${selectedSkill.name}】攻击力提升${selectedSkill.effectValue}%，持续${selectedSkill.effectDuration}回合`, 'success')
+      addBattleLog(`⚔️ 【${selectedSkill.name}】攻击力+${selectedSkill.effectValue}% (${selectedSkill.effectDuration}回合)`, 'buff')
       skipAttack = true
     }
 
@@ -1852,7 +1957,7 @@ export function battleRound() {
         value: selectedSkill.effectValue,
         duration: selectedSkill.effectDuration
       }
-      addBattleLog(`使用【${selectedSkill.name}】暴击率提升${selectedSkill.effectValue}%，持续${selectedSkill.effectDuration}回合`, 'success')
+      addBattleLog(`🎯 【${selectedSkill.name}】暴击率+${selectedSkill.effectValue}% (${selectedSkill.effectDuration}回合)`, 'buff')
       skipAttack = true
     }
 
@@ -1862,7 +1967,7 @@ export function battleRound() {
         value: selectedSkill.effectValue,
         duration: selectedSkill.effectDuration
       }
-      addBattleLog(`使用【${selectedSkill.name}】防御力提升${selectedSkill.effectValue}%，持续${selectedSkill.effectDuration}回合`, 'success')
+      addBattleLog(`🛡️ 【${selectedSkill.name}】防御力+${selectedSkill.effectValue}% (${selectedSkill.effectDuration}回合)`, 'buff')
       skipAttack = true
     }
 
@@ -1870,7 +1975,7 @@ export function battleRound() {
     if (selectedSkill.effect === 'shield') {
       const shieldAmount = Math.floor(maxHp * selectedSkill.effectValue / 100)
       gameState.battle.playerBuffs.shield = { value: shieldAmount, duration: 99 }
-      addBattleLog(`使用【${selectedSkill.name}】生成 ${shieldAmount} 点护盾`, 'success')
+      addBattleLog(`🔰 【${selectedSkill.name}】获得 ${shieldAmount} 点护盾`, 'buff')
       skipAttack = true
     }
 
@@ -1884,6 +1989,7 @@ export function battleRound() {
       if (gameState.battle.playerCurrentHp <= 0) {
         gameState.battle.playerCurrentHp = 0
         addBattleLog(`你因透支生命而倒下...`, 'danger')
+        applyDeathPenalty()
         gameState.battle.isInBattle = false
         stopAutoBattle()
         return 'lose'
@@ -1927,7 +2033,9 @@ export function battleRound() {
     if (targetMonster.currentHp <= 0) continue
 
     const playerHitRoll = Math.random() * 100
-    const monsterDodge = targetMonster.buffs.dodge ? 5 + targetMonster.buffs.dodge : 5
+    // 使用怪物自身的闪避属性
+    const baseDodge = targetMonster.dodge || 0
+    const monsterDodge = targetMonster.buffs.dodge ? baseDodge + targetMonster.buffs.dodge : baseDodge
 
     if (isGuaranteedHit || playerHitRoll < stats.hit - monsterDodge) {
       const critRoll = Math.random() * 100
@@ -1957,12 +2065,13 @@ export function battleRound() {
       if (reflectSkill) {
         const reflectDamage = Math.floor(damage * reflectSkill.value / 100)
         gameState.battle.playerCurrentHp -= reflectDamage
-        addBattleLog(`反伤护盾反弹 ${reflectDamage} 伤害！`, 'warning')
+        addBattleLog(`🔄 反伤护盾 反弹 ${reflectDamage} 伤害`, 'success')
 
         // 检查是否因反伤死亡
         if (gameState.battle.playerCurrentHp <= 0) {
           gameState.battle.playerCurrentHp = 0
           addBattleLog(`你被反伤击败了...`, 'danger')
+          applyDeathPenalty()
           gameState.battle.isInBattle = false
           stopAutoBattle()
           return 'lose'
@@ -1978,20 +2087,28 @@ export function battleRound() {
           value: chargeDebuff.value,
           duration: chargeDebuff.duration
         }
-        addBattleLog(`${targetMonster.name} 被施加【易伤】效果，受到伤害+${chargeDebuff.value}%，持续${chargeDebuff.duration}回合`, 'warning')
+        addBattleLog(`💔 ${targetMonster.name}【易伤】受伤+${chargeDebuff.value}% (${chargeDebuff.duration}回合)`, 'debuff')
       }
 
       // 吸血效果
       if (lifestealPercent > 0) {
         const healAmount = Math.floor(damage * lifestealPercent / 100)
         gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
-        addBattleLog(`吸取生命 ${healAmount}！`, 'success')
+        addBattleLog(`🩸 吸血 恢复 ${healAmount} 点生命`, 'heal')
       }
 
       if (selectedSkill) {
-        addBattleLog(`【${selectedSkill.name}】对 ${targetMonster.name} 造成 ${damage} 伤害${isCrit ? '(暴击!)' : ''}`, 'success')
+        if (isCrit) {
+          addBattleLog(`💥 【${selectedSkill.name}】暴击！对 ${targetMonster.name} 造成 ${damage} 伤害`, 'critical')
+        } else {
+          addBattleLog(`【${selectedSkill.name}】对 ${targetMonster.name} 造成 ${damage} 伤害`, 'success')
+        }
       } else {
-        addBattleLog(`你对 ${targetMonster.name} 造成 ${damage} 伤害${isCrit ? '(暴击!)' : ''}`, 'success')
+        if (isCrit) {
+          addBattleLog(`💥 暴击！对 ${targetMonster.name} 造成 ${damage} 伤害`, 'critical')
+        } else {
+          addBattleLog(`对 ${targetMonster.name} 造成 ${damage} 伤害`, 'success')
+        }
       }
 
       // 检查怪物死亡
@@ -2106,7 +2223,7 @@ export function battleRound() {
         }
       }
     } else {
-      addBattleLog(`对 ${targetMonster.name} 的攻击被闪避！`, 'normal')
+      addBattleLog(`💨 ${targetMonster.name} 闪避了攻击！`, 'normal')
     }
   } // end of hit loop
 
@@ -2118,9 +2235,11 @@ export function battleRound() {
 
     if (aliveForPet.length > 0) {
       const petTarget = aliveForPet[0]
+      // 使用怪物自身的闪避属性
+      const petTargetDodge = petTarget.dodge || 0
 
       const petHitRoll = Math.random() * 100
-      if (petHitRoll < petStats.hit - 5) {
+      if (petHitRoll < petStats.hit - petTargetDodge) {
         const petCritRoll = Math.random() * 100
         const petCrit = petCritRoll < petStats.critRate
 
@@ -2134,7 +2253,11 @@ export function battleRound() {
         )
 
         petTarget.currentHp -= petDamage
-        addBattleLog(`宠物【${activePet.name}】对 ${petTarget.name} 造成 ${petDamage} 伤害${petCrit ? '(暴击!)' : ''}`, 'success')
+        if (petCrit) {
+          addBattleLog(`💥 宠物【${activePet.name}】暴击！对 ${petTarget.name} 造成 ${petDamage} 伤害`, 'critical')
+        } else {
+          addBattleLog(`🐾 宠物【${activePet.name}】对 ${petTarget.name} 造成 ${petDamage} 伤害`, 'success')
+        }
 
         // 检查怪物死亡
         if (petTarget.currentHp <= 0) {
@@ -2166,7 +2289,7 @@ export function battleRound() {
           }
         }
       } else {
-        addBattleLog(`宠物【${activePet.name}】的攻击被闪避！`, 'normal')
+        addBattleLog(`💨 宠物【${activePet.name}】的攻击被闪避！`, 'normal')
       }
     }
   }
@@ -2213,13 +2336,17 @@ export function battleRound() {
 
       if (monsterHitRoll >= petStats.dodge) {
         const monsterCritRoll = Math.random() * 100
-        const effectiveCritRate = monster.buffs.critRate ? 10 + monster.buffs.critRate : 10
+        // 使用怪物自身的暴击率
+        const baseCritRate = monster.critRate || 0
+        const effectiveCritRate = monster.buffs.critRate ? baseCritRate + monster.buffs.critRate : baseCritRate
         const monsterCrit = monsterCritRoll < effectiveCritRate
 
+        // 使用怪物的穿透属性
+        const monsterPenetration = monster.penetration || 0
         let monsterDamage = calculateDamage(
           effectiveAttack,
           petStats.defense,
-          0,
+          monsterPenetration,
           0,
           monsterCrit,
           50
@@ -2228,10 +2355,25 @@ export function battleRound() {
 
         petForDefense.currentHp -= monsterDamage
 
+        // 怪物吸血效果
+        const totalLifesteal = (monster.lifesteal || 0) + (monster.buffs.lifesteal || 0)
+        if (totalLifesteal > 0 && monsterDamage > 0) {
+          const healAmount = Math.floor(monsterDamage * totalLifesteal / 100)
+          monster.currentHp = Math.min(monster.hp, monster.currentHp + healAmount)
+        }
+
         if (monsterUseSkill && monsterUseSkill.type === 'attack') {
-          addBattleLog(`${monster.name} 使用【${monsterUseSkill.name}】对宠物造成 ${monsterDamage} 伤害${monsterCrit ? '(暴击!)' : ''}`, 'warning')
+          if (monsterCrit) {
+            addBattleLog(`💥 ${monster.name}【${monsterUseSkill.name}】暴击！对宠物造成 ${monsterDamage} 伤害`, 'critical')
+          } else {
+            addBattleLog(`${monster.name} 使用【${monsterUseSkill.name}】对宠物造成 ${monsterDamage} 伤害`, 'warning')
+          }
         } else {
-          addBattleLog(`${monster.name} 对宠物【${petForDefense.name}】造成 ${monsterDamage} 伤害${monsterCrit ? '(暴击!)' : ''}`, 'warning')
+          if (monsterCrit) {
+            addBattleLog(`💥 ${monster.name} 暴击！对宠物【${petForDefense.name}】造成 ${monsterDamage} 伤害`, 'critical')
+          } else {
+            addBattleLog(`${monster.name} 对宠物【${petForDefense.name}】造成 ${monsterDamage} 伤害`, 'warning')
+          }
         }
 
         if (petForDefense.currentHp <= 0) {
@@ -2239,20 +2381,24 @@ export function battleRound() {
           addBattleLog(`宠物【${petForDefense.name}】倒下了！`, 'danger')
         }
       } else {
-        addBattleLog(`宠物【${petForDefense.name}】闪避了 ${monster.name} 的攻击！`, 'success')
+        addBattleLog(`💨 宠物【${petForDefense.name}】闪避了 ${monster.name} 的攻击！`, 'success')
       }
     } else {
       // 攻击玩家
       const monsterHitRoll = Math.random() * 100
       if (monsterHitRoll >= stats.dodge) {
         const monsterCritRoll = Math.random() * 100
-        const effectiveCritRate = monster.buffs.critRate ? 10 + monster.buffs.critRate : 10
+        // 使用怪物自身的暴击率
+        const baseCritRate = monster.critRate || 0
+        const effectiveCritRate = monster.buffs.critRate ? baseCritRate + monster.buffs.critRate : baseCritRate
         const monsterCrit = monsterCritRoll < Math.max(0, effectiveCritRate - stats.critResist)
 
+        // 使用怪物的穿透属性
+        const monsterPenetration = monster.penetration || 0
         let monsterDamage = calculateDamage(
           effectiveAttack,
           stats.defense,
-          0,
+          monsterPenetration,
           0,
           monsterCrit,
           50
@@ -2271,21 +2417,25 @@ export function battleRound() {
         if (shield && shield.value > 0) {
           if (shield.value >= monsterDamage) {
             shield.value -= monsterDamage
-            addBattleLog(`护盾吸收 ${monsterDamage} 伤害，剩余 ${shield.value}`, 'normal')
+            addBattleLog(`🔰 护盾吸收 ${monsterDamage} 伤害 (剩余${shield.value})`, 'buff')
             monsterDamage = 0
           } else {
             monsterDamage -= shield.value
-            addBattleLog(`护盾吸收 ${shield.value} 伤害后破碎！`, 'warning')
+            addBattleLog(`💥 护盾吸收 ${shield.value} 伤害后破碎！`, 'danger')
             delete gameState.battle.playerBuffs.shield
           }
         }
 
         gameState.battle.playerCurrentHp -= monsterDamage
 
-        // 吸血效果
-        if (monster.buffs.lifesteal) {
-          const healAmount = Math.floor(monsterDamage * monster.buffs.lifesteal / 100)
+        // 怪物吸血效果（自身属性 + buff）
+        const totalLifesteal = (monster.lifesteal || 0) + (monster.buffs.lifesteal || 0)
+        if (totalLifesteal > 0 && monsterDamage > 0) {
+          const healAmount = Math.floor(monsterDamage * totalLifesteal / 100)
           monster.currentHp = Math.min(monster.hp, monster.currentHp + healAmount)
+          if (healAmount > 0) {
+            addBattleLog(`🩸 ${monster.name} 吸血恢复 ${healAmount} 生命`, 'warning')
+          }
         }
 
         // 吸血光环（特殊技能）
@@ -2296,21 +2446,30 @@ export function battleRound() {
         }
 
         if (monsterUseSkill && monsterUseSkill.type === 'attack') {
-          addBattleLog(`${monster.name} 使用【${monsterUseSkill.name}】造成 ${monsterDamage} 伤害${monsterCrit ? '(暴击!)' : ''}`, 'danger')
+          if (monsterCrit) {
+            addBattleLog(`💥 ${monster.name}【${monsterUseSkill.name}】暴击！造成 ${monsterDamage} 伤害`, 'critical')
+          } else {
+            addBattleLog(`${monster.name} 使用【${monsterUseSkill.name}】造成 ${monsterDamage} 伤害`, 'danger')
+          }
         } else {
-          addBattleLog(`${monster.name} 造成 ${monsterDamage} 伤害${monsterCrit ? '(暴击!)' : ''}`, 'danger')
+          if (monsterCrit) {
+            addBattleLog(`💥 ${monster.name} 暴击！造成 ${monsterDamage} 伤害`, 'critical')
+          } else {
+            addBattleLog(`${monster.name} 造成 ${monsterDamage} 伤害`, 'danger')
+          }
         }
 
         if (gameState.battle.playerCurrentHp <= 0) {
           gameState.battle.playerCurrentHp = 0
           result = 'lose'
           addBattleLog(`你被击败了...`, 'danger')
+          applyDeathPenalty()
           gameState.battle.isInBattle = false
           stopAutoBattle()
           return result
         }
       } else {
-        addBattleLog(`你闪避了 ${monster.name} 的攻击！`, 'success')
+        addBattleLog(`💨 闪避了 ${monster.name} 的攻击！`, 'success')
       }
     } // end attackPet else
   } // end monster loop

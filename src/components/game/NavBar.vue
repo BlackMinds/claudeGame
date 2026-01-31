@@ -31,7 +31,7 @@
     <div class="nav-actions">
       <button @click="showSkillPanel = true" class="nav-btn skill">技能</button>
       <button @click="showPetPanel = true" class="nav-btn pet">宠物</button>
-      <button v-if="meditationUnlocked" @click="showMeditation = true" class="nav-btn meditation">打坐</button>
+      <button @click="handleMeditationClick" class="nav-btn meditation">打坐</button>
       <button @click="showSettings = true" class="nav-btn settings">设置</button>
       <button @click="handleSave" class="nav-btn save">保存</button>
       <!-- <button @click="handleLoad" class="nav-btn load">读取</button> -->
@@ -512,6 +512,13 @@ export default {
           this.redeemResult = null
         }, 3000)
       }
+    },
+    handleMeditationClick() {
+      if (!this.meditationUnlocked) {
+        alert('需要通关锁妖塔10层才能解锁打坐功能')
+        return
+      }
+      this.showMeditation = true
     },
     handleBreakthrough() {
       const result = attemptBreakthrough()

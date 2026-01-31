@@ -73,6 +73,8 @@
               :key="index"
               class="combatant monster-side"
               :class="{ dead: monster.currentHp <= 0 }"
+              @mouseenter="showMonsterTooltip($event, monster)"
+              @mouseleave="hideMonsterTooltip"
             >
               <div class="combatant-name">
                 <span class="monster-index">{{ index + 1 }}.</span>
@@ -140,6 +142,68 @@
       </div>
     </div>
 
+    <!-- 怪物属性提示框 -->
+    <div
+      v-if="tooltipMonster"
+      class="monster-tooltip"
+      :style="{ top: tooltipY + 'px', left: tooltipX + 'px' }"
+    >
+      <div class="tooltip-header">
+        <span class="tooltip-name">Lv.{{ tooltipMonster.level }} {{ tooltipMonster.name }}</span>
+      </div>
+      <div class="tooltip-stats">
+        <div class="stat-row">
+          <span class="stat-label">生命值</span>
+          <span class="stat-value hp">{{ tooltipMonster.currentHp }} / {{ tooltipMonster.hp }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">攻击力</span>
+          <span class="stat-value atk">{{ tooltipMonster.attack }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">防御力</span>
+          <span class="stat-value def">{{ tooltipMonster.defense }}</span>
+        </div>
+      </div>
+      <div class="tooltip-special">
+        <div class="stat-row">
+          <span class="stat-label">暴击率</span>
+          <span class="stat-value crit">{{ (tooltipMonster.critRate || 0).toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">闪避率</span>
+          <span class="stat-value dodge">{{ (tooltipMonster.dodge || 0).toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">穿透</span>
+          <span class="stat-value pen">{{ (tooltipMonster.penetration || 0).toFixed(1) }}%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">吸血</span>
+          <span class="stat-value lifesteal">{{ (tooltipMonster.lifesteal || 0).toFixed(1) }}%</span>
+        </div>
+      </div>
+      <div class="tooltip-skills" v-if="tooltipMonster.skills && tooltipMonster.skills.length > 0">
+        <div class="skills-title">技能</div>
+        <div v-for="skill in tooltipMonster.skills" :key="skill.id" class="skill-item">
+          <span class="skill-name">{{ skill.name }}</span>
+          <span class="skill-desc">{{ skill.description }}</span>
+        </div>
+      </div>
+      <div class="tooltip-buffs" v-if="hasBuffs(tooltipMonster)">
+        <div class="buffs-title">增益效果</div>
+        <div v-for="(buff, key) in tooltipMonster.buffs" :key="key" class="buff-item buff">
+          {{ getBuffName(key) }}: {{ formatBuffValue(buff) }}
+        </div>
+      </div>
+      <div class="tooltip-debuffs" v-if="hasDebuffs(tooltipMonster)">
+        <div class="debuffs-title">减益效果</div>
+        <div v-for="(debuff, key) in tooltipMonster.debuffs" :key="key" class="buff-item debuff">
+          {{ getDebuffName(key) }}: {{ formatDebuffValue(debuff) }}
+        </div>
+      </div>
+    </div>
+
     <!-- 掉落表弹窗 -->
     <div v-if="showDropTable" class="modal-overlay" @click.self="showDropTable = false">
       <div class="drop-table-modal">
@@ -200,7 +264,10 @@ export default {
     return {
       maps,
       showDropTable: false,
-      towerConfig
+      towerConfig,
+      tooltipMonster: null,
+      tooltipX: 0,
+      tooltipY: 0
     }
   },
   computed: {
@@ -346,6 +413,82 @@ export default {
       // 装备掉落率基于怪物等级: Math.min(25, 8 + lvl * 0.3)
       const avgLevel = (map.levelRange[0] + map.levelRange[1]) / 2
       return Math.min(25, 8 + avgLevel * 0.3).toFixed(1)
+    },
+    showMonsterTooltip(event, monster) {
+      this.tooltipMonster = monster
+      // 计算tooltip位置
+      const rect = event.target.getBoundingClientRect()
+      this.tooltipX = rect.right + 10
+      this.tooltipY = rect.top
+      // 防止超出屏幕右边
+      if (this.tooltipX + 280 > window.innerWidth) {
+        this.tooltipX = rect.left - 290
+      }
+      // 防止超出屏幕底部
+      if (this.tooltipY + 300 > window.innerHeight) {
+        this.tooltipY = window.innerHeight - 310
+      }
+    },
+    hideMonsterTooltip() {
+      this.tooltipMonster = null
+    },
+    hasBuffs(monster) {
+      return monster.buffs && Object.keys(monster.buffs).length > 0
+    },
+    hasDebuffs(monster) {
+      return monster.debuffs && Object.keys(monster.debuffs).length > 0
+    },
+    getBuffName(key) {
+      const names = {
+        attack: '攻击提升',
+        attackBuff: '攻击提升',
+        defense: '防御提升',
+        defenseBuff: '防御提升',
+        critRate: '暴击提升',
+        critBuff: '暴击提升',
+        shield: '护盾',
+        lifesteal: '吸血',
+        dodge: '闪避提升',
+        hp: '生命提升',
+        regen: '生命回复'
+      }
+      return names[key] || key
+    },
+    getDebuffName(key) {
+      const names = {
+        vulnerable: '易伤',
+        weakened: '虚弱',
+        poisoned: '中毒',
+        frozen: '冰冻',
+        stunned: '眩晕',
+        marked: '标记',
+        bleed: '流血',
+        burn: '灼烧',
+        slow: '减速'
+      }
+      return names[key] || key
+    },
+    formatBuffValue(buff) {
+      // buff 可能是数值或对象
+      if (typeof buff === 'number') {
+        return `+${buff}%`
+      } else if (typeof buff === 'object' && buff !== null) {
+        const value = buff.value !== undefined ? `+${buff.value}%` : ''
+        const duration = buff.duration !== undefined ? ` (${buff.duration}回合)` : ''
+        return value + duration
+      }
+      return ''
+    },
+    formatDebuffValue(debuff) {
+      // debuff 可能是数值或对象
+      if (typeof debuff === 'number') {
+        return `${debuff}%`
+      } else if (typeof debuff === 'object' && debuff !== null) {
+        const value = debuff.value !== undefined ? `${debuff.value}%` : ''
+        const duration = debuff.duration !== undefined ? ` (${debuff.duration}回合)` : ''
+        return value + duration
+      }
+      return ''
     }
   }
 }
@@ -658,6 +801,15 @@ export default {
 .log-line.danger { color: #e74c3c; }
 .log-line.warning { color: #f39c12; }
 .log-line.normal { color: #95a5a6; }
+.log-line.critical {
+  color: #ff4757;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(255, 71, 87, 0.5);
+}
+.log-line.heal { color: #7bed9f; }
+.log-line.buff { color: #70a1ff; }
+.log-line.debuff { color: #ff6b81; }
+.log-line.info { color: #a29bfe; }
 
 .log-empty {
   color: #555;
@@ -885,5 +1037,131 @@ export default {
 .current-tower-floor .floor-number {
   color: #ffd700;
   font-size: 1.2em;
+}
+
+/* 怪物属性提示框样式 */
+.monster-tooltip {
+  position: fixed;
+  z-index: 2000;
+  background: linear-gradient(135deg, #1a1a2e 0%, #2a2a4a 100%);
+  border: 2px solid #e74c3c;
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 250px;
+  max-width: 280px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.tooltip-header {
+  border-bottom: 1px solid #4a4a6a;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.tooltip-name {
+  color: #ff6b6b;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.tooltip-stats {
+  margin-bottom: 10px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 0.9em;
+}
+
+.stat-label {
+  color: #888;
+}
+
+.stat-value {
+  font-weight: bold;
+}
+
+.stat-value.hp { color: #e74c3c; }
+.stat-value.atk { color: #f39c12; }
+.stat-value.def { color: #3498db; }
+.stat-value.crit { color: #e74c3c; }
+.stat-value.dodge { color: #2ecc71; }
+.stat-value.pen { color: #9b59b6; }
+.stat-value.lifesteal { color: #e91e63; }
+
+.tooltip-special {
+  border-top: 1px dashed #4a4a6a;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.tooltip-skills {
+  border-top: 1px solid #4a4a6a;
+  padding-top: 8px;
+  margin-bottom: 8px;
+}
+
+.skills-title, .buffs-title, .debuffs-title {
+  color: #ffd700;
+  font-size: 0.85em;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.skill-item {
+  padding: 4px 0;
+  border-bottom: 1px dashed #3a3a5a;
+}
+
+.skill-item:last-child {
+  border-bottom: none;
+}
+
+.skill-name {
+  color: #87ceeb;
+  font-weight: bold;
+  font-size: 0.85em;
+  display: block;
+}
+
+.skill-desc {
+  color: #aaa;
+  font-size: 0.75em;
+  display: block;
+  margin-top: 2px;
+}
+
+.tooltip-buffs, .tooltip-debuffs {
+  border-top: 1px solid #4a4a6a;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.buff-item {
+  font-size: 0.8em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 3px;
+}
+
+.buff-item.buff {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+}
+
+.buff-item.debuff {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
+.monster-side {
+  cursor: pointer;
+}
+
+.monster-side:hover {
+  background: rgba(255, 107, 107, 0.1);
 }
 </style>

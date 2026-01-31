@@ -110,12 +110,272 @@ export const equipTemplates = {
 
 // 装备名称后缀
 export const equipSuffixes = {
-  armor: ['布衣', '皮甲', '锁甲', '玄甲', '宝衣', '仙袍', '神衣', '天衣'],
-  helmet: ['布巾', '头环', '发冠', '宝冠', '仙冠', '神冕', '天冠', '帝冕'],
-  ring: ['铜戒', '银戒', '金戒', '玉戒', '灵戒', '仙戒', '神戒', '天戒'],
-  necklace: ['麻绳', '铜链', '银链', '金链', '玉链', '灵链', '仙链', '神链'],
-  boots: ['草鞋', '布靴', '皮靴', '铁靴', '玄靴', '灵靴', '仙靴', '神靴'],
-  artifact: ['木符', '玉佩', '铜镜', '灵珠', '宝塔', '仙剑', '神印', '混沌珠']
+  armor: ['布衣', '皮甲', '锁甲', '玄甲', '宝衣', '仙袍', '神衣', '天衣', '圣袍', '混沌衣'],
+  helmet: ['布巾', '头环', '发冠', '宝冠', '仙冠', '神冕', '天冠', '帝冕', '圣冕', '混沌冠'],
+  ring: ['铜戒', '银戒', '金戒', '玉戒', '灵戒', '仙戒', '神戒', '天戒', '圣戒', '混沌戒'],
+  necklace: ['麻绳', '铜链', '银链', '金链', '玉链', '灵链', '仙链', '神链', '圣链', '混沌链'],
+  boots: ['草鞋', '布靴', '皮靴', '铁靴', '玄靴', '灵靴', '仙靴', '神靴', '圣靴', '混沌靴'],
+  artifact: ['木符', '玉佩', '铜镜', '灵珠', '宝塔', '仙剑', '神印', '混沌珠', '圣物', '鸿蒙珠']
+}
+
+// ==================== 装备子类型系统 ====================
+// 每种装备槽位有多个子类型，提供不同的属性加成方向
+
+export const armorSubTypes = {
+  cloth: {
+    name: '布甲',
+    description: '轻便灵活，提升闪避',
+    statBonus: { dodge: 0.15, hp: -0.1 },
+    prefixes: ['轻灵', '风行', '云游', '幻影', '虚空']
+  },
+  leather: {
+    name: '皮甲',
+    description: '攻守兼备，平衡之选',
+    statBonus: { hp: 0.1, attack: 0.05 },
+    prefixes: ['猎手', '游侠', '刺客', '暗夜', '疾风']
+  },
+  heavy: {
+    name: '重甲',
+    description: '坚固厚重，防御极强',
+    statBonus: { defense: 0.3, hp: 0.15, dodge: -0.1 },
+    prefixes: ['铁壁', '磐石', '不动', '金刚', '泰山']
+  }
+}
+
+export const helmetSubTypes = {
+  crown: {
+    name: '法冠',
+    description: '蕴含法力，提升暴击伤害',
+    statBonus: { critDamage: 0.2, attack: 0.05 },
+    prefixes: ['智慧', '启迪', '灵光', '天启', '至高']
+  },
+  helm: {
+    name: '战盔',
+    description: '坚固护头，提升防御',
+    statBonus: { defense: 0.2, hp: 0.1 },
+    prefixes: ['勇士', '战神', '征服', '霸王', '无畏']
+  },
+  mask: {
+    name: '面具',
+    description: '神秘莫测，提升闪避',
+    statBonus: { dodge: 0.12, critRate: 0.08 },
+    prefixes: ['幻面', '鬼面', '影面', '魔面', '神面']
+  }
+}
+
+export const ringSubTypes = {
+  attack: {
+    name: '战戒',
+    description: '凝聚战意，提升攻击',
+    statBonus: { attack: 0.15, critRate: 0.05 },
+    prefixes: ['狂战', '嗜血', '杀戮', '毁灭', '灭世']
+  },
+  defense: {
+    name: '守戒',
+    description: '护体之力，提升防御',
+    statBonus: { defense: 0.15, hp: 0.08 },
+    prefixes: ['守护', '坚韧', '不屈', '永固', '万古']
+  },
+  special: {
+    name: '秘戒',
+    description: '蕴含特殊之力',
+    statBonus: { penetration: 0.1, lifesteal: 0.05 },
+    prefixes: ['秘法', '奥术', '神秘', '太古', '混沌']
+  }
+}
+
+export const necklaceSubTypes = {
+  spirit: {
+    name: '灵珠链',
+    description: '灵气汇聚，提升攻击',
+    statBonus: { attack: 0.12, critDamage: 0.1 },
+    prefixes: ['聚灵', '凝气', '引灵', '吸元', '夺天']
+  },
+  guard: {
+    name: '护心链',
+    description: '守护心脉，提升生命',
+    statBonus: { hp: 0.15, damageReduction: 0.05 },
+    prefixes: ['护心', '养神', '固本', '培元', '长生']
+  },
+  ward: {
+    name: '辟邪链',
+    description: '驱邪避害，提升抗性',
+    statBonus: { critResist: 0.15, defense: 0.05 },
+    prefixes: ['辟邪', '镇魔', '伏妖', '降魔', '灭邪']
+  }
+}
+
+export const bootsSubTypes = {
+  light: {
+    name: '轻靴',
+    description: '轻盈迅捷，闪避极高',
+    statBonus: { dodge: 0.2, hit: 0.05 },
+    prefixes: ['疾风', '闪电', '流光', '幻影', '瞬移']
+  },
+  war: {
+    name: '战靴',
+    description: '稳健有力，攻防兼备',
+    statBonus: { defense: 0.1, attack: 0.05, hp: 0.05 },
+    prefixes: ['战神', '征服', '铁蹄', '践踏', '碾压']
+  },
+  spirit: {
+    name: '灵靴',
+    description: '灵动飘逸，命中精准',
+    statBonus: { hit: 0.15, critRate: 0.05 },
+    prefixes: ['踏云', '凌波', '御风', '乘龙', '逐日']
+  }
+}
+
+export const artifactSubTypes = {
+  attack: {
+    name: '杀伐法宝',
+    description: '蕴含杀伐之力，攻击暴击双增',
+    statBonus: { attack: 0.1, critRate: 0.08, critDamage: 0.15 },
+    prefixes: ['诛仙', '斩神', '弑魔', '屠龙', '灭世']
+  },
+  defense: {
+    name: '护体法宝',
+    description: '护体保命，防御生命双增',
+    statBonus: { defense: 0.1, hp: 0.12, damageReduction: 0.03 },
+    prefixes: ['护法', '金身', '不灭', '永恒', '万劫']
+  },
+  balance: {
+    name: '混元法宝',
+    description: '阴阳调和，诸般属性均衡',
+    statBonus: { attack: 0.05, defense: 0.05, hp: 0.05, critRate: 0.03, dodge: 0.03 },
+    prefixes: ['太极', '混元', '无极', '鸿蒙', '造化']
+  }
+}
+
+// ==================== 装备特效系统 ====================
+
+export const equipmentEffects = {
+  reflect: {
+    name: '反伤',
+    description: '反弹受到伤害的一部分',
+    valueRange: [5, 15],
+    icon: '🔄'
+  },
+  lifesteal: {
+    name: '吸血',
+    description: '攻击时回复生命',
+    valueRange: [3, 10],
+    icon: '🩸'
+  },
+  shield: {
+    name: '护盾',
+    description: '战斗开始获得护盾',
+    valueRange: [5, 15],
+    icon: '🛡️'
+  },
+  lightning: {
+    name: '雷击',
+    description: '攻击时有概率造成额外伤害',
+    valueRange: [10, 25],
+    icon: '⚡'
+  },
+  freeze: {
+    name: '冰冻',
+    description: '攻击时有概率降低敌人闪避',
+    valueRange: [5, 15],
+    icon: '❄️'
+  },
+  burn: {
+    name: '灼烧',
+    description: '攻击时有概率造成持续伤害',
+    valueRange: [3, 8],
+    icon: '🔥'
+  },
+  heal: {
+    name: '回春',
+    description: '每回合回复生命',
+    valueRange: [1, 5],
+    icon: '💚'
+  },
+  critical: {
+    name: '致命',
+    description: '暴击时额外提升暴击伤害',
+    valueRange: [10, 30],
+    icon: '💥'
+  },
+  penetrate: {
+    name: '破甲',
+    description: '无视敌人部分防御',
+    valueRange: [5, 15],
+    icon: '🗡️'
+  },
+  dodge: {
+    name: '幻影',
+    description: '受到攻击时有概率闪避',
+    valueRange: [3, 10],
+    icon: '💨'
+  }
+}
+
+// ==================== 装备套装系统 ====================
+
+export const equipmentSets = {
+  xuanwu: {
+    name: '玄武套装',
+    description: '玄武守护，防御为王',
+    color: '#3498db',
+    pieces: ['armor', 'helmet', 'boots'],
+    bonuses: {
+      2: { hp: 10, defense: 10, description: '生命+10%, 防御+10%' },
+      3: { hp: 15, defense: 20, damageReduction: 5, description: '生命+15%, 防御+20%, 伤害减免+5%' }
+    }
+  },
+  zhuque: {
+    name: '朱雀套装',
+    description: '朱雀之焰，攻击至上',
+    color: '#e74c3c',
+    pieces: ['weapon', 'ring', 'necklace'],
+    bonuses: {
+      2: { attack: 12, critRate: 5, description: '攻击+12%, 暴击+5%' },
+      3: { attack: 20, critRate: 10, critDamage: 15, description: '攻击+20%, 暴击+10%, 暴伤+15%' }
+    }
+  },
+  qinglong: {
+    name: '青龙套装',
+    description: '青龙之力，攻守兼备',
+    color: '#2ecc71',
+    pieces: ['weapon', 'armor', 'artifact'],
+    bonuses: {
+      2: { attack: 8, defense: 8, description: '攻击+8%, 防御+8%' },
+      3: { attack: 15, defense: 15, hp: 10, description: '攻击+15%, 防御+15%, 生命+10%' }
+    }
+  },
+  baihu: {
+    name: '白虎套装',
+    description: '白虎狂啸，爆发惊人',
+    color: '#f39c12',
+    pieces: ['weapon', 'helmet', 'ring'],
+    bonuses: {
+      2: { critDamage: 15, penetration: 8, description: '暴伤+15%, 穿透+8%' },
+      3: { critDamage: 30, penetration: 15, critRate: 8, description: '暴伤+30%, 穿透+15%, 暴击+8%' }
+    }
+  },
+  qilin: {
+    name: '麒麟套装',
+    description: '麒麟献瑞，全能之选',
+    color: '#9b59b6',
+    pieces: ['necklace', 'boots', 'artifact'],
+    bonuses: {
+      2: { hp: 5, attack: 5, defense: 5, description: '生命+5%, 攻击+5%, 防御+5%' },
+      3: { hp: 10, attack: 10, defense: 10, critRate: 5, dodge: 5, description: '全属性+10%, 暴击+5%, 闪避+5%' }
+    }
+  },
+  hundun: {
+    name: '混沌套装',
+    description: '混沌之力，超越极限',
+    color: '#8e44ad',
+    pieces: ['weapon', 'armor', 'helmet', 'ring', 'necklace', 'boots', 'artifact'],
+    bonuses: {
+      3: { attack: 10, defense: 10, hp: 10, description: '攻击+10%, 防御+10%, 生命+10%' },
+      5: { attack: 20, defense: 20, hp: 20, critRate: 10, description: '攻击+20%, 防御+20%, 生命+20%, 暴击+10%' },
+      7: { attack: 35, defense: 35, hp: 35, critRate: 15, critDamage: 25, penetration: 10, description: '全属性+35%, 暴击+15%, 暴伤+25%, 穿透+10%' }
+    }
+  }
 }
 
 // 怪物技能库
@@ -172,7 +432,15 @@ const mapDifficultyMultiplier = {
   '天魔战场': 8.0,
   '混沌裂隙': 11.0,
   '上古遗迹': 15.0,
-  '天道试炼': 20.0
+  '天道试炼': 20.0,
+  // 60-100级新地图
+  '神魔战场': 28.0,
+  '九幽冥界': 38.0,
+  '仙界边境': 52.0,
+  '太虚星域': 70.0,
+  '万妖圣地': 95.0,
+  '诸天神域': 130.0,
+  '鸿蒙秘境': 180.0
 }
 
 // 生成怪物数据（1-60级）
@@ -195,7 +463,18 @@ function generateMonsters() {
     { level: [47, 50], names: ['天魔将军', '地狱公爵', '混沌使者'], location: '混沌裂隙' },
     { level: [51, 53], names: ['远古巨龙', '不死凤凰', '万年玄龟'], location: '上古遗迹' },
     { level: [54, 56], names: ['仙界叛徒', '魔界王子', '妖界皇子'], location: '上古遗迹' },
-    { level: [57, 60], names: ['混沌兽', '天道傀儡', '轮回守卫'], location: '天道试炼' }
+    { level: [57, 60], names: ['混沌兽', '天道傀儡', '轮回守卫'], location: '天道试炼' },
+    // 60-100级新怪物
+    { level: [61, 64], names: ['神战遗灵', '魔战亡魂', '天罚使者'], location: '神魔战场' },
+    { level: [65, 68], names: ['九幽鬼王', '冥河判官', '阴司阎罗'], location: '九幽冥界' },
+    { level: [69, 72], names: ['幽冥龙蛇', '地狱三头犬', '冥界死神'], location: '九幽冥界' },
+    { level: [73, 76], names: ['仙界门卫', '云霄仙使', '天兵天将'], location: '仙界边境' },
+    { level: [77, 80], names: ['堕落仙人', '叛逆神将', '噬天魔君'], location: '仙界边境' },
+    { level: [81, 84], names: ['星辰巨兽', '虚空吞噬者', '星域守护'], location: '太虚星域' },
+    { level: [85, 88], names: ['混沌星魔', '太虚幻灵', '星河古龙'], location: '太虚星域' },
+    { level: [89, 92], names: ['万妖之主', '妖皇分身', '至尊妖帝'], location: '万妖圣地' },
+    { level: [93, 96], names: ['诸天神使', '护法金刚', '天界战神'], location: '诸天神域' },
+    { level: [97, 100], names: ['鸿蒙巨兽', '太初神魔', '混沌始祖'], location: '鸿蒙秘境' }
   ]
 
   const monsters = []
@@ -220,6 +499,11 @@ function generateMonsters() {
           hp: Math.floor(baseHp * beginnerMult * mapMult),
           attack: Math.floor(baseAtk * beginnerMult * mapMult),
           defense: Math.floor(baseDef * beginnerMult * mapMult),
+          // 特殊属性：固定随机范围
+          critRate: Math.floor(Math.random() * 60) + 1,      // 暴击率 1%-60%
+          dodge: Math.floor(Math.random() * 40) + 1,         // 闪避率 1%-40%
+          penetration: Math.floor(Math.random() * 25) + 1,   // 穿透 1%-25%
+          lifesteal: Math.floor(Math.random() * 20) + 1,     // 吸血 1%-20%
           exp: Math.floor(15 + lvl * 6 + Math.pow(lvl, 1.3)),
           gold: Math.floor(8 + lvl * 4 + Math.pow(lvl, 1.2)),
           dropRate: Math.min(25, 8 + lvl * 0.3),
@@ -244,7 +528,15 @@ function generateMaps() {
     { id: 8, name: '天魔战场', description: '远古天魔大战之地，残留无数亡魂', levelRange: [41, 46], requiredLevel: 41 },
     { id: 9, name: '混沌裂隙', description: '连接混沌虚空的裂缝，极其危险', levelRange: [47, 50], requiredLevel: 47 },
     { id: 10, name: '上古遗迹', description: '上古大能陨落之地，机缘与危机并存', levelRange: [51, 56], requiredLevel: 51 },
-    { id: 11, name: '天道试炼', description: '天道设下的终极试炼，唯强者可入', levelRange: [57, 60], requiredLevel: 57 }
+    { id: 11, name: '天道试炼', description: '天道设下的终极试炼，唯强者可入', levelRange: [57, 60], requiredLevel: 57 },
+    // 60-100级新地图
+    { id: 12, name: '神魔战场', description: '上古神魔大战遗址，充满残留的神魔之力', levelRange: [61, 68], requiredLevel: 61 },
+    { id: 13, name: '九幽冥界', description: '通往冥界的入口，阴气森森，亡魂游荡', levelRange: [65, 72], requiredLevel: 65 },
+    { id: 14, name: '仙界边境', description: '凡仙交界之地，仙气与魔气交汇', levelRange: [73, 80], requiredLevel: 73 },
+    { id: 15, name: '太虚星域', description: '星辰之力汇聚的虚空领域，蕴含无尽奥秘', levelRange: [81, 88], requiredLevel: 81 },
+    { id: 16, name: '万妖圣地', description: '妖族圣地，万妖朝拜之所，妖气冲天', levelRange: [85, 92], requiredLevel: 85 },
+    { id: 17, name: '诸天神域', description: '诸天神明的领域，神威浩荡', levelRange: [93, 96], requiredLevel: 93 },
+    { id: 18, name: '鸿蒙秘境', description: '宇宙诞生之初的混沌之地，蕴含天地至理', levelRange: [97, 100], requiredLevel: 97 }
   ]
 
   const allMonsters = generateMonsters()
@@ -300,6 +592,11 @@ export function generateTowerFloorMonsters(floor) {
       hp: Math.floor(baseHp * difficultyMult),
       attack: Math.floor(baseAtk * difficultyMult),
       defense: Math.floor(baseDef * difficultyMult),
+      // 特殊属性：锁妖塔怪物更强（固定随机范围）
+      critRate: Math.floor(Math.random() * 61) + 20,    // 暴击率 20%-80%
+      dodge: Math.floor(Math.random() * 21) + 20,       // 闪避率 20%-40%
+      penetration: Math.floor(Math.random() * 21) + 20, // 穿透 20%-40%
+      lifesteal: Math.floor(Math.random() * 11) + 10,   // 吸血 10%-20%
       exp: Math.floor((20 + floor * 8) * difficultyMult),
       gold: Math.floor((15 + floor * 5) * difficultyMult),
       dropRate: Math.min(30, 10 + floor * 0.5), // 锁妖塔掉落率更高
@@ -1135,6 +1432,377 @@ export const skills = [
     petExclusive: true,
     isHidden: true
   },
+  // ========== 60-100级新宠物专属技能 (ID: 117-130) ==========
+  {
+    id: 117,
+    name: '战魂冲击',
+    description: '释放战魂之力，造成220%伤害，攻击力越低伤害越高',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 2.2,
+    effect: 'berserker',
+    cooldown: 4,
+    petExclusive: true
+  },
+  {
+    id: 118,
+    name: '魔神之怒',
+    description: '无视50%防御的魔神攻击，造成200%伤害',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 2.0,
+    effect: 'armorPierce',
+    penetration: 50,
+    cooldown: 5,
+    petExclusive: true
+  },
+  {
+    id: 119,
+    name: '冥河缠绕',
+    description: '冥河之力缠绕敌人，造成160%伤害并持续流血5回合',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.6,
+    effect: 'bleed',
+    effectValue: 8,
+    effectDuration: 5,
+    cooldown: 4,
+    petExclusive: true
+  },
+  {
+    id: 120,
+    name: '阎罗审判',
+    description: '判官之力降临，3回合内敌人受到伤害增加35%',
+    type: 'petSkill',
+    rarity: 'epic',
+    maxLevel: 10,
+    effect: 'judgement',
+    effectValue: 35,
+    effectDuration: 3,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 121,
+    name: '仙鹤祝福',
+    description: '仙鹤祝福主人，恢复25%最大生命并净化负面效果',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'healAndPurify',
+    healValue: 25,
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 122,
+    name: '天兵守护',
+    description: '天兵护体，为主人生成相当于宠物80%生命的护盾',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'ownerShield',
+    effectValue: 80,
+    cooldown: 8,
+    petExclusive: true
+  },
+  {
+    id: 123,
+    name: '星辰轰炸',
+    description: '召唤星辰轰击所有敌人，造成240%伤害',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 2.4,
+    effect: 'aoe',
+    hitCount: 99,
+    cooldown: 5,
+    petExclusive: true
+  },
+  {
+    id: 124,
+    name: '虚空吞噬',
+    description: '吞噬敌人生命，造成180%伤害并回复100%伤害的生命',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 1.8,
+    effect: 'lifesteal',
+    effectValue: 100,
+    cooldown: 5,
+    petExclusive: true
+  },
+  {
+    id: 125,
+    name: '九尾幻术',
+    description: '释放幻术，50%几率魅惑所有敌人2回合',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'massCharm',
+    effectValue: 50,
+    effectDuration: 2,
+    hitCount: 99,
+    cooldown: 8,
+    petExclusive: true
+  },
+  {
+    id: 126,
+    name: '妖皇威压',
+    description: '释放妖皇威压，所有敌人攻防降低40%持续3回合',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'royalPressure',
+    attackReduction: 40,
+    defenseReduction: 40,
+    effectDuration: 3,
+    hitCount: 99,
+    cooldown: 7,
+    petExclusive: true
+  },
+  {
+    id: 127,
+    name: '金刚不坏',
+    description: '金刚护体，3回合内受到伤害降低50%',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'ironBody',
+    damageReduction: 50,
+    effectDuration: 3,
+    cooldown: 8,
+    petExclusive: true
+  },
+  {
+    id: 128,
+    name: '神域雷霆',
+    description: '召唤神域雷霆，对所有敌人造成280%伤害并眩晕1回合',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 2.8,
+    effect: 'aoeStun',
+    stunDuration: 1,
+    hitCount: 99,
+    cooldown: 7,
+    petExclusive: true
+  },
+  {
+    id: 129,
+    name: '鸿蒙之力',
+    description: '释放鸿蒙原始之力，造成300%混沌伤害并随机附加多种效果',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 3.0,
+    effect: 'primordialChaos',
+    cooldown: 6,
+    petExclusive: true
+  },
+  {
+    id: 130,
+    name: '太初创世',
+    description: '太初神兽的究极技能，造成500%毁天灭地的伤害',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    baseDamageMultiplier: 5.0,
+    cooldown: 10,
+    petExclusive: true
+  },
+  // ========== 60-100级新宠物隐藏技能 (ID: 217-230) ==========
+  {
+    id: 217,
+    name: '战魂不灭',
+    description: '战斗时首次死亡会复活并恢复50%生命',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'revive',
+    reviveHp: 50,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 218,
+    name: '魔神领域',
+    description: '展开魔神领域，所有攻击无视30%防御',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'passivePenetration',
+    penetration: 30,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 219,
+    name: '冥河诅咒',
+    description: '攻击时有30%几率使敌人受到的伤害增加50%持续2回合',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'passiveCurse',
+    curseChance: 30,
+    curseValue: 50,
+    effectDuration: 2,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 220,
+    name: '轮回审判',
+    description: '每次攻击有20%几率造成双倍伤害',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'doubleDamageChance',
+    chance: 20,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 221,
+    name: '仙鹤长生',
+    description: '每回合恢复宠物和主人5%最大生命',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'passiveRegen',
+    regenValue: 5,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 222,
+    name: '天兵铁壁',
+    description: '永久减少宠物和主人受到的伤害15%',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'passiveDamageReduction',
+    reduction: 15,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 223,
+    name: '星辰之力',
+    description: '暴击率+20%，暴击伤害+40%',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'passiveCrit',
+    critRate: 20,
+    critDamage: 40,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 224,
+    name: '虚空血契',
+    description: '吸血效果提升100%',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'lifestealBoost',
+    boostValue: 100,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 225,
+    name: '天狐魅影',
+    description: '闪避率+25%，被闪避时反击造成100%伤害',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'dodgeCounter',
+    dodgeBonus: 25,
+    counterDamage: 100,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 226,
+    name: '万妖臣服',
+    description: '攻击时有25%几率使敌人恐惧，跳过1回合',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'fear',
+    fearChance: 25,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 227,
+    name: '金刚怒目',
+    description: '受到攻击时反弹30%伤害',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'thorns',
+    reflectDamage: 30,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 228,
+    name: '神域加护',
+    description: '所有属性提升15%',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'allStatsBoost',
+    boostValue: 15,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 229,
+    name: '鸿蒙混沌',
+    description: '攻击时随机触发一种强力效果：眩晕/减防/吸血/双倍伤害',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'randomPowerful',
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
+  {
+    id: 230,
+    name: '创世神威',
+    description: '攻击力、暴击率、暴击伤害各+30%，击杀敌人恢复20%生命',
+    type: 'petSkill',
+    rarity: 'legendary',
+    maxLevel: 10,
+    effect: 'godPower',
+    attackBonus: 30,
+    critRateBonus: 30,
+    critDamageBonus: 30,
+    killHeal: 20,
+    cooldown: 0,
+    petExclusive: true,
+    isHidden: true
+  },
   // ========== 宠物可学习技能 (ID: 301-324) ==========
   // 通过宠物技能书获得，所有宠物都可以学习
   // 初级档位 - 被动技能 (301-307)
@@ -1531,6 +2199,80 @@ export function rollSkillBookDrop(mapId) {
   return null
 }
 
+// 获取装备子类型配置
+function getSubTypeConfig(slotType) {
+  const subTypeMap = {
+    armor: armorSubTypes,
+    helmet: helmetSubTypes,
+    ring: ringSubTypes,
+    necklace: necklaceSubTypes,
+    boots: bootsSubTypes,
+    artifact: artifactSubTypes
+  }
+  return subTypeMap[slotType] || null
+}
+
+// 随机获取装备特效（高品质装备有更高概率获得特效）
+function rollEquipmentEffect(quality, level) {
+  // 特效概率：普通5%, 优秀10%, 精良20%, 史诗40%, 传说70%
+  const effectChance = {
+    white: 5,
+    green: 10,
+    blue: 20,
+    purple: 40,
+    orange: 70
+  }
+
+  if (Math.random() * 100 >= effectChance[quality]) {
+    return null
+  }
+
+  const effectKeys = Object.keys(equipmentEffects)
+  const effectKey = effectKeys[Math.floor(Math.random() * effectKeys.length)]
+  const effectConfig = equipmentEffects[effectKey]
+
+  // 效果值随等级和品质增强
+  const qualityMult = qualityConfig[quality].statMultiplier
+  const levelMult = 1 + level / 100
+  const baseValue = effectConfig.valueRange[0] + Math.random() * (effectConfig.valueRange[1] - effectConfig.valueRange[0])
+  const value = Math.round(baseValue * qualityMult * levelMult * 10) / 10
+
+  return {
+    type: effectKey,
+    name: effectConfig.name,
+    description: effectConfig.description,
+    value,
+    icon: effectConfig.icon
+  }
+}
+
+// 检测装备是否属于某个套装
+function detectSetBelonging(slotType, subType, quality) {
+  // 只有精良及以上品质才能成为套装
+  if (!['blue', 'purple', 'orange'].includes(quality)) {
+    return null
+  }
+
+  // 30%概率成为套装装备
+  if (Math.random() > 0.3) {
+    return null
+  }
+
+  // 找到可以包含该槽位的套装
+  const eligibleSets = Object.entries(equipmentSets).filter(([_, set]) =>
+    set.pieces.includes(slotType)
+  )
+
+  if (eligibleSets.length === 0) return null
+
+  const [setKey, setData] = eligibleSets[Math.floor(Math.random() * eligibleSets.length)]
+  return {
+    setId: setKey,
+    setName: setData.name,
+    setColor: setData.color
+  }
+}
+
 // 生成装备函数
 export function generateEquipment(level, slotType, forceQuality = null) {
   let quality = forceQuality
@@ -1551,48 +2293,101 @@ export function generateEquipment(level, slotType, forceQuality = null) {
   const template = equipTemplates[slotType]
   const slot = equipSlots[slotType]
 
-  // 计算属性
+  // 计算基础属性
   const stats = {}
   for (const [stat, perLevel] of Object.entries(template)) {
     const value = perLevel * level * qualityData.statMultiplier
     stats[stat] = stat === 'dropRate' ? Math.round(value * 10) / 10 : Math.floor(value)
   }
 
-  // 生成名称
+  // 生成名称和子类型
   let name = ''
   let weaponType = null
+  let subType = null
+  let subTypeData = null
 
   if (slotType === 'weapon') {
+    // 武器使用武器类型系统
     const types = Object.keys(weaponTypes)
     const typeKey = types[Math.floor(Math.random() * types.length)]
     weaponType = typeKey
     const type = weaponTypes[typeKey]
     stats[type.secondaryStat] = Math.floor(type.secondaryValue * level * qualityData.statMultiplier * 10) / 10
-    const prefixIndex = Math.min(Math.floor(level / 7), type.prefixes.length - 1)
+    const prefixIndex = Math.min(Math.floor(level / 10), type.prefixes.length - 1)
     name = `${type.prefixes[prefixIndex]}${type.name}`
   } else {
-    const suffixes = equipSuffixes[slotType]
-    const suffixIndex = Math.min(Math.floor(level / 8), suffixes.length - 1)
-    name = suffixes[suffixIndex]
+    // 其他装备使用子类型系统
+    const subTypeConfig = getSubTypeConfig(slotType)
+    if (subTypeConfig) {
+      const subTypeKeys = Object.keys(subTypeConfig)
+      const subTypeKey = subTypeKeys[Math.floor(Math.random() * subTypeKeys.length)]
+      subType = subTypeKey
+      subTypeData = subTypeConfig[subTypeKey]
+
+      // 应用子类型属性加成
+      for (const [stat, bonus] of Object.entries(subTypeData.statBonus)) {
+        if (stats[stat] !== undefined) {
+          stats[stat] = Math.floor(stats[stat] * (1 + bonus))
+        } else if (bonus > 0) {
+          // 新增属性
+          const baseValue = level * bonus * qualityData.statMultiplier
+          stats[stat] = Math.round(baseValue * 10) / 10
+        }
+      }
+
+      // 生成名称
+      const prefixIndex = Math.min(Math.floor(level / 20), subTypeData.prefixes.length - 1)
+      const suffixes = equipSuffixes[slotType]
+      const suffixIndex = Math.min(Math.floor(level / 10), suffixes.length - 1)
+      name = `${subTypeData.prefixes[prefixIndex]}${suffixes[suffixIndex]}`
+    } else {
+      const suffixes = equipSuffixes[slotType]
+      const suffixIndex = Math.min(Math.floor(level / 10), suffixes.length - 1)
+      name = suffixes[suffixIndex]
+    }
   }
 
   // 装备等级要求 = 装备等级 - 5，最低1级
   const requiredLevel = Math.max(1, level - 5)
 
-  return {
+  // 生成特效（高品质、高等级更容易获得）
+  const effect = rollEquipmentEffect(quality, level)
+
+  // 检测套装
+  const setInfo = detectSetBelonging(slotType, subType, quality)
+
+  const equipment = {
     id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     name,
     slotType,
     weaponType,
+    subType,
+    subTypeName: subTypeData ? subTypeData.name : null,
     level,
-    requiredLevel, // 装备需要的等级
+    requiredLevel,
     quality,
     qualityName: qualityData.name,
     qualityColor: qualityData.color,
     stats,
     icon: slot.icon,
-    enhanceLevel: 0 // 强化等级，默认0
+    enhanceLevel: 0
   }
+
+  // 添加特效信息
+  if (effect) {
+    equipment.effect = effect
+    equipment.name = `${effect.icon}${equipment.name}`
+  }
+
+  // 添加套装信息
+  if (setInfo) {
+    equipment.setId = setInfo.setId
+    equipment.setName = setInfo.setName
+    equipment.setColor = setInfo.setColor
+    equipment.name = `【${setInfo.setName}】${equipment.name}`
+  }
+
+  return equipment
 }
 
 // ==================== 装备强化系统 ====================
@@ -1678,7 +2473,28 @@ export const petTypes = [
   { id: 14, name: '星灵', mapId: 7, baseLevel: 55, icon: '✨', role: '增益', fixedSkills: [114], hiddenSkill: 214 },
   // 混沌深渊
   { id: 15, name: '混沌幼兽', mapId: 8, baseLevel: 58, icon: '🌑', role: '混乱', fixedSkills: [115], hiddenSkill: 215 },
-  { id: 16, name: '远古魔神', mapId: 8, baseLevel: 60, icon: '😈', role: '毁灭', fixedSkills: [116], hiddenSkill: 216 }
+  { id: 16, name: '远古魔神', mapId: 8, baseLevel: 60, icon: '😈', role: '毁灭', fixedSkills: [116], hiddenSkill: 216 },
+  // 神魔战场 (mapId: 12)
+  { id: 17, name: '战魂', mapId: 12, baseLevel: 62, icon: '⚔️', role: '狂暴', fixedSkills: [117], hiddenSkill: 217 },
+  { id: 18, name: '魔神残念', mapId: 12, baseLevel: 66, icon: '👿', role: '穿透', fixedSkills: [118], hiddenSkill: 218 },
+  // 九幽冥界 (mapId: 13)
+  { id: 19, name: '冥河灵蛇', mapId: 13, baseLevel: 68, icon: '🐉', role: '持续伤害', fixedSkills: [119], hiddenSkill: 219 },
+  { id: 20, name: '判官鬼', mapId: 13, baseLevel: 72, icon: '👺', role: '减益', fixedSkills: [120], hiddenSkill: 220 },
+  // 仙界边境 (mapId: 14)
+  { id: 21, name: '仙鹤', mapId: 14, baseLevel: 75, icon: '🕊️', role: '治疗', fixedSkills: [121], hiddenSkill: 221 },
+  { id: 22, name: '天兵傀儡', mapId: 14, baseLevel: 78, icon: '🤖', role: '坦克', fixedSkills: [122], hiddenSkill: 222 },
+  // 太虚星域 (mapId: 15)
+  { id: 23, name: '星辰幼兽', mapId: 15, baseLevel: 82, icon: '🌟', role: '群攻', fixedSkills: [123], hiddenSkill: 223 },
+  { id: 24, name: '虚空吞噬者', mapId: 15, baseLevel: 86, icon: '🕳️', role: '吸血', fixedSkills: [124], hiddenSkill: 224 },
+  // 万妖圣地 (mapId: 16)
+  { id: 25, name: '九尾天狐', mapId: 16, baseLevel: 88, icon: '🦊', role: '魅惑', fixedSkills: [125], hiddenSkill: 225 },
+  { id: 26, name: '妖皇分身', mapId: 16, baseLevel: 91, icon: '👑', role: '全能', fixedSkills: [126], hiddenSkill: 226 },
+  // 诸天神域 (mapId: 17)
+  { id: 27, name: '护法金刚', mapId: 17, baseLevel: 94, icon: '🗿', role: '坦克', fixedSkills: [127], hiddenSkill: 227 },
+  { id: 28, name: '神域战灵', mapId: 17, baseLevel: 96, icon: '⚡', role: '爆发', fixedSkills: [128], hiddenSkill: 228 },
+  // 鸿蒙秘境 (mapId: 18)
+  { id: 29, name: '鸿蒙幼兽', mapId: 18, baseLevel: 98, icon: '🌌', role: '混沌', fixedSkills: [129], hiddenSkill: 229 },
+  { id: 30, name: '太初神兽', mapId: 18, baseLevel: 100, icon: '🐲', role: '究极', fixedSkills: [130], hiddenSkill: 230 }
 ]
 
 // 根据地图获取可捕获的宠物
