@@ -157,9 +157,10 @@ export const gameState = Vue.observable({
     towerStartFloor: 1
   },
   logs: [],
-  // 开发用：经验倍率和掉落倍率
+  // 开发用：经验/掉落/金币倍率
   devExpMultiplier: 1,
-  devDropMultiplier: 1
+  devDropMultiplier: 1,
+  devGoldMultiplier: 1
 })
 
 // 获取当前使用的境界表
@@ -2374,11 +2375,12 @@ export function battleRound() {
           targetMonster.currentHp = 0
           gameState.battle.killCount++
 
-          // 奖励（应用经验倍率）
+          // 奖励（应用经验和金币倍率）
           const expGain = targetMonster.exp * gameState.devExpMultiplier
+          const goldGain = targetMonster.gold * gameState.devGoldMultiplier
           gameState.player.exp += expGain
           gameState.player.realmExp += Math.floor(expGain / 4) // 修为获取降低
-          gameState.player.gold += targetMonster.gold
+          gameState.player.gold += goldGain
 
           // 给所有已装备的主动技能增加经验（降低获取量，应用倍率）
           const skillExpGain = Math.floor(expGain / 8)
@@ -2395,7 +2397,7 @@ export function battleRound() {
             addPetExp(activePetForExp.id, Math.floor(expGain / 4))
           }
 
-          addBattleLog(`击败 ${getMonsterNameWithStatus(targetMonster)}！+${expGain}经验 +${targetMonster.gold}灵石`, 'success')
+          addBattleLog(`击败 ${getMonsterNameWithStatus(targetMonster)}！+${expGain}经验 +${goldGain}灵石`, 'success')
 
           // 装备掉落（加上dropRate属性加成和开发倍率）
           const effectiveDropRate = (targetMonster.dropRate + stats.dropRate) * gameState.devDropMultiplier
@@ -3075,16 +3077,17 @@ export function battleRound() {
           petTarget.currentHp = 0
           gameState.battle.killCount++
 
-          // 奖励（应用经验倍率）
+          // 奖励（应用经验和金币倍率）
           const petExpGain = petTarget.exp * gameState.devExpMultiplier
+          const petGoldGain = petTarget.gold * gameState.devGoldMultiplier
           gameState.player.exp += petExpGain
           gameState.player.realmExp += Math.floor(petExpGain / 4)
-          gameState.player.gold += petTarget.gold
+          gameState.player.gold += petGoldGain
 
           // 宠物获得经验（应用倍率）
           addPetExp(activePet.id, Math.floor(petExpGain / 3))
 
-          addBattleLog(`宠物击败 ${getMonsterNameWithStatus(petTarget)}！+${petExpGain}经验 +${petTarget.gold}灵石`, 'success')
+          addBattleLog(`宠物击败 ${getMonsterNameWithStatus(petTarget)}！+${petExpGain}经验 +${petGoldGain}灵石`, 'success')
 
           checkLevelUp()
           checkRealmBreakthrough()
@@ -3954,7 +3957,7 @@ export function addTestEquipment() {
   console.log('测试法宝已装备！')
 }
 
-// 开发测试：切换百倍经验和掉落（仅开发环境可用）
+// 开发测试：切换百倍经验、掉落、金币（仅开发环境可用）
 export function toggleExpMultiplier() {
   if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
     console.log('仅开发环境可用')
@@ -3963,14 +3966,16 @@ export function toggleExpMultiplier() {
   if (gameState.devExpMultiplier === 1) {
     gameState.devExpMultiplier = 100
     gameState.devDropMultiplier = 100
-    addLog('百倍经验+百倍爆率已开启！', 'success')
-    console.log('百倍经验+百倍爆率已开启！')
+    gameState.devGoldMultiplier = 100
+    addLog('百倍经验+百倍爆率+百倍金币已开启！', 'success')
+    console.log('百倍经验+百倍爆率+百倍金币已开启！')
     return true
   } else {
     gameState.devExpMultiplier = 1
     gameState.devDropMultiplier = 1
-    addLog('百倍经验+百倍爆率已关闭', 'normal')
-    console.log('百倍经验+百倍爆率已关闭')
+    gameState.devGoldMultiplier = 1
+    addLog('百倍经验+百倍爆率+百倍金币已关闭', 'normal')
+    console.log('百倍经验+百倍爆率+百倍金币已关闭')
     return false
   }
 }
