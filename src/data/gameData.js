@@ -420,27 +420,27 @@ export function getRandomSkills(level) {
   return selectedSkills
 }
 
-// 地图难度倍率（后期地图怪物更强）
+// 地图难度倍率（后期地图怪物更强，但保持合理范围）
 const mapDifficultyMultiplier = {
   '新手村外': 1,
-  '青云山脚': 1.3,
-  '幽暗森林': 1.8,
-  '妖兽山脉': 2.5,
-  '元素秘境': 3.5,
-  '魔渊边境': 4.5,
-  '魔渊深处': 6.0,
-  '天魔战场': 8.0,
-  '混沌裂隙': 11.0,
-  '上古遗迹': 15.0,
-  '天道试炼': 20.0,
+  '青云山脚': 1.0,
+  '幽暗森林': 1.5,
+  '妖兽山脉': 1.8,
+  '元素秘境': 2.2,
+  '魔渊边境': 2.6,
+  '魔渊深处': 3.0,
+  '天魔战场': 3.5,
+  '混沌裂隙': 4.0,
+  '上古遗迹': 4.5,
+  '天道试炼': 5.0,
   // 60-100级新地图
-  '神魔战场': 28.0,
-  '九幽冥界': 38.0,
-  '仙界边境': 52.0,
-  '太虚星域': 70.0,
-  '万妖圣地': 95.0,
-  '诸天神域': 130.0,
-  '鸿蒙秘境': 180.0
+  '神魔战场': 5.5,
+  '九幽冥界': 6.0,
+  '仙界边境': 10.0,
+  '太虚星域': 12.0,
+  '万妖圣地': 18.0,
+  '诸天神域': 22.0,
+  '鸿蒙秘境': 34.0
 }
 
 // 生成怪物数据（1-60级）
@@ -2513,19 +2513,25 @@ export function calculatePetStats(level, quality, aptitude) {
   const qualityMult = qualityData.statMultiplier
   const aptMult = getAptitudeMultiplier(aptitude)
 
-  // 基础成长值（比玩家低）
-  // 玩家每级: HP+10, 攻击+3, 防御+2
-  // 宠物基础每级: HP+4, 攻击+1.2, 防御+0.8
-  const hpGrowth = 4 * aptMult * qualityMult
-  const atkGrowth = 1.2 * aptMult * qualityMult
-  const defGrowth = 0.8 * aptMult * qualityMult
+  // 等级成长加成（每20级额外+25%成长率）
+  const levelBonus = 1 + Math.floor(level / 20) * 0.25
 
-  // 初始属性 + 等级成长
-  const baseHp = Math.floor(80 + level * hpGrowth)
-  const baseAttack = Math.floor(8 + level * atkGrowth)
-  const baseDefense = Math.floor(4 + level * defGrowth)
+  // 基础成长值（与玩家相近）
+  // 宠物基础每级: HP+8, 攻击+3, 防御+2
+  const hpGrowth = 8 * aptMult * qualityMult * levelBonus
+  const atkGrowth = 3 * aptMult * qualityMult * levelBonus
+  const defGrowth = 2 * aptMult * qualityMult * levelBonus
 
-  return { baseHp, baseAttack, baseDefense }
+  // 初始属性 + 等级成长 + 等级指数成长
+  const baseHp = Math.floor(100 + level * hpGrowth + Math.pow(level, 1.2) * aptMult)
+  const baseAttack = Math.floor(12 + level * atkGrowth + Math.pow(level, 1.1) * aptMult * 0.5)
+  const baseDefense = Math.floor(6 + level * defGrowth + Math.pow(level, 1.05) * aptMult * 0.3)
+
+  // 暴击和闪避随等级成长
+  const critRate = Math.floor(5 + level * 0.1 * aptMult)
+  const dodge = Math.floor(3 + level * 0.08 * aptMult)
+
+  return { baseHp, baseAttack, baseDefense, critRate, dodge }
 }
 
 // 生成宠物实例
@@ -2590,11 +2596,11 @@ export function generatePet(petTypeId, level, forceQuality = null, maxAptitude =
     baseHp: stats.baseHp,
     baseAttack: stats.baseAttack,
     baseDefense: stats.baseDefense,
-    critRate: 5 + Math.floor(level / 10),
-    critDamage: 50,
+    critRate: stats.critRate || 5,
+    critDamage: 50 + Math.floor(level / 5),
     critResist: 0,
-    dodge: 3,
-    hit: 95,
+    dodge: stats.dodge || 3,
+    hit: 95 + Math.floor(level / 10),
     // 技能（技能ID数组）
     skills: petSkills,
     skillLevels: petSkills.reduce((acc, id) => { acc[id] = 1; return acc }, {}),
@@ -2609,18 +2615,79 @@ export function getPetExpForLevel(level) {
   return Math.floor(100 * level * (1 + level * 0.2))
 }
 
-// 计算宠物战斗属性
+// 计算宠物战斗属性（包含被动技能加成）
 export function getPetStats(pet) {
   if (!pet) return null
-  return {
-    maxHp: pet.baseHp,
-    attack: pet.baseAttack,
-    defense: pet.baseDefense,
-    critRate: pet.critRate,
-    critDamage: pet.critDamage,
-    dodge: pet.dodge,
-    hit: pet.hit
+
+  // 基础属性（添加默认值兼容旧存档）
+  let stats = {
+    maxHp: pet.baseHp || 100,
+    attack: pet.baseAttack || 10,
+    defense: pet.baseDefense || 5,
+    critRate: pet.critRate || 5,
+    critDamage: pet.critDamage || 50,
+    dodge: pet.dodge || 3,
+    hit: pet.hit || 95,
+    critResist: pet.critResist || 0,
+    // 特殊效果（用于战斗计算）
+    executeDamageBonus: 0,
+    executeThreshold: 0,
+    damageBonus: 0
   }
+
+  // 计算被动技能加成
+  if (pet.skills && pet.skills.length > 0) {
+    for (const skillId of pet.skills) {
+      const skill = skills.find(s => s.id === skillId)
+      if (!skill) continue
+
+      // 只处理被动技能
+      if (skill.type === 'petLearnablePassive' || (skill.type === 'petSkill' && skill.cooldown === 0)) {
+        const skillLevel = pet.skillLevels?.[skillId] || 1
+        const levelMult = 1 + (skillLevel - 1) * 0.1  // 每级+10%效果
+
+        // 生命加成
+        if (skill.effect === 'hpBonus' && skill.levelMultiplier) {
+          stats.maxHp += Math.floor(pet.level * skill.levelMultiplier * levelMult)
+        }
+        // 攻击加成
+        if (skill.effect === 'attackBonus' && skill.levelMultiplier) {
+          stats.attack += Math.floor(pet.level * skill.levelMultiplier * levelMult)
+        }
+        // 防御加成
+        if (skill.effect === 'defenseBonus' && skill.levelMultiplier) {
+          stats.defense += Math.floor(pet.level * skill.levelMultiplier * levelMult)
+        }
+        // 暴击率加成
+        if (skill.critRateBonus) {
+          stats.critRate += Math.floor(skill.critRateBonus * levelMult)
+        }
+        // 暴击伤害加成
+        if (skill.critDamageBonus) {
+          stats.critDamage += Math.floor(skill.critDamageBonus * levelMult)
+        }
+        // 闪避加成
+        if (skill.dodgeBonus) {
+          stats.dodge += Math.floor(skill.dodgeBonus * levelMult)
+        }
+        // 命中加成
+        if (skill.hitBonus) {
+          stats.hit += Math.floor(skill.hitBonus * levelMult)
+        }
+        // 斩杀效果
+        if (skill.executeDamageBonus) {
+          stats.executeDamageBonus += Math.floor(skill.executeDamageBonus * levelMult)
+          stats.executeThreshold = Math.max(stats.executeThreshold, skill.executeThreshold || 0)
+        }
+        // 通用伤害加成
+        if (skill.damageBonus) {
+          stats.damageBonus += Math.floor(skill.damageBonus * levelMult)
+        }
+      }
+    }
+  }
+
+  return stats
 }
 
 // 生成宠物蛋（只有10/100/200层可获得）

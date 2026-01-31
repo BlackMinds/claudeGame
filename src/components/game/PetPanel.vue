@@ -200,23 +200,23 @@
         </div>
         <div class="stat-row">
           <span class="stat-label">暴击率</span>
-          <span class="stat-value">{{ selectedPet.critRate }}%</span>
+          <span class="stat-value">{{ selectedPet.stats.critRate }}%</span>
         </div>
         <div class="stat-row">
           <span class="stat-label">暴击伤害</span>
-          <span class="stat-value">{{ 150 + (selectedPet.critDamage || 50) }}%</span>
+          <span class="stat-value">{{ 150 + (selectedPet.stats.critDamage || 50) }}%</span>
         </div>
         <div class="stat-row">
           <span class="stat-label">抗暴击</span>
-          <span class="stat-value">{{ selectedPet.critResist || 0 }}%</span>
+          <span class="stat-value">{{ selectedPet.stats.critResist || 0 }}%</span>
         </div>
         <div class="stat-row">
           <span class="stat-label">闪避率</span>
-          <span class="stat-value">{{ selectedPet.dodge || 3 }}%</span>
+          <span class="stat-value">{{ selectedPet.stats.dodge }}%</span>
         </div>
         <div class="stat-row">
           <span class="stat-label">命中率</span>
-          <span class="stat-value">{{ selectedPet.hit || 95 }}%</span>
+          <span class="stat-value">{{ selectedPet.stats.hit }}%</span>
         </div>
       </div>
 

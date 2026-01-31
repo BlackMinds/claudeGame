@@ -410,12 +410,19 @@ export function checkLevelUp() {
     gameState.player.exp -= expNeeded
     gameState.player.level++
 
-    gameState.player.baseHp += 10
-    gameState.player.baseAttack += 3
-    gameState.player.baseDefense += 2
+    // 每级属性提升（随等级增加而增强）
+    const levelBonus = 1 + Math.floor(gameState.player.level / 20) * 0.2  // 每20级额外+20%成长
+    gameState.player.baseHp += Math.floor(15 * levelBonus)
+    gameState.player.baseAttack += Math.floor(5 * levelBonus)
+    gameState.player.baseDefense += Math.floor(3 * levelBonus)
 
-    if (gameState.player.level % 20 === 0) {
+    // 每10级增加暴击率
+    if (gameState.player.level % 10 === 0) {
       gameState.player.critRate += 1
+    }
+    // 每20级增加穿透
+    if (gameState.player.level % 20 === 0) {
+      gameState.player.penetration += 1
     }
 
     addLog(`升级了！当前等级 ${gameState.player.level}`, 'success')
@@ -1150,10 +1157,10 @@ export function addPetExp(petId, amount) {
     pet.baseHp = newStats.baseHp
     pet.baseAttack = newStats.baseAttack
     pet.baseDefense = newStats.baseDefense
-
-    if (pet.level % 10 === 0) {
-      pet.critRate += 1
-    }
+    pet.critRate = newStats.critRate || pet.critRate
+    pet.dodge = newStats.dodge || pet.dodge
+    pet.critDamage = 50 + Math.floor(pet.level / 5)
+    pet.hit = 95 + Math.floor(pet.level / 10)
 
     addLog(`宠物【${pet.name}】升级到 ${pet.level} 级！`, 'success')
 
