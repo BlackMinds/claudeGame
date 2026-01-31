@@ -2884,6 +2884,22 @@ export function battleRound() {
             addBattleLog(`⭐ 宠物【${activePet.name}】使用【${petUseSkill.name}】，星辰坠落！`, 'success')
             skillHandled = true
           }
+          // 多段打击（惊虎吞狗掌等）
+          else if (skillEffect === 'multiStrike') {
+            const minHit = petUseSkill.minHitCount || 1
+            const maxHit = petUseSkill.maxHitCount || 3
+            const hitCount = Math.floor(Math.random() * (maxHit - minHit + 1)) + minHit
+            let totalDamage = 0
+            for (let i = 0; i < hitCount; i++) {
+              const hitCrit = Math.random() * 100 < petStats.critRate
+              let hitDamage = calculateDamage(petStats.attack, petTarget.defense, 0, 0, hitCrit, petStats.critDamage)
+              hitDamage = Math.floor(hitDamage * petSkillDamageMultiplier)
+              petTarget.currentHp -= hitDamage
+              totalDamage += hitDamage
+            }
+            addBattleLog(`👊 宠物【${activePet.name}】使用【${petUseSkill.name}】，连续攻击 ${hitCount} 次，共造成 ${totalDamage} 伤害！`, 'success')
+            skillHandled = true
+          }
           // 混沌领域（群体随机debuff）
           else if (skillEffect === 'chaosDomain') {
             const chaosDebuffs = ['weaken', 'defenseDown', 'poison', 'bleed']
