@@ -2,10 +2,54 @@
   <div class="attribute-panel">
     <div class="panel-header">
       <div class="name-level">
-        <h2>{{ player.name }}</h2>
+        <h2 class="player-name" @click="openNameEdit" title="点击修改名字">{{ player.name }}</h2>
         <span class="level-badge">Lv.{{ player.level }}</span>
       </div>
       <div class="realm-badge">{{ currentRealm.name }}</div>
+    </div>
+
+    <!-- 经验条区域 -->
+    <div class="exp-section">
+      <div class="exp-row">
+        <div class="exp-label">
+          <span>等级</span>
+          <span v-if="isAtMaxLevel" class="max-level">MAX</span>
+          <span v-else>{{ player.exp }} / {{ expToNextLevel }}</span>
+        </div>
+        <div class="exp-bar-container">
+          <div class="exp-bar level-exp" :style="{ width: levelExpPercent + '%' }"></div>
+        </div>
+      </div>
+
+      <div class="exp-row">
+        <div class="exp-label">
+          <span>修为</span>
+          <span>{{ player.realmExp }} / {{ nextRealmExp }}</span>
+        </div>
+        <div class="exp-bar-container">
+          <div class="exp-bar realm-exp" :style="{ width: realmExpPercent + '%' }"></div>
+        </div>
+      </div>
+
+    </div>
+    <!-- 修改名字弹窗 -->
+    <div v-if="showNameEdit" class="modal-overlay" @click.self="showNameEdit = false">
+      <div class="name-edit-modal">
+        <h3>修改名字</h3>
+        <input
+          type="text"
+          v-model="newName"
+          maxlength="12"
+          placeholder="请输入新名字"
+          @keyup.enter="confirmNameChange"
+          ref="nameInput"
+        />
+        <div class="name-hint">最多12个字符</div>
+        <div class="name-edit-actions">
+          <button class="confirm-btn" @click="confirmNameChange">确认</button>
+          <button class="cancel-btn" @click="showNameEdit = false">取消</button>
+        </div>
+      </div>
     </div>
 
     <div class="attributes">
@@ -83,7 +127,6 @@
       </div>
 
       <div class="attr-group">
-        <h3>百分比加成</h3>
         <div class="attr-item">
           <span class="attr-icon hp-bonus-icon"></span>
           <span class="attr-name">生命加成</span>
@@ -98,11 +141,6 @@
           <span class="attr-icon def-bonus-icon"></span>
           <span class="attr-name">防御加成</span>
           <span class="attr-value bonus">+{{ totalBonus.defenseBonus.toFixed(1) }}%</span>
-        </div>
-        <div class="attr-item">
-          <span class="attr-icon lifesteal-bonus-icon"></span>
-          <span class="attr-name">吸血</span>
-          <span class="attr-value bonus">+{{ totalBonus.lifesteal.toFixed(1) }}%</span>
         </div>
         <div class="attr-item">
           <span class="attr-icon heal-icon"></span>
@@ -141,35 +179,11 @@
       </div>
     </div>
 
-    <!-- 经验条区域 -->
-    <div class="exp-section">
-      <div class="exp-row">
-        <div class="exp-label">
-          <span>等级</span>
-          <span v-if="isAtMaxLevel" class="max-level">MAX</span>
-          <span v-else>{{ player.exp }} / {{ expToNextLevel }}</span>
-        </div>
-        <div class="exp-bar-container">
-          <div class="exp-bar level-exp" :style="{ width: levelExpPercent + '%' }"></div>
-        </div>
-      </div>
-
-      <div class="exp-row">
-        <div class="exp-label">
-          <span>修为</span>
-          <span>{{ player.realmExp }} / {{ nextRealmExp }}</span>
-        </div>
-        <div class="exp-bar-container">
-          <div class="exp-bar realm-exp" :style="{ width: realmExpPercent + '%' }"></div>
-        </div>
-      </div>
-
-    </div>
   </div>
 </template>
 
 <script>
-import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm, getMaxPassiveSlots, isMaxLevel, getPassiveSkillBonus, getEquippedCraftedArtifact, getSetBonuses } from '../../store/gameStore'
+import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm, getMaxPassiveSlots, isMaxLevel, getPassiveSkillBonus, getEquippedCraftedArtifact, getSetBonuses, saveGame } from '../../store/gameStore'
 import { getCraftedArtifactStats } from '../../data/gameData'
 import { skillRarityConfig } from '../../data/gameData'
 
@@ -177,6 +191,8 @@ export default {
   name: 'AttributePanel',
   data() {
     return {
+      showNameEdit: false,
+      newName: '',
       statNames: {
         hp: '生命',
         attack: '攻击',
@@ -293,6 +309,24 @@ export default {
         }
       }
       return texts.join(' ')
+    },
+    openNameEdit() {
+      this.newName = this.player.name
+      this.showNameEdit = true
+      this.$nextTick(() => {
+        if (this.$refs.nameInput) {
+          this.$refs.nameInput.focus()
+          this.$refs.nameInput.select()
+        }
+      })
+    },
+    confirmNameChange() {
+      const trimmedName = this.newName.trim()
+      if (trimmedName && trimmedName.length <= 12) {
+        gameState.player.name = trimmedName
+        saveGame()
+        this.showNameEdit = false
+      }
     }
   }
 }
@@ -328,6 +362,102 @@ export default {
   margin: 0;
   color: #ffd700;
   font-size: 1.2em;
+}
+
+.player-name {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.player-name:hover {
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+  transform: scale(1.02);
+}
+
+/* 修改名字弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.name-edit-modal {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid #ffd700;
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 280px;
+  text-align: center;
+}
+
+.name-edit-modal h3 {
+  color: #ffd700;
+  margin: 0 0 15px 0;
+  font-size: 1.1em;
+}
+
+.name-edit-modal input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #2a2a4a;
+  border: 1px solid #4a4a6a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 1em;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.name-edit-modal input:focus {
+  outline: none;
+  border-color: #ffd700;
+}
+
+.name-hint {
+  color: #888;
+  font-size: 0.8em;
+  margin-top: 8px;
+}
+
+.name-edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.name-edit-actions button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+}
+
+.confirm-btn:hover {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.cancel-btn {
+  background: #4a4a6a;
+  color: #ccc;
+}
+
+.cancel-btn:hover {
+  background: #5a5a7a;
 }
 
 .level-badge {
@@ -460,9 +590,9 @@ export default {
 }
 
 .exp-section {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #4a4a6a;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #4a4a6a;
 }
 
 .exp-row {
@@ -505,5 +635,112 @@ export default {
   color: #ffd700;
   font-weight: bold;
   text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .attribute-panel {
+    padding: 10px;
+  }
+
+  .panel-header h2 {
+    font-size: 1em;
+  }
+
+  .level-badge {
+    font-size: 0.7em;
+    padding: 2px 6px;
+  }
+
+  .realm-badge {
+    font-size: 0.75em;
+    padding: 3px 10px;
+  }
+
+  .attr-group h3 {
+    font-size: 0.8em;
+  }
+
+  .attr-item {
+    padding: 3px 0;
+  }
+
+  .attr-name {
+    font-size: 0.75em;
+  }
+
+  .attr-value {
+    font-size: 0.8em;
+  }
+}
+
+@media (max-width: 480px) {
+  .attribute-panel {
+    padding: 8px;
+  }
+
+  .panel-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+
+  .name-level {
+    gap: 5px;
+  }
+
+  .panel-header h2 {
+    font-size: 0.9em;
+  }
+
+  .level-badge {
+    font-size: 0.65em;
+    padding: 1px 5px;
+  }
+
+  .realm-badge {
+    font-size: 0.7em;
+    padding: 2px 8px;
+  }
+
+  .attr-group {
+    margin-bottom: 8px;
+  }
+
+  .attr-group h3 {
+    font-size: 0.75em;
+    margin-bottom: 5px;
+  }
+
+  .attr-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+  }
+
+  .attr-name {
+    font-size: 0.7em;
+  }
+
+  .attr-value {
+    font-size: 0.75em;
+  }
+
+  .equipped-skill-item {
+    padding: 3px 5px;
+    font-size: 0.7em;
+  }
+
+  .exp-section {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .exp-label {
+    font-size: 0.7em;
+  }
+
+  .exp-bar-container {
+    height: 6px;
+  }
 }
 </style>

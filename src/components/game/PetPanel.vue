@@ -218,6 +218,10 @@
           <span class="stat-label">命中率</span>
           <span class="stat-value">{{ selectedPet.stats.hit }}%</span>
         </div>
+        <div class="stat-row">
+          <span class="stat-label">穿透</span>
+          <span class="stat-value">{{ selectedPet.stats.penetration || 0 }}%</span>
+        </div>
       </div>
 
       <div class="detail-skills" v-if="selectedPet.skills && selectedPet.skills.length > 0">
@@ -235,7 +239,7 @@
         </div>
         <!-- 技能提示框 -->
         <div v-if="tooltipSkill" class="skill-tooltip" :style="tooltipStyle">
-          <div class="tooltip-name">{{ tooltipSkill.name }}</div>
+          <div class="tooltip-name">{{ getSkillTypeTag(tooltipSkill) }}{{ tooltipSkill.name }}</div>
           <div class="tooltip-desc">{{ tooltipSkill.description }}</div>
           <div class="tooltip-stats" v-if="tooltipSkill.baseDamageMultiplier">
             伤害倍率: {{ (tooltipSkill.baseDamageMultiplier * 100).toFixed(0) }}%
@@ -343,7 +347,18 @@ export default {
     },
     getSkillName(skillId) {
       const skill = getSkillById(skillId)
-      return skill ? skill.name : '未知技能'
+      if (!skill) return '未知技能'
+      const typeTag = this.getSkillTypeTag(skill)
+      return `${typeTag}${skill.name}`
+    },
+    getSkillTypeTag(skill) {
+      if (!skill) return ''
+      // 被动技能：type 包含 Passive 或 cooldown 为 0
+      if (skill.type && skill.type.includes('Passive')) return '[被动]'
+      if (skill.cooldown === 0) return '[被动]'
+      // 有冷却的都是主动技能
+      if (skill.cooldown && skill.cooldown > 0) return '[主动]'
+      return ''
     },
     getSkillDescription(skillId) {
       const skill = getSkillById(skillId)

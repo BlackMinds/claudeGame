@@ -289,7 +289,6 @@ export function getPassiveSkillBonus() {
     attackPercent: 0,
     defensePercent: 0,
     thorns: 0,
-    conditionalDamageReduction: 0,
     lowHpDefenseBonus: 0,
     fatalReflect: 0
   }
@@ -418,7 +417,6 @@ export function getPlayerStats() {
     healBonus: (realm.healBonus || 0) + (artPassive.healBonus || 0),
     healReceivedBonus: (realm.healReceivedBonus || 0) + (artPassive.healReceivedBonus || 0),
     thorns: totalThorns,
-    conditionalDamageReduction: passiveStats.conditionalDamageReduction || 0,
     lowHpDefenseBonus: (passiveStats.lowHpDefenseBonus || 0) + (artPassive.lowHpReduction || 0),
     fatalReflect: passiveStats.fatalReflect || 0,
     // 打造法宝特殊效果
@@ -1131,7 +1129,8 @@ export function getActivePet() {
       pet.baseAttack = stats.baseAttack
       pet.baseDefense = stats.baseDefense
     }
-    if (!pet.currentHp || pet.currentHp <= 0) {
+    // 只在 currentHp 未定义时初始化，不自动复活死亡的宠物
+    if (pet.currentHp === undefined || pet.currentHp === null) {
       pet.currentHp = pet.baseHp
     }
   }
@@ -1673,6 +1672,45 @@ export function startBattle() {
     return false
   }
 
+  // 测试人偶地图特殊处理
+  if (map.id === 'dummy') {
+    const dummyMonster = map.monsters[0]
+    const monsters = [{
+      ...dummyMonster,
+      currentHp: dummyMonster.hp,
+      skills: [],
+      buffs: {},
+      debuffs: {},
+      reviveUsed: false
+    }]
+
+    const stats = getPlayerStats()
+    gameState.battle.isInBattle = true
+    gameState.battle.currentMonsters = monsters
+    gameState.battle.currentMonsterIndex = 0
+    gameState.battle.playerCurrentHp = stats.maxHp
+    gameState.battle.skillCooldowns = {}
+    gameState.battle.petSkillCooldowns = {}
+    gameState.battle.petBuffs = {}
+    gameState.battle.playerBuffs = {}
+    gameState.battle.roundCount = 0
+    gameState.battle.fatalReflectUsed = false
+    gameState.battle.chaosStrikeActive = false
+    gameState.battle.artifactReviveUsed = false
+    gameState.battle.artifactSkillCooldowns = {}
+
+    const activePet = getActivePet()
+    if (activePet) {
+      activePet.currentHp = activePet.baseHp
+    }
+
+    addBattleLog(`【测试人偶】HP:${dummyMonster.hp} 攻:${dummyMonster.attack} 防:${dummyMonster.defense}`, 'warning')
+    if (activePet) {
+      addBattleLog(`宠物【${activePet.name}】参战！`, 'success')
+    }
+    return true
+  }
+
   // 根据地图决定怪物数量：新手村1个，青云山脚和幽暗森林1-3个，其他1-5个
   let monsterCount
   if (map.id === 1) {
@@ -2086,12 +2124,20 @@ function getPetStatusIcons() {
   return icons.join('')
 }
 
+// 检查是否应该判定战斗失败（玩家死亡且宠物也死亡或不存在）
+function shouldLoseBattle() {
+  if (gameState.battle.playerCurrentHp > 0) return false
+  const activePet = getActivePet()
+  if (!activePet || activePet.currentHp <= 0) return true
+  return false
+}
+
 // 执行一回合战斗
 export function battleRound() {
   if (!gameState.battle.isInBattle) return null
 
-  // 检查玩家是否已经死亡（防止负血量继续战斗）
-  if (gameState.battle.playerCurrentHp <= 0) {
+  // 检查是否应该判定失败（玩家死亡且宠物也死亡）
+  if (shouldLoseBattle()) {
     gameState.battle.playerCurrentHp = 0
     gameState.battle.isInBattle = false
     stopAutoBattle()
@@ -2120,8 +2166,11 @@ export function battleRound() {
     return 'win'
   }
 
+  // 玩家存活时才进行生命回复
+  const playerAlive = gameState.battle.playerCurrentHp > 0
+
   // 生命回复（每回合 - 被动技能）
-  if (stats.hpRegen > 0 && gameState.battle.playerCurrentHp < maxHp) {
+  if (playerAlive && stats.hpRegen > 0 && gameState.battle.playerCurrentHp < maxHp) {
     const healAmount = Math.floor(maxHp * stats.hpRegen / 100)
     gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
     addBattleLog(`💚 生命之源 恢复 ${healAmount} 点生命`, 'heal')
@@ -2129,14 +2178,14 @@ export function battleRound() {
 
   // 回复buff（圣光治愈等技能）
   const regenBuff = gameState.battle.playerBuffs.regen
-  if (regenBuff && regenBuff.duration > 0 && gameState.battle.playerCurrentHp < maxHp) {
+  if (playerAlive && regenBuff && regenBuff.duration > 0 && gameState.battle.playerCurrentHp < maxHp) {
     const healAmount = Math.floor(maxHp * regenBuff.value / 100)
     gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
     addBattleLog(`💚 持续回复 ${healAmount} 点生命`, 'heal')
   }
 
   let result = null
-  let skipAttack = false
+  let skipAttack = !playerAlive  // 玩家死亡时跳过攻击
 
   // 检查蓄力状态
   const chargeState = gameState.battle.playerBuffs.charge
@@ -2293,9 +2342,14 @@ export function battleRound() {
         gameState.battle.playerCurrentHp = 0
         addBattleLog(`你因透支生命而倒下...`, 'danger')
         applyDeathPenalty()
-        gameState.battle.isInBattle = false
-        stopAutoBattle()
-        return 'lose'
+        // 检查宠物是否还能继续战斗
+        if (shouldLoseBattle()) {
+          gameState.battle.isInBattle = false
+          stopAutoBattle()
+          return 'lose'
+        } else {
+          addBattleLog(`宠物继续为你战斗！`, 'warning')
+        }
       }
     }
   }
@@ -2470,7 +2524,7 @@ export function battleRound() {
         }
       }
 
-      // 反伤护盾
+      // 反伤护盾（真实伤害）
       const reflectSkill = targetMonster.skills.find(s => s.effect === 'reflect')
       if (reflectSkill) {
         const reflectDamage = Math.floor(damage * reflectSkill.value / 100)
@@ -2482,9 +2536,14 @@ export function battleRound() {
           gameState.battle.playerCurrentHp = 0
           addBattleLog(`你被反伤击败了...`, 'danger')
           applyDeathPenalty()
-          gameState.battle.isInBattle = false
-          stopAutoBattle()
-          return 'lose'
+          // 检查宠物是否还能继续战斗
+          if (shouldLoseBattle()) {
+            gameState.battle.isInBattle = false
+            stopAutoBattle()
+            return 'lose'
+          } else {
+            addBattleLog(`宠物继续为你战斗！`, 'warning')
+          }
         }
       }
 
@@ -2830,7 +2889,7 @@ export function battleRound() {
         let petDamage = calculateDamage(
           petStats.attack,
           targetEffectiveDefense,
-          0,
+          petStats.penetration || 0,
           0,
           petCrit,
           petStats.critDamage
@@ -3390,7 +3449,8 @@ export function battleRound() {
   const petForDefense = getActivePet()
 
   for (const monster of currentAliveMonsters) {
-    if (gameState.battle.playerCurrentHp <= 0) break
+    // 玩家和宠物都死亡时才跳出循环
+    if (shouldLoseBattle()) break
 
     // 检查眩晕状态
     if (monster.debuffs && monster.debuffs.stun && monster.debuffs.stun.duration > 0) {
@@ -3428,9 +3488,11 @@ export function battleRound() {
       }
     }
 
-    // 决定攻击目标：如果宠物存活，50%概率攻击宠物；如果有嘲讽buff，100%攻击宠物
+    // 决定攻击目标：玩家死亡时只能攻击宠物；宠物有嘲讽时100%攻击宠物；否则50%概率攻击宠物
     const hasTaunt = gameState.battle.petBuffs && gameState.battle.petBuffs.taunt && gameState.battle.petBuffs.taunt.duration > 0
-    const attackPet = petForDefense && petForDefense.currentHp > 0 && (hasTaunt || Math.random() < 0.5)
+    const playerDead = gameState.battle.playerCurrentHp <= 0
+    const petCanBeAttacked = petForDefense && petForDefense.currentHp > 0
+    const attackPet = petCanBeAttacked && (playerDead || hasTaunt || Math.random() < 0.5)
 
     // 计算有效攻击力（考虑buff和虚弱debuff）
     let effectiveAttack = monster.buffs.attack ? monster.attack * (1 + monster.buffs.attack / 100) : monster.attack
@@ -3479,7 +3541,7 @@ export function battleRound() {
 
         petForDefense.currentHp -= monsterDamage
 
-        // 烈焰之躯反伤
+        // 烈焰之躯反伤（真实伤害）
         if (gameState.battle.petBuffs && gameState.battle.petBuffs.flameBody && gameState.battle.petBuffs.flameBody.duration > 0) {
           const reflectDmg = Math.floor(monsterDamage * gameState.battle.petBuffs.flameBody.value / 100)
           monster.currentHp -= reflectDmg
@@ -3528,6 +3590,12 @@ export function battleRound() {
           if (!revived) {
             petForDefense.currentHp = 0
             addBattleLog(`宠物【${petForDefense.name}】倒下了！`, 'danger')
+            // 检查是否应该判定战斗失败
+            if (shouldLoseBattle()) {
+              gameState.battle.isInBattle = false
+              stopAutoBattle()
+              return 'lose'
+            }
           }
         }
       } else {
@@ -3571,11 +3639,6 @@ export function battleRound() {
         // 应用伤害减免
         let totalReduction = stats.damageReduction || 0
 
-        // 不灭金身：生命高于50%时额外减伤
-        if (stats.conditionalDamageReduction > 0 && gameState.battle.playerCurrentHp > stats.maxHp * 0.5) {
-          totalReduction += stats.conditionalDamageReduction
-        }
-
         // 绝对防御buff
         const absoluteDefense = gameState.battle.playerBuffs.absoluteDefense
         if (absoluteDefense && absoluteDefense.duration > 0) {
@@ -3600,14 +3663,14 @@ export function battleRound() {
           }
         }
 
-        // 荆棘护甲反伤
+        // 荆棘护甲反伤（真实伤害）
         if (stats.thorns > 0 && monsterDamage > 0) {
           const thornsDamage = Math.floor(monsterDamage * stats.thorns / 100)
           monster.currentHp -= thornsDamage
           addBattleLog(`🌵 荆棘护甲反弹 ${thornsDamage} 伤害`, 'success')
         }
 
-        // 以牙还牙反伤buff
+        // 以牙还牙反伤buff（真实伤害）
         const reflectBuff = gameState.battle.playerBuffs.reflect
         if (reflectBuff && reflectBuff.duration > 0 && monsterDamage > 0) {
           const reflectDamage = Math.floor(monsterDamage * reflectBuff.value / 100)
@@ -3669,12 +3732,17 @@ export function battleRound() {
             addBattleLog(`🔮 【涅槃重生】触发！复活并恢复 ${reviveHp} 点生命 (${stats.revivePercent}%)`, 'success')
           } else {
             gameState.battle.playerCurrentHp = 0
-            result = 'lose'
             addBattleLog(`你被击败了...`, 'danger')
             applyDeathPenalty()
-            gameState.battle.isInBattle = false
-            stopAutoBattle()
-            return result
+            // 检查宠物是否还能继续战斗
+            if (shouldLoseBattle()) {
+              result = 'lose'
+              gameState.battle.isInBattle = false
+              stopAutoBattle()
+              return result
+            } else {
+              addBattleLog(`宠物继续为你战斗！`, 'warning')
+            }
           }
         }
       } else {
@@ -3895,8 +3963,8 @@ export function loadGame() {
           pet.baseHp = petStats.baseHp
           pet.baseAttack = petStats.baseAttack
           pet.baseDefense = petStats.baseDefense
-          // 初始化currentHp
-          if (pet.currentHp === undefined || pet.currentHp <= 0) {
+          // 初始化currentHp（只在未定义时，保留死亡状态）
+          if (pet.currentHp === undefined || pet.currentHp === null) {
             pet.currentHp = pet.baseHp
           }
         }
@@ -3947,6 +4015,16 @@ export function loadGame() {
       }
 
       Object.assign(gameState.player, data.player)
+
+      // 同步法宝引用（加载后equipment.artifact和craftedArtifacts是独立对象，需要重新建立引用）
+      if (gameState.player.equippedCraftedArtifact && gameState.player.craftedArtifacts) {
+        const equippedArtifact = gameState.player.craftedArtifacts.find(
+          a => a.id === gameState.player.equippedCraftedArtifact
+        )
+        if (equippedArtifact) {
+          gameState.player.equipment.artifact = equippedArtifact
+        }
+      }
 
       if (data.battle) {
         gameState.battle.selectedMapId = data.battle.selectedMapId || 1
@@ -4081,8 +4159,8 @@ export function importSave(encryptedData) {
         pet.baseHp = petStats.baseHp
         pet.baseAttack = petStats.baseAttack
         pet.baseDefense = petStats.baseDefense
-        // 初始化currentHp
-        if (pet.currentHp === undefined || pet.currentHp <= 0) {
+        // 初始化currentHp（只在未定义时，保留死亡状态）
+        if (pet.currentHp === undefined || pet.currentHp === null) {
           pet.currentHp = pet.baseHp
         }
       }
@@ -4123,6 +4201,16 @@ export function importSave(encryptedData) {
     }
 
     Object.assign(gameState.player, data.player)
+
+    // 同步法宝引用（导入后equipment.artifact和craftedArtifacts是独立对象，需要重新建立引用）
+    if (gameState.player.equippedCraftedArtifact && gameState.player.craftedArtifacts) {
+      const equippedArtifact = gameState.player.craftedArtifacts.find(
+        a => a.id === gameState.player.equippedCraftedArtifact
+      )
+      if (equippedArtifact) {
+        gameState.player.equipment.artifact = equippedArtifact
+      }
+    }
 
     if (data.battle) {
       gameState.battle.selectedMapId = data.battle.selectedMapId || 1

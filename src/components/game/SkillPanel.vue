@@ -277,11 +277,10 @@ export default {
         hpPercent: '生命',
         attackPercent: '攻击',
         defensePercent: '防御',
-        conditionalDamageReduction: '条件减伤',
         lowHpDefenseBonus: '低血防御',
         fatalReflect: '致命反伤'
       },
-      percentStats: ['hpPercent', 'attackPercent', 'defensePercent', 'conditionalDamageReduction', 'lowHpDefenseBonus', 'fatalReflect']
+      percentStats: ['hpPercent', 'attackPercent', 'defensePercent', 'lowHpDefenseBonus', 'fatalReflect']
     }
   },
   computed: {

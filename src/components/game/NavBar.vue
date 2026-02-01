@@ -33,7 +33,7 @@
       <button @click="showPetPanel = true" class="nav-btn pet">宠物</button>
       <button @click="showArtifactPanel = true" class="nav-btn artifact">法宝</button>
       <button @click="handleMeditationClick" class="nav-btn meditation">打坐</button>
-      <button @click="showGuide = true" class="nav-btn guide">攻略</button>
+      <button @click="showGuide = true" class="nav-btn guide">图鉴</button>
       <button @click="showSettings = true" class="nav-btn settings">设置</button>
       <button @click="handleSave" class="nav-btn save">保存</button>
       <!-- <button @click="handleLoad" class="nav-btn load">读取</button> -->
@@ -178,11 +178,11 @@
       </div>
     </div>
 
-    <!-- 攻略面板弹窗 -->
+    <!-- 图鉴面板弹窗 -->
     <div v-if="showGuide" class="modal-overlay" @click.self="showGuide = false">
       <div class="guide-panel">
         <button class="modal-close" @click="showGuide = false">×</button>
-        <h3>游戏攻略</h3>
+        <h3>游戏图鉴</h3>
 
         <div class="guide-tabs">
           <button :class="{ active: guideTab === 'sets' }" @click="guideTab = 'sets'">套装</button>
@@ -199,7 +199,7 @@
                 {{ set.name }}
               </div>
               <div class="set-desc">{{ set.description }}</div>
-              <div class="set-pieces">部件：{{ getPieceNames(set.pieces) }}</div>
+              <div class="set-pieces">部件：任意装备</div>
               <div class="set-bonuses">
                 <div v-for="(bonus, count) in set.bonuses" :key="count" class="bonus-row">
                   <span class="bonus-count">{{ count }}件：</span>
@@ -281,6 +281,7 @@
               <div class="skills-grid">
                 <div v-for="skill in learnableSkillsData" :key="skill.id" class="skill-info-item" :class="'tier-' + skill.tier">
                   <div class="skill-info-header">
+                    <span class="skill-type-tag" :class="getSkillTypeClass(skill)">{{ getSkillTypeLabel(skill) }}</span>
                     <span class="skill-name">{{ skill.name }}</span>
                     <span class="skill-tier">{{ getTierName(skill.tier) }}</span>
                   </div>
@@ -297,7 +298,7 @@
     <div v-if="showMeditation" class="modal-overlay" @click.self="showMeditation = false">
       <div class="meditation-panel">
         <button class="modal-close" @click="showMeditation = false">×</button>
-        <h3>打坐修炼</h3>
+        <h3>突破境界</h3>
 
         <div class="meditation-info">
           <!-- 修炼类型显示 -->
@@ -358,7 +359,7 @@
                   <span>攻击 +5%/级</span>
                   <span>防御 +5%/级</span>
                 </div>
-                <div class="choice-feature">稳健成长，攻守兼备</div>
+                <div class="choice-feature">核心理念：通过悟道与积累，将自身法则逐步融入天地大道，最终实现超脱。全面提升</div>
               </div>
 
               <div class="choice-option mo" @click="chooseCultivation('mo')">
@@ -369,7 +370,7 @@
                   <span>攻击 +8%/级</span>
                   <span>吸血 +2%/级</span>
                 </div>
-                <div class="choice-feature">高风险高回报</div>
+                <div class="choice-feature">核心理念：通过掠夺与极端情绪，强化自我意志，最终以自身意志取代、扭曲天地法则。</div>
               </div>
             </div>
           </div>
@@ -518,8 +519,8 @@ export default {
       return petTypes
     },
     learnableSkillsData() {
-      // 可学习技能ID范围：301-324
-      return skills.filter(s => s.id >= 301 && s.id <= 324).sort((a, b) => a.tier - b.tier)
+      // 可学习技能ID范围：301-327
+      return skills.filter(s => s.id >= 301 && s.id <= 327).sort((a, b) => a.tier - b.tier)
     }
   },
   methods: {
@@ -710,6 +711,22 @@ export default {
     getTierName(tier) {
       const names = { 1: '初级', 2: '中级', 3: '高级' }
       return names[tier] || '未知'
+    },
+    getSkillTypeLabel(skill) {
+      if (!skill) return ''
+      // 被动技能：type 包含 Passive 或 cooldown 为 0
+      if (skill.type && skill.type.includes('Passive')) return '被动'
+      if (skill.cooldown === 0) return '被动'
+      // 有冷却的都是主动技能
+      if (skill.cooldown && skill.cooldown > 0) return '主动'
+      return ''
+    },
+    getSkillTypeClass(skill) {
+      if (!skill) return ''
+      if (skill.type && skill.type.includes('Passive')) return 'passive'
+      if (skill.cooldown === 0) return 'passive'
+      if (skill.cooldown && skill.cooldown > 0) return 'active'
+      return ''
     }
   }
 }
@@ -1564,7 +1581,7 @@ export default {
   font-style: italic;
 }
 
-/* 攻略按钮样式 */
+/* 图鉴按钮样式 */
 .nav-btn.guide {
   background: linear-gradient(135deg, #e67e22, #d35400);
   color: white;
@@ -1574,7 +1591,7 @@ export default {
   background: linear-gradient(135deg, #d35400, #e67e22);
 }
 
-/* 攻略面板样式 */
+/* 图鉴面板样式 */
 .guide-panel {
   background: linear-gradient(180deg, #1a1a3a 0%, #2a2a4a 100%);
   border-radius: 12px;
@@ -1868,9 +1885,27 @@ export default {
   margin-bottom: 5px;
 }
 
+.skill-info-header .skill-type-tag {
+  font-size: 0.75em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-right: 6px;
+}
+
+.skill-info-header .skill-type-tag.active {
+  background: rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+
+.skill-info-header .skill-type-tag.passive {
+  background: rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
+}
+
 .skill-info-header .skill-name {
   font-weight: bold;
   color: #fff;
+  flex: 1;
 }
 
 .skill-info-header .skill-tier {
@@ -1895,5 +1930,168 @@ export default {
 .skill-info-desc {
   color: #aaa;
   font-size: 0.85em;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .navbar {
+    flex-wrap: wrap;
+    padding: 10px 15px;
+    gap: 10px;
+  }
+
+  .nav-brand h1 {
+    font-size: 1.3em;
+  }
+
+  .subtitle {
+    display: none;
+  }
+
+  .nav-info {
+    order: 3;
+    width: 100%;
+    justify-content: space-around;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    border-top: 1px solid #3a3a5a;
+  }
+
+  .info-item {
+    min-width: 50px;
+  }
+
+  .info-item .label {
+    font-size: 0.7em;
+  }
+
+  .info-item .value {
+    font-size: 0.9em;
+  }
+
+  .info-item .value.skill,
+  .info-item .value.pet {
+    font-size: 0.75em;
+  }
+
+  .nav-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .nav-btn {
+    padding: 6px 10px;
+    font-size: 0.75em;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .nav-brand {
+    gap: 5px;
+  }
+
+  .nav-brand h1 {
+    font-size: 1.1em;
+  }
+
+  .nav-info {
+    gap: 5px;
+    padding-top: 6px;
+  }
+
+  .info-item {
+    min-width: 45px;
+  }
+
+  .info-item .label {
+    font-size: 0.65em;
+  }
+
+  .info-item .value {
+    font-size: 0.8em;
+  }
+
+  .info-item .value.skill,
+  .info-item .value.pet {
+    font-size: 0.65em;
+  }
+
+  .nav-actions {
+    gap: 4px;
+  }
+
+  .nav-btn {
+    padding: 5px 8px;
+    font-size: 0.7em;
+  }
+
+  /* 隐藏部分按钮，在极窄屏幕下 */
+  .nav-btn.guide,
+  .nav-btn.dev {
+    display: none;
+  }
+
+  /* 弹窗适配 */
+  .settings-panel {
+    min-width: 280px;
+    max-width: 95vw;
+    padding: 15px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .meditation-panel {
+    width: 95vw;
+    padding: 15px;
+  }
+
+  .guide-panel {
+    width: 95vw;
+    padding: 15px;
+  }
+
+  .guide-tabs {
+    flex-wrap: wrap;
+  }
+
+  .guide-tabs button {
+    flex: 1 1 45%;
+    font-size: 0.8em;
+    padding: 6px 8px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  /* 修炼选择适配 */
+  .choice-options {
+    flex-direction: column;
+  }
+
+  .choice-option {
+    padding: 12px;
+  }
+
+  .choice-title {
+    font-size: 1.1em;
+  }
+
+  .choice-stats span {
+    font-size: 0.75em;
+  }
+
+  .choice-feature {
+    font-size: 0.8em;
+  }
 }
 </style>

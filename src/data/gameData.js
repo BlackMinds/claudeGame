@@ -68,7 +68,7 @@ export const weaponTypes = {
     description: '刀法霸道，无视防御',
     primaryStat: 'attack',
     secondaryStat: 'penetration',
-    secondaryValue: 0.12,
+    secondaryValue: 0.05,
     prefixes: ['狂风', '霸王', '血月', '裂天', '屠龙', '鬼煞', '修罗', '灭神', '天罚', '混沌']
   },
   staff: {
@@ -104,7 +104,7 @@ export const equipTemplates = {
   helmet: { hp: 10, critResist: 0.1 },
   ring: { attack: 1.5, critDamage: 0.25 },
   necklace: { attack: 1, critDamage: 0.15, dropRate: 0.15 },
-  boots: { dodge: 0.08, hit: 0.1 },
+  boots: { dodge: 0.03, hit: 0.1 },
   artifact: { hp: 5, attack: 1, defense: 0.5, critRate: 0.03, dropRate: 0.1 }
 }
 
@@ -125,7 +125,7 @@ export const armorSubTypes = {
   cloth: {
     name: '布甲',
     description: '轻便灵活，提升闪避',
-    statBonus: { dodge: 0.15, hp: -0.1 },
+    statBonus: { dodge: 0.06, hp: -0.1 },
     prefixes: ['轻灵', '风行', '云游', '幻影', '虚空']
   },
   leather: {
@@ -164,7 +164,7 @@ export const helmetSubTypes = {
   mask: {
     name: '面具',
     description: '神秘莫测，提升闪避',
-    statBonus: { dodge: 0.12, critRate: 0.08 },
+    statBonus: { dodge: 0.05, critRate: 0.08 },
     prefixes: ['幻面', '鬼面', '影面', '魔面', '神面']
   }
 }
@@ -185,7 +185,7 @@ export const ringSubTypes = {
   special: {
     name: '秘戒',
     description: '蕴含特殊之力',
-    statBonus: { penetration: 0.1, lifesteal: 0.05 },
+    statBonus: { penetration: 0.04, lifesteal: 0.05 },
     prefixes: ['秘法', '奥术', '神秘', '太古', '混沌']
   },
   thorns: {
@@ -226,8 +226,8 @@ export const necklaceSubTypes = {
 export const bootsSubTypes = {
   light: {
     name: '轻靴',
-    description: '轻盈迅捷，闪避极高',
-    statBonus: { dodge: 0.2, hit: 0.05 },
+    description: '轻盈迅捷，闪避较高',
+    statBonus: { dodge: 0.08, hit: 0.05 },
     prefixes: ['疾风', '闪电', '流光', '幻影', '瞬移']
   },
   war: {
@@ -260,7 +260,7 @@ export const artifactSubTypes = {
   balance: {
     name: '混元法宝',
     description: '阴阳调和，诸般属性均衡',
-    statBonus: { attack: 0.05, defense: 0.05, hp: 0.05, critRate: 0.03, dodge: 0.03 },
+    statBonus: { attack: 0.05, defense: 0.05, hp: 0.05, critRate: 0.03, dodge: 0.01 },
     prefixes: ['太极', '混元', '无极', '鸿蒙', '造化']
   },
   thorns: {
@@ -338,12 +338,15 @@ export const equipmentEffects = {
 
 // ==================== 装备套装系统 ====================
 
+// 所有普通装备槽位（不含法宝，法宝是打造的）
+const allEquipSlots = ['weapon', 'armor', 'helmet', 'ring', 'necklace', 'boots']
+
 export const equipmentSets = {
   xuanwu: {
     name: '玄武套装',
     description: '玄武守护，防御为王',
     color: '#3498db',
-    pieces: ['armor', 'helmet', 'boots'],
+    pieces: allEquipSlots,
     bonuses: {
       2: { hp: 6, defense: 6, description: '生命+6%, 防御+6%' },
       3: { hp: 10, defense: 12, damageReduction: 3, description: '生命+10%, 防御+12%, 减伤+3%' }
@@ -353,7 +356,7 @@ export const equipmentSets = {
     name: '朱雀套装',
     description: '朱雀之焰，攻击至上',
     color: '#e74c3c',
-    pieces: ['weapon', 'ring', 'necklace'],
+    pieces: allEquipSlots,
     bonuses: {
       2: { attack: 8, critRate: 3, description: '攻击+8%, 暴击+3%' },
       3: { attack: 12, critRate: 6, critDamage: 10, description: '攻击+12%, 暴击+6%, 暴伤+10%' }
@@ -363,7 +366,7 @@ export const equipmentSets = {
     name: '青龙套装',
     description: '青龙之力，攻守兼备',
     color: '#2ecc71',
-    pieces: ['weapon', 'armor', 'artifact'],
+    pieces: allEquipSlots,
     bonuses: {
       2: { attack: 5, defense: 5, description: '攻击+5%, 防御+5%' },
       3: { attack: 10, defense: 10, hp: 6, description: '攻击+10%, 防御+10%, 生命+6%' }
@@ -373,7 +376,7 @@ export const equipmentSets = {
     name: '白虎套装',
     description: '白虎狂啸，爆发惊人',
     color: '#f39c12',
-    pieces: ['weapon', 'helmet', 'ring'],
+    pieces: allEquipSlots,
     bonuses: {
       2: { critDamage: 10, penetration: 5, description: '暴伤+10%, 穿透+5%' },
       3: { critDamage: 18, penetration: 10, critRate: 5, description: '暴伤+18%, 穿透+10%, 暴击+5%' }
@@ -383,7 +386,7 @@ export const equipmentSets = {
     name: '麒麟套装',
     description: '麒麟献瑞，全能之选',
     color: '#9b59b6',
-    pieces: ['necklace', 'boots', 'artifact'],
+    pieces: allEquipSlots,
     bonuses: {
       2: { hp: 3, attack: 3, defense: 3, description: '生命+3%, 攻击+3%, 防御+3%' },
       3: { hp: 6, attack: 6, defense: 6, critRate: 3, dodge: 3, description: '全属性+6%, 暴击+3%, 闪避+3%' }
@@ -393,11 +396,11 @@ export const equipmentSets = {
     name: '混沌套装',
     description: '混沌之力，超越极限',
     color: '#8e44ad',
-    pieces: ['weapon', 'armor', 'helmet', 'ring', 'necklace', 'boots', 'artifact'],
+    pieces: allEquipSlots,
     bonuses: {
       3: { attack: 6, defense: 6, hp: 6, description: '攻击+6%, 防御+6%, 生命+6%' },
       5: { attack: 12, defense: 12, hp: 12, critRate: 6, description: '攻击+12%, 防御+12%, 生命+12%, 暴击+6%' },
-      7: { attack: 20, defense: 20, hp: 20, critRate: 10, critDamage: 15, penetration: 6, description: '全属性+20%, 暴击+10%, 暴伤+15%, 穿透+6%' }
+      6: { attack: 20, defense: 20, hp: 20, critRate: 10, critDamage: 15, penetration: 6, description: '全属性+20%, 暴击+10%, 暴伤+15%, 穿透+6%' }
     }
   },
   // 新增套装
@@ -405,7 +408,7 @@ export const equipmentSets = {
     name: '铁壁套装',
     description: '铜墙铁壁，固若金汤',
     color: '#5d6d7e',
-    pieces: ['armor', 'helmet', 'artifact'],
+    pieces: allEquipSlots,
     bonuses: {
       2: { defense: 8, damageReduction: 3, description: '防御+8%, 减伤+3%' },
       3: { defense: 15, damageReduction: 6, thorns: 8, description: '防御+15%, 减伤+6%, 反伤+8%' }
@@ -415,7 +418,7 @@ export const equipmentSets = {
     name: '嗜血套装',
     description: '以血养血，生生不息',
     color: '#c0392b',
-    pieces: ['weapon', 'ring', 'artifact'],
+    pieces: allEquipSlots,
     bonuses: {
       2: { attack: 5, lifesteal: 3, description: '攻击+5%, 吸血+3%' },
       3: { attack: 10, lifesteal: 6, hp: 8, description: '攻击+10%, 吸血+6%, 生命+8%' }
@@ -425,7 +428,7 @@ export const equipmentSets = {
     name: '暴击套装',
     description: '一击必杀，暴击为王',
     color: '#e67e22',
-    pieces: ['weapon', 'helmet', 'necklace'],
+    pieces: allEquipSlots,
     bonuses: {
       2: { critRate: 6, critDamage: 12, description: '暴击+6%, 暴伤+12%' },
       3: { critRate: 12, critDamage: 25, penetration: 5, description: '暴击+12%, 暴伤+25%, 穿透+5%' }
@@ -453,7 +456,7 @@ export const monsterSkills = [
   { name: '疾风', type: 'buff', stat: 'dodge', value: 10, description: '闪避+10%' },
   { name: '精准', type: 'buff', stat: 'critRate', value: 15, description: '暴击+15%' },
   // 特殊技能
-  { name: '反伤护盾', type: 'special', effect: 'reflect', value: 20, description: '反弹20%伤害' },
+  { name: '反伤护盾', type: 'special', effect: 'reflect', value: 10, description: '反弹10%伤害' },
   { name: '吸血光环', type: 'special', effect: 'drain', value: 10, description: '每次攻击回复10%伤害' },
   { name: '不屈意志', type: 'special', effect: 'revive', value: 30, description: '首次死亡恢复30%血量' }
 ]
@@ -604,6 +607,31 @@ function generateMaps() {
 }
 
 export const maps = generateMaps()
+
+// 添加测试人偶地图（固定属性的测试怪物）
+maps.push({
+  id: 'dummy',
+  name: '测试人偶',
+  description: '用于测试伤害的木人桩，属性固定不变',
+  levelRange: [1, 1],
+  requiredLevel: 1,
+  monsters: [{
+    name: '测试人偶',
+    level: 1,
+    hp: 999999,
+    attack: 100,
+    defense: 100,
+    critRate: 0,
+    dodge: 0,
+    hit: 100,
+    penetration: 0,
+    lifesteal: 0,
+    exp: 0,
+    gold: 0,
+    dropRate: 0,
+    skills: []
+  }]
+})
 
 // ==================== 锁妖塔系统 ====================
 
@@ -1093,21 +1121,6 @@ export const skills = [
     dropRate: 0.003
   },
   // 肉盾类技能
-  {
-    id: 28,
-    name: '不灭金身',
-    description: '生命高于50%时，受到伤害降低15%，满级额外+5%减伤',
-    type: 'passive',
-    rarity: 'epic',
-    maxLevel: 5,
-    bonusPerLevel: { conditionalDamageReduction: 3 },
-    maxLevelBonus: { conditionalDamageReduction: 5 },
-    conditionType: 'hpAbove',
-    conditionValue: 50,
-    shopPrice: 0,
-    dropFromMaps: [12, 13, 14],
-    dropRate: 0.005
-  },
   {
     id: 29,
     name: '铜墙铁壁',
@@ -2078,13 +2091,14 @@ export const skills = [
   {
     id: 302,
     name: '好斗',
-    description: '增加宠物等级×3点攻击',
+    description: '增加宠物等级×3点攻击，增加5%穿透',
     type: 'petLearnablePassive',
     rarity: 'common',
     tier: 1,
     maxLevel: 10,
     effect: 'attackBonus',
     levelMultiplier: 3,
+    penetrationBonus: 5,
     petExclusive: true
   },
   {
@@ -2165,13 +2179,14 @@ export const skills = [
   {
     id: 309,
     name: '高级好斗',
-    description: '增加宠物等级×6点攻击',
+    description: '增加宠物等级×6点攻击，增加12%穿透',
     type: 'petLearnablePassive',
     rarity: 'rare',
     tier: 2,
     maxLevel: 10,
     effect: 'attackBonus',
     levelMultiplier: 6,
+    penetrationBonus: 12,
     petExclusive: true
   },
   {
@@ -2231,7 +2246,7 @@ export const skills = [
   {
     id: 314,
     name: '超级好战',
-    description: '增加宠物等级×10点攻击，并增加25%暴击率',
+    description: '增加宠物等级×10点攻击，增加25%暴击率，增加20%穿透',
     type: 'petLearnablePassive',
     rarity: 'epic',
     tier: 3,
@@ -2239,6 +2254,7 @@ export const skills = [
     effect: 'attackBonus',
     levelMultiplier: 10,
     critRateBonus: 25,
+    penetrationBonus: 20,
     petExclusive: true
   },
   // 初级档位 - 主动技能 (315-317)
@@ -2334,18 +2350,6 @@ export const skills = [
     cooldown: 5,
     petExclusive: true
   },
-  {
-    id: 321,
-    name: '共生治愈',
-    description: '宠物与主人平均分配生命值',
-    type: 'petLearnableActive',
-    rarity: 'epic',
-    tier: 3,
-    maxLevel: 10,
-    effect: 'sharedHealing',
-    cooldown: 6,
-    petExclusive: true
-  },
   // 高级档位 - 主动技能 (322-324)
   {
     id: 322,
@@ -2389,6 +2393,45 @@ export const skills = [
     effect: 'desperateHealing',
     healPercent: 30,
     cooldown: 5,
+    petExclusive: true
+  },
+  // 高级档位 - 被动技能 (325-326)
+  {
+    id: 325,
+    name: '御风神行',
+    description: '增加25%抗暴击，25%闪避',
+    type: 'petLearnablePassive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'windWalk',
+    critResistBonus: 25,
+    dodgeBonus: 25,
+    petExclusive: true
+  },
+  {
+    id: 326,
+    name: '超级灵躯',
+    description: '增加宠物等级×5点防御，增加宠物等级×10点生命值',
+    type: 'petLearnablePassive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'spiritBody',
+    defenseMultiplier: 5,
+    hpMultiplier: 10,
+    petExclusive: true
+  },
+  {
+    id: 327,
+    name: '破甲本能',
+    description: '增加20%穿透',
+    type: 'petLearnablePassive',
+    rarity: 'epic',
+    tier: 3,
+    maxLevel: 10,
+    effect: 'armorBreak',
+    penetrationBonus: 20,
     petExclusive: true
   }
 ]
@@ -2904,6 +2947,7 @@ export function getPetStats(pet) {
     dodge: pet.dodge || 3,
     hit: pet.hit || 95,
     critResist: pet.critResist || 0,
+    penetration: pet.penetration || 0,
     // 特殊效果（用于战斗计算）
     executeDamageBonus: 0,
     executeThreshold: 0,
@@ -2957,6 +3001,23 @@ export function getPetStats(pet) {
         // 通用伤害加成
         if (skill.damageBonus) {
           stats.damageBonus += Math.floor(skill.damageBonus * levelMult)
+        }
+        // 抗暴击加成
+        if (skill.critResistBonus) {
+          stats.critResist += Math.floor(skill.critResistBonus * levelMult)
+        }
+        // 穿透加成
+        if (skill.penetrationBonus) {
+          stats.penetration += Math.floor(skill.penetrationBonus * levelMult)
+        }
+        // 超级灵躯：同时加防御和生命
+        if (skill.effect === 'spiritBody') {
+          if (skill.defenseMultiplier) {
+            stats.defense += Math.floor(pet.level * skill.defenseMultiplier * levelMult)
+          }
+          if (skill.hpMultiplier) {
+            stats.maxHp += Math.floor(pet.level * skill.hpMultiplier * levelMult)
+          }
         }
       }
     }

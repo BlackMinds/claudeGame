@@ -105,12 +105,33 @@ export default {
 @media (max-width: 768px) {
   .game-content {
     flex-direction: column;
+    padding: 10px;
+    gap: 10px;
   }
 
   .left-panel,
   .center-panel,
   .right-panel {
     width: 100%;
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 480px) {
+  .game-content {
+    padding: 5px;
+    gap: 8px;
+  }
+
+  .left-panel,
+  .center-panel,
+  .right-panel {
+    width: 100%;
+    min-height: auto;
+  }
+
+  .center-panel {
+    min-height: 350px;
   }
 }
 </style>

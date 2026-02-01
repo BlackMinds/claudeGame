@@ -222,7 +222,47 @@
               (需要 {{ selectedItem.requiredLevel }} 级)
             </span>
           </div>
+
+          <!-- 装备对比 -->
+          <div class="compare-section" v-if="getEquippedForSlot(selectedItem.slotType)">
+            <div class="compare-header">
+              <span class="compare-title">📊 装备对比</span>
+            </div>
+            <div class="compare-content">
+              <div class="compare-column new-item">
+                <div class="compare-label">背包装备</div>
+                <div class="compare-item-name" :style="{ color: selectedItem.qualityColor }">
+                  {{ selectedItem.name }}
+                  <span v-if="selectedItem.enhanceLevel > 0">+{{ selectedItem.enhanceLevel }}</span>
+                </div>
+              </div>
+              <div class="compare-column equipped-item">
+                <div class="compare-label">已装备</div>
+                <div class="compare-item-name" :style="{ color: getEquippedForSlot(selectedItem.slotType).qualityColor }">
+                  {{ getEquippedForSlot(selectedItem.slotType).name }}
+                  <span v-if="getEquippedForSlot(selectedItem.slotType).enhanceLevel > 0">+{{ getEquippedForSlot(selectedItem.slotType).enhanceLevel }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="compare-stats">
+              <div v-for="stat in getAllCompareStats(selectedItem)" :key="stat" class="compare-stat-row">
+                <span class="compare-stat-name">{{ statNames[stat] || stat }}</span>
+                <span class="compare-stat-new" :class="getCompareClass(selectedItem, stat, true)">
+                  {{ getItemStatValue(selectedItem, stat) }}
+                </span>
+                <span class="compare-arrow">→</span>
+                <span class="compare-stat-old">
+                  {{ getItemStatValue(getEquippedForSlot(selectedItem.slotType), stat) }}
+                </span>
+                <span class="compare-diff" :class="getCompareClass(selectedItem, stat, true)">
+                  ({{ getStatDiff(selectedItem, stat) }})
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div class="detail-stats">
+            <div class="stats-title" v-if="getEquippedForSlot(selectedItem.slotType)">属性详情</div>
             <div v-for="(value, stat) in selectedItem.stats" :key="stat" class="stat-row">
               <span class="stat-name">{{ statNames[stat] || stat }}</span>
               <span class="stat-value" :class="getStatClass(stat)">
@@ -470,7 +510,7 @@ export default {
         { key: 'ring', name: '戒指' },
         { key: 'necklace', name: '项链' },
         { key: 'boots', name: '鞋子' },
-        { key: 'artifact', name: '法宝' },
+        { key: 'set', name: '套装' },
         { key: 'skillBook', name: '技能书' }
       ],
       qualityFilters: [
@@ -534,6 +574,8 @@ export default {
       if (this.currentFilter !== 'all') {
         if (this.currentFilter === 'skillBook') {
           result = result.filter(item => item.type === 'skillBook')
+        } else if (this.currentFilter === 'set') {
+          result = result.filter(item => item.setId)
         } else {
           result = result.filter(item => item.slotType === this.currentFilter)
         }
@@ -610,6 +652,9 @@ export default {
       if (filterKey === 'skillBook') {
         return this.inventory.filter(item => item.type === 'skillBook').length
       }
+      if (filterKey === 'set') {
+        return this.inventory.filter(item => item.setId).length
+      }
       return this.inventory.filter(item => item.slotType === filterKey).length
     },
     toggleSort(sortKey) {
@@ -639,6 +684,49 @@ export default {
       if (item.type === 'skillBook') return true
       if (!item.requiredLevel) return true
       return this.playerLevel >= item.requiredLevel
+    },
+    // 获取已装备的同部位装备
+    getEquippedForSlot(slotType) {
+      if (!slotType) return null
+      return this.equipment[slotType] || null
+    },
+    // 获取对比需要显示的所有属性
+    getAllCompareStats(newItem) {
+      const equipped = this.getEquippedForSlot(newItem.slotType)
+      const statsSet = new Set()
+      if (newItem.stats) {
+        Object.keys(newItem.stats).forEach(s => statsSet.add(s))
+      }
+      if (equipped && equipped.stats) {
+        Object.keys(equipped.stats).forEach(s => statsSet.add(s))
+      }
+      return Array.from(statsSet)
+    },
+    // 获取装备的某个属性值（含强化）
+    getItemStatValue(item, stat) {
+      if (!item || !item.stats || !item.stats[stat]) return 0
+      const base = item.stats[stat]
+      const enhanced = this.getEnhancedValue(base, item.enhanceLevel || 0)
+      return enhanced
+    },
+    // 获取属性差值显示
+    getStatDiff(newItem, stat) {
+      const equipped = this.getEquippedForSlot(newItem.slotType)
+      const newValue = this.getItemStatValue(newItem, stat)
+      const oldValue = equipped ? this.getItemStatValue(equipped, stat) : 0
+      const diff = newValue - oldValue
+      if (diff > 0) return `+${diff}`
+      if (diff < 0) return `${diff}`
+      return '0'
+    },
+    // 获取对比颜色类
+    getCompareClass(newItem, stat, isNew) {
+      const equipped = this.getEquippedForSlot(newItem.slotType)
+      const newValue = this.getItemStatValue(newItem, stat)
+      const oldValue = equipped ? this.getItemStatValue(equipped, stat) : 0
+      if (newValue > oldValue) return 'better'
+      if (newValue < oldValue) return 'worse'
+      return 'same'
     },
     handleSlotClick(slotType) {
       if (this.equipment[slotType]) {
@@ -1293,6 +1381,119 @@ export default {
   padding: 10px;
   background: #2a2a4a;
   border-radius: 6px;
+}
+
+/* 装备对比区域 */
+.compare-section {
+  background: linear-gradient(135deg, #1a2a3a 0%, #2a3a4a 100%);
+  border: 1px solid #4a6a8a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.compare-header {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #4a6a8a;
+}
+
+.compare-title {
+  color: #87ceeb;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+.compare-content {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.compare-column {
+  flex: 1;
+  text-align: center;
+}
+
+.compare-label {
+  color: #888;
+  font-size: 0.75em;
+  margin-bottom: 4px;
+}
+
+.compare-item-name {
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.compare-stats {
+  background: #1a1a2e;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.compare-stat-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 0.8em;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.compare-stat-row:last-child {
+  border-bottom: none;
+}
+
+.compare-stat-name {
+  flex: 1;
+  color: #888;
+}
+
+.compare-stat-new {
+  width: 50px;
+  text-align: right;
+  font-weight: bold;
+}
+
+.compare-arrow {
+  color: #666;
+  padding: 0 8px;
+}
+
+.compare-stat-old {
+  width: 50px;
+  text-align: left;
+  color: #888;
+}
+
+.compare-diff {
+  width: 55px;
+  text-align: right;
+  font-size: 0.9em;
+}
+
+.compare-stat-new.better,
+.compare-diff.better {
+  color: #2ecc71;
+}
+
+.compare-stat-new.worse,
+.compare-diff.worse {
+  color: #e74c3c;
+}
+
+.compare-stat-new.same,
+.compare-diff.same {
+  color: #888;
+}
+
+.stats-title {
+  color: #87ceeb;
+  font-size: 0.85em;
+  font-weight: bold;
+  margin-bottom: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #4a4a6a;
 }
 
 .detail-stats {
@@ -2021,5 +2222,150 @@ export default {
   cursor: pointer;
   font-size: 0.9em;
   transition: all 0.2s;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .equipment-panel {
+    padding: 10px;
+  }
+
+  .panel-header h3 {
+    font-size: 1em;
+  }
+
+  .equip-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .equip-slot {
+    padding: 8px;
+  }
+
+  .slot-name {
+    font-size: 0.7em;
+  }
+
+  .item-name {
+    font-size: 0.65em;
+  }
+
+  .filter-tabs {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .filter-tabs button {
+    padding: 4px 8px;
+    font-size: 0.7em;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .inventory-item {
+    padding: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .equipment-panel {
+    padding: 8px;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .header-actions button {
+    font-size: 0.7em;
+    padding: 4px 8px;
+  }
+
+  .equip-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+
+  .equip-slot {
+    padding: 6px;
+  }
+
+  .slot-name {
+    font-size: 0.65em;
+  }
+
+  .item-name {
+    font-size: 0.6em;
+  }
+
+  .item-level {
+    font-size: 0.6em;
+  }
+
+  .filter-tabs {
+    gap: 3px;
+  }
+
+  .filter-tabs button {
+    padding: 3px 6px;
+    font-size: 0.65em;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+  }
+
+  .inventory-item {
+    padding: 4px;
+    font-size: 0.7em;
+  }
+
+  /* 弹窗适配 */
+  .item-detail-modal .item-detail,
+  .item-detail-modal .enhance-panel,
+  .artifact-detail-panel {
+    width: 95vw;
+    max-width: none;
+    min-width: 0;
+    padding: 15px;
+  }
+
+  .detail-header,
+  .artifact-header {
+    font-size: 1.1em;
+  }
+
+  .detail-stats,
+  .artifact-stats-section {
+    padding: 10px;
+  }
+
+  .stat-row {
+    font-size: 0.8em;
+  }
+
+  .detail-actions,
+  .artifact-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .detail-actions button,
+  .artifact-actions button {
+    padding: 10px;
+    font-size: 0.85em;
+  }
 }
 </style>

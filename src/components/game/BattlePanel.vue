@@ -1833,4 +1833,157 @@ export default {
   background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
   box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .battle-panel {
+    padding: 10px;
+  }
+
+  .panel-header h3 {
+    font-size: 1em;
+  }
+
+  .map-select select {
+    padding: 8px;
+    font-size: 0.85em;
+  }
+
+  .drop-table-btn,
+  .stats-btn {
+    padding: 6px 10px;
+    font-size: 0.8em;
+  }
+
+  .battle-status {
+    min-height: 180px;
+    max-height: 180px;
+    padding: 8px;
+  }
+
+  .battle-log {
+    height: 300px;
+    max-height: 300px;
+    font-size: 0.75em;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .battle-panel {
+    padding: 8px;
+  }
+
+  .panel-header {
+    margin-bottom: 8px;
+  }
+
+  .panel-header h3 {
+    font-size: 0.9em;
+  }
+
+  .kill-count {
+    font-size: 0.8em;
+  }
+
+  .map-select-row {
+    flex-wrap: wrap;
+  }
+
+  .map-select-row select {
+    width: 100%;
+    margin-bottom: 6px;
+  }
+
+  .drop-table-btn,
+  .stats-btn {
+    flex: 1;
+  }
+
+  .map-desc {
+    font-size: 0.75em;
+  }
+
+  .battle-btn {
+    padding: 10px;
+    font-size: 0.95em;
+  }
+
+  .battle-status {
+    min-height: 150px;
+    max-height: 150px;
+    padding: 6px;
+  }
+
+  .combatant-name {
+    font-size: 0.8em;
+  }
+
+  .hp-bar-wrap {
+    height: 10px;
+  }
+
+  .hp-text {
+    font-size: 0.7em;
+  }
+
+  .vs {
+    font-size: 0.85em;
+    min-width: 24px;
+  }
+
+  .battle-log {
+    height: 250px;
+    max-height: 250px;
+    font-size: 0.7em;
+    padding: 6px;
+  }
+
+  .tower-floor-select {
+    flex-wrap: wrap;
+  }
+
+  .tower-floor-select select {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  /* 弹窗适配 */
+  .drop-table-modal,
+  .battle-stats-modal {
+    width: 95%;
+    max-width: none;
+  }
+
+  .modal-header {
+    padding: 12px 15px;
+  }
+
+  .modal-header h3 {
+    font-size: 1em;
+  }
+
+  .drop-table-content,
+  .battle-stats-content {
+    padding: 10px;
+  }
+
+  .map-drop-header {
+    padding: 8px 10px;
+    font-size: 0.9em;
+  }
+
+  .drop-item {
+    font-size: 0.85em;
+    padding: 5px 0;
+  }
+
+  .stats-section {
+    padding: 10px;
+  }
+
+  .stats-row {
+    font-size: 0.85em;
+  }
+}
 </style>
