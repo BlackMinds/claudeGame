@@ -1,10 +1,15 @@
 {
   "name": "xiuxian-game",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "修仙物语 - 一款修仙放置游戏",
+  "author": "LY",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --port 4173"
+    "preview": "vite preview --port 4173",
+    "electron:dev": "vite build && electron .",
+    "electron:build": "vite build && electron-builder"
   },
   "dependencies": {
     "vue": "^2.7.7"
@@ -12,7 +17,35 @@
   "devDependencies": {
     "@vitejs/plugin-legacy": "^2.0.0",
     "@vitejs/plugin-vue2": "^1.1.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
     "terser": "^5.14.2",
     "vite": "^3.0.2"
+  },
+  "build": {
+    "appId": "com.xiuxian.game",
+    "productName": "修仙物语",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "修仙物语"
+    }
   }
 }

@@ -16,6 +16,9 @@ dist-ssr
 /cypress/videos/
 /cypress/screenshots/
 
+# Electron build output
+release/
+
 # Editor directories and files
 .vscode
 !.vscode/extensions.json

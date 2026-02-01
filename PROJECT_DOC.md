@@ -6,30 +6,35 @@
 ## 技术栈
 - **框架**: Vue 2 + Vue.observable（状态管理）
 - **构建工具**: Vite
+- **桌面应用**: Electron + electron-builder
 - **语言**: JavaScript
-- **样式**: Scoped CSS
+- **样式**: Scoped CSS（响应式设计，支持移动端）
 
 ## 项目结构
 ```
-src/
-├── App.vue                 # 根组件
-├── main.js                 # 入口文件
-├── assets/
-│   └── main.css           # 全局样式
-├── components/game/
-│   ├── GameMain.vue       # 游戏主容器
-│   ├── NavBar.vue         # 顶部导航栏（设置、攻略、打坐面板）
-│   ├── AttributePanel.vue # 左侧属性面板（角色属性、技能展示）
-│   ├── BattlePanel.vue    # 中间战斗面板（地图、战斗、锁妖塔）
-│   ├── EquipmentPanel.vue # 右侧装备面板（装备栏、背包）
-│   ├── SkillPanel.vue     # 技能面板弹窗（技能学习、装备）
-│   └── PetPanel.vue       # 宠物面板弹窗（宠物管理）
-├── data/
-│   └── gameData.js        # 游戏数据配置（核心数据文件）
-├── store/
-│   └── gameStore.js       # 游戏状态管理（核心逻辑文件）
-└── utils/
-    └── security.js        # 存档加密验证
+├── electron/
+│   ├── main.js            # Electron 主进程
+│   └── preload.js         # Electron 预加载脚本
+├── src/
+│   ├── App.vue            # 根组件
+│   ├── main.js            # 入口文件
+│   ├── assets/
+│   │   └── main.css       # 全局样式
+│   ├── components/game/
+│   │   ├── GameMain.vue       # 游戏主容器
+│   │   ├── NavBar.vue         # 顶部导航栏（设置、攻略、打坐面板）
+│   │   ├── AttributePanel.vue # 左侧属性面板（角色属性、技能展示）
+│   │   ├── BattlePanel.vue    # 中间战斗面板（地图、战斗、锁妖塔）
+│   │   ├── EquipmentPanel.vue # 右侧装备面板（装备栏、背包）
+│   │   ├── SkillPanel.vue     # 技能面板弹窗（技能学习、装备）
+│   │   └── PetPanel.vue       # 宠物面板弹窗（宠物管理）
+│   ├── data/
+│   │   └── gameData.js        # 游戏数据配置（核心数据文件）
+│   ├── store/
+│   │   └── gameStore.js       # 游戏状态管理（核心逻辑文件）
+│   └── utils/
+│       └── security.js        # 存档加密验证
+└── release/               # Electron 打包输出目录
 ```
 
 ## 核心文件说明
@@ -70,6 +75,9 @@ src/
   - `getEnhanceSuccessRate(level)`: 获取强化成功率（+7开始有失败概率）
   - `getEnhanceBonus(level)`: 获取强化加成（+1~+10每级5%，+11为10%，+12为15%）
   - 强化失败会降低1-2级（不会低于+6）
+- **特殊属性数值平衡**（考虑强化系统）:
+  - 闪避：3%~8%（轻靴8%、布甲6%、面具5%、混元法宝1%）
+  - 穿透：4%~5%（利刃5%、秘戒4%）
 
 #### 技能系统
 - `skills`: 技能数据数组
@@ -232,9 +240,84 @@ if (isCrit) finalDamage *= (1.5 + critDamage/100)
 4. 在 `AttributePanel.vue` 添加显示
 5. 在 `EquipmentPanel.vue` 的 `statNames` 添加名称映射
 
+## 移动端适配
+
+游戏支持响应式布局，适配移动设备：
+
+### 断点设计
+- `768px`: 平板适配（导航栏折叠、面板堆叠）
+- `480px`: 手机适配（紧凑布局、简化显示）
+
+### 适配组件
+- **NavBar.vue**: 导航按钮自适应、隐藏副标题
+- **AttributePanel.vue**: 属性面板紧凑显示
+- **BattlePanel.vue**: 战斗面板全宽、日志区域缩小
+- **EquipmentPanel.vue**: 装备格子自适应、弹窗全屏
+- **GameMain.vue**: 三栏布局改为单栏堆叠
+
+### 玩家名称编辑
+点击玩家名称可弹出修改弹窗，支持最多12个字符。
+
+## 装备对比系统
+
+在装备详情弹窗中，选中背包装备时会显示与已装备物品的对比：
+- 绿色数值：新装备属性更高
+- 红色数值：新装备属性更低
+- 显示差值（如 +10 或 -5）
+
+相关方法（EquipmentPanel.vue）:
+- `getEquippedForSlot(slotType)`: 获取对应槽位已装备物品
+- `getAllCompareStats(item)`: 获取所有需要对比的属性
+- `getStatDiff(item, stat)`: 计算属性差值
+- `getCompareClass(item, stat)`: 获取对比颜色样式
+
+## 测试人偶地图
+
+用于测试伤害输出的特殊地图：
+- **位置**: 地图列表最后一个
+- **怪物**: 测试人偶（固定属性，不随等级变化）
+- **属性**: HP 999999, 攻击 100, 防御 100, 命中 100
+- **特点**: 无经验、无金币、无掉落
+
+## 反加速检测
+
+防止使用加速器作弊的机制：
+
+```javascript
+// 核心参数
+BATTLE_INTERVAL = 1000    // 正常战斗间隔（毫秒）
+MIN_INTERVAL = 750        // 最小允许间隔
+SPEED_HACK_THRESHOLD = 5  // 连续异常次数阈值
+
+// 检测逻辑
+1. 使用 performance.now() 记录战斗时间
+2. 计算两次战斗间隔
+3. 如果间隔 < MIN_INTERVAL，累加异常计数
+4. 连续异常达到阈值，暂停自动战斗
+```
+
+## Electron 桌面应用
+
+### 打包命令
+```bash
+npm run electron:dev    # 测试运行
+npm run electron:build  # 打包安装程序
+```
+
+### 输出目录
+- `release/修仙物语 Setup x.x.x.exe` - Windows 安装程序
+- `release/win-unpacked/` - 免安装版本
+
+### 配置说明
+- **main.js**: Electron 主进程，创建窗口和加载页面
+- **preload.js**: 预加载脚本，暴露安全 API
+- **package.json**: build 字段配置打包选项
+
 ## 注意事项
 
 1. **响应式**: 使用 `Vue.observable` 管理状态，修改需注意响应式更新
 2. **存档兼容**: 修改 `gameState` 结构时注意旧存档兼容
 3. **数值平衡**: 修改数值时注意整体平衡性
 4. **攻略同步**: 套装数据会自动显示在攻略面板
+5. **移动端测试**: 修改样式后需测试不同屏幕尺寸
+6. **Electron打包**: 修改后需重新运行 `npm run electron:build`
