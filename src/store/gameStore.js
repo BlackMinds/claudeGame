@@ -3787,18 +3787,52 @@ export function getBattleStats() {
   }
 }
 
+// 防加速检测
+let lastBattleTime = 0
+let speedHackCount = 0
+const BATTLE_INTERVAL = 1000 // 正常间隔1秒
+const MIN_INTERVAL = 750 // 最小允许间隔（考虑误差）
+const SPEED_HACK_THRESHOLD = 5 // 连续检测到加速的阈值
+
+function checkSpeedHack() {
+  const now = performance.now()
+  if (lastBattleTime > 0) {
+    const elapsed = now - lastBattleTime
+    if (elapsed < MIN_INTERVAL) {
+      speedHackCount++
+      if (speedHackCount >= SPEED_HACK_THRESHOLD) {
+        addBattleLog('⚠️ 检测到异常加速，战斗暂停', 'danger')
+        stopAutoBattle()
+        speedHackCount = 0
+        lastBattleTime = 0
+        return false
+      }
+    } else {
+      // 正常速度，重置计数
+      if (speedHackCount > 0) speedHackCount--
+    }
+  }
+  lastBattleTime = now
+  return true
+}
+
 // 开始自动战斗
 export function startAutoBattle() {
   if (gameState.battle.isAutoBattle) return
 
   gameState.battle.isAutoBattle = true
   gameState.battle.killCount = 0
+  lastBattleTime = 0
+  speedHackCount = 0
   resetBattleStats()
   clearBattleLog()
   addBattleLog('开始自动战斗...', 'warning')
 
   const autoBattleLoop = () => {
     if (!gameState.battle.isAutoBattle) return
+
+    // 防加速检测
+    if (!checkSpeedHack()) return
 
     if (!gameState.battle.isInBattle) {
       startBattle()
@@ -3809,7 +3843,7 @@ export function startAutoBattle() {
     }
 
     if (gameState.battle.isAutoBattle) {
-      gameState.battle.battleTimer = setTimeout(autoBattleLoop, 1000)
+      gameState.battle.battleTimer = setTimeout(autoBattleLoop, BATTLE_INTERVAL)
     }
   }
 
