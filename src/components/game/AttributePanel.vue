@@ -184,7 +184,7 @@
 
 <script>
 import { gameState, getCurrentRealm, getEquippedActiveSkillsWithDetails, getEquippedPassiveSkillsWithDetails, getPlayerStats, getExpToNextLevel, getNextRealm, getMaxPassiveSlots, isMaxLevel, getPassiveSkillBonus, getEquippedCraftedArtifact, getSetBonuses, saveGame } from '../../store/gameStore'
-import { getCraftedArtifactStats } from '../../data/gameData'
+import { getCraftedArtifactStats, getTalentEffects } from '../../data/gameData'
 import { skillRarityConfig } from '../../data/gameData'
 
 export default {
@@ -244,6 +244,8 @@ export default {
       return getMaxPassiveSlots()
     },
     stats() {
+      // 引用 talentsVersion 以建立 Vue 响应式依赖
+      const _ = gameState.player.talentsVersion
       return getPlayerStats()
     },
     expToNextLevel() {
@@ -266,18 +268,21 @@ export default {
       const prev = this.currentRealm.minExp
       return Math.min(100, ((this.player.realmExp - prev) / (next.minExp - prev)) * 100)
     },
-    // 总百分比加成（包含境界、被动技能、套装、法宝等）
+    // 总百分比加成（包含境界、被动技能、套装、法宝、天赋等）
     totalBonus() {
+      // 引用 talentsVersion 以建立 Vue 响应式依赖
+      const _ = gameState.player.talentsVersion
       const stats = getPlayerStats()
       const realm = this.currentRealm
       const passiveStats = getPassiveSkillBonus()
       const setBonuses = this.setBonus
       const artPassive = this.artifactBonus
+      const talentEffects = getTalentEffects(gameState.player.talents)
 
       return {
-        hpBonus: (realm.hpBonus || 0) + (setBonuses.hp || 0) + (passiveStats.hpPercent || 0) + (artPassive.hpPercent || 0) + (artPassive.allPercent || 0),
-        attackBonus: (realm.attackBonus || 0) + (setBonuses.attack || 0) + (passiveStats.attackPercent || 0) + (artPassive.attackPercent || 0) + (artPassive.allPercent || 0),
-        defenseBonus: (realm.defenseBonus || 0) + (setBonuses.defense || 0) + (passiveStats.defensePercent || 0) + (artPassive.defensePercent || 0) + (artPassive.allPercent || 0),
+        hpBonus: (realm.hpBonus || 0) + (setBonuses.hp || 0) + (passiveStats.hpPercent || 0) + (artPassive.hpPercent || 0) + (artPassive.allPercent || 0) + (talentEffects.hpPercent || 0),
+        attackBonus: (realm.attackBonus || 0) + (setBonuses.attack || 0) + (passiveStats.attackPercent || 0) + (artPassive.attackPercent || 0) + (artPassive.allPercent || 0) + (talentEffects.attackPercent || 0),
+        defenseBonus: (realm.defenseBonus || 0) + (setBonuses.defense || 0) + (passiveStats.defensePercent || 0) + (artPassive.defensePercent || 0) + (artPassive.allPercent || 0) + (talentEffects.defensePercent || 0),
         lifesteal: stats.lifesteal || 0,
         healBonus: stats.healBonus || 0,
         healReceivedBonus: stats.healReceivedBonus || 0

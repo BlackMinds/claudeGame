@@ -30,6 +30,7 @@
 
     <div class="nav-actions">
       <button @click="showSkillPanel = true" class="nav-btn skill">技能</button>
+      <button @click="showTalentPanel = true" class="nav-btn talent">天赋</button>
       <button @click="showPetPanel = true" class="nav-btn pet">宠物</button>
       <button @click="showArtifactPanel = true" class="nav-btn artifact">法宝</button>
       <button @click="handleMeditationClick" class="nav-btn meditation">打坐</button>
@@ -87,7 +88,7 @@
           </div>
         </div>
 
-        <div class="setting-item">
+        <!-- <div class="setting-item">
           <label>装备拾取筛选</label>
           <div class="loot-filter-settings">
             <label class="filter-switch">
@@ -129,7 +130,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </div> -->
 
         <div class="setting-item">
           <label>兑换码</label>
@@ -175,6 +176,14 @@
       <div class="modal-content artifact-modal">
         <button class="modal-close" @click="showArtifactPanel = false">×</button>
         <ArtifactCraftPanel />
+      </div>
+    </div>
+
+    <!-- 天赋面板弹窗 -->
+    <div v-if="showTalentPanel" class="modal-overlay" @click.self="showTalentPanel = false">
+      <div class="modal-content talent-modal">
+        <button class="modal-close" @click="showTalentPanel = false">×</button>
+        <TalentPanel />
       </div>
     </div>
 
@@ -258,10 +267,6 @@
             </div>
             <h4 class="section-title">特殊机制</h4>
             <div class="tower-special">
-              <div class="special-item">
-                <span class="special-floor">200层+</span>
-                <span class="special-desc">怪物可能使用<span class="debuff-text">禁疗</span>（禁止回复生命3回合）</span>
-              </div>
               <div class="special-item">
                 <span class="special-floor">200层+</span>
                 <span class="special-desc">怪物可能使用<span class="debuff-text">重伤</span>（回复效果减少60%持续3回合）</span>
@@ -513,19 +518,22 @@ import { equipmentSets, petTypes, skills, getSkillById, craftedArtifactQualities
 import SkillPanel from './SkillPanel.vue'
 import PetPanel from './PetPanel.vue'
 import ArtifactCraftPanel from './ArtifactCraftPanel.vue'
+import TalentPanel from './TalentPanel.vue'
 
 export default {
   name: 'NavBar',
   components: {
     SkillPanel,
     PetPanel,
-    ArtifactCraftPanel
+    ArtifactCraftPanel,
+    TalentPanel
   },
   data() {
     return {
       showSkillPanel: false,
       showPetPanel: false,
       showArtifactPanel: false,
+      showTalentPanel: false,
       showMeditation: false,
       showCultivationChoice: false,
       showSettings: false,
@@ -990,6 +998,15 @@ export default {
   background: #5a3a7a;
 }
 
+.nav-btn.talent {
+  background: #2a5a4a;
+  color: #98e4d0;
+}
+
+.nav-btn.talent:hover {
+  background: #3a6a5a;
+}
+
 .nav-btn.pet {
   background: #5a4a2a;
   color: #ffcc99;
@@ -1065,6 +1082,11 @@ export default {
 
 .modal-content.artifact-modal {
   max-width: 600px;
+}
+
+.modal-content.talent-modal {
+  max-width: 900px;
+  width: 95%;
 }
 
 .modal-close {

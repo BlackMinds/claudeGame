@@ -1,33 +1,33 @@
-// 仙修境界 - 平衡型：生命+5% 攻击+5% 防御+5%
+// 仙修境界 - 平衡型：生命+8% 攻击+8% 防御+8%，化神期起：闪避+1% 抗暴+1% 掉落+5% 命中+2%
 export const xianRealms = [
-  { id: 1, name: '凡人', minExp: 0, hpBonus: 0, attackBonus: 0, defenseBonus: 0, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 2, name: '炼气期', minExp: 4500, hpBonus: 5, attackBonus: 5, defenseBonus: 5, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 3, name: '筑基期', minExp: 18000, hpBonus: 10, attackBonus: 10, defenseBonus: 10, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 4, name: '金丹期', minExp: 75000, hpBonus: 15, attackBonus: 15, defenseBonus: 15, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 5, name: '元婴期', minExp: 300000, hpBonus: 20, attackBonus: 20, defenseBonus: 20, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 6, name: '化神期', minExp: 1050000, hpBonus: 25, attackBonus: 25, defenseBonus: 25, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 7, name: '炼虚期', minExp: 3600000, hpBonus: 30, attackBonus: 30, defenseBonus: 30, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 8, name: '合体期', minExp: 12000000, hpBonus: 35, attackBonus: 35, defenseBonus: 35, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 9, name: '大乘期', minExp: 36000000, hpBonus: 40, attackBonus: 40, defenseBonus: 40, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 10, name: '渡劫期', minExp: 105000000, hpBonus: 45, attackBonus: 45, defenseBonus: 45, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 11, name: '真仙', minExp: 300000000, hpBonus: 50, attackBonus: 50, defenseBonus: 50, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 12, name: '天仙', minExp: 900000000, hpBonus: 55, attackBonus: 55, defenseBonus: 55, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 }
+  { id: 1, name: '凡人', minExp: 0, hpBonus: 0, attackBonus: 0, defenseBonus: 0, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 0, critResist: 0, dropRate: 0, hit: 0 },
+  { id: 2, name: '炼气期', minExp: 4500, hpBonus: 8, attackBonus: 8, defenseBonus: 8, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 0, critResist: 0, dropRate: 0, hit: 0 },
+  { id: 3, name: '筑基期', minExp: 18000, hpBonus: 16, attackBonus: 16, defenseBonus: 16, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 0, critResist: 0, dropRate: 0, hit: 0 },
+  { id: 4, name: '金丹期', minExp: 75000, hpBonus: 24, attackBonus: 24, defenseBonus: 24, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 0, critResist: 0, dropRate: 0, hit: 0 },
+  { id: 5, name: '元婴期', minExp: 300000, hpBonus: 32, attackBonus: 32, defenseBonus: 32, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 0, critResist: 0, dropRate: 0, hit: 0 },
+  { id: 6, name: '化神期', minExp: 1050000, hpBonus: 40, attackBonus: 40, defenseBonus: 40, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 1, critResist: 1, dropRate: 5, hit: 2 },
+  { id: 7, name: '炼虚期', minExp: 3600000, hpBonus: 48, attackBonus: 48, defenseBonus: 48, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 2, critResist: 2, dropRate: 10, hit: 4 },
+  { id: 8, name: '合体期', minExp: 12000000, hpBonus: 56, attackBonus: 56, defenseBonus: 56, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 3, critResist: 3, dropRate: 15, hit: 6 },
+  { id: 9, name: '大乘期', minExp: 36000000, hpBonus: 64, attackBonus: 64, defenseBonus: 64, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 4, critResist: 4, dropRate: 20, hit: 8 },
+  { id: 10, name: '渡劫期', minExp: 105000000, hpBonus: 72, attackBonus: 72, defenseBonus: 72, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 5, critResist: 5, dropRate: 25, hit: 10 },
+  { id: 11, name: '真仙', minExp: 300000000, hpBonus: 80, attackBonus: 80, defenseBonus: 80, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 6, critResist: 6, dropRate: 30, hit: 12 },
+  { id: 12, name: '天仙', minExp: 900000000, hpBonus: 88, attackBonus: 88, defenseBonus: 88, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, dodge: 7, critResist: 7, dropRate: 35, hit: 14 }
 ]
 
-// 魔修境界 - 攻击型：生命+2% 攻击+8% 防御+0% 吸血+2%
+// 魔修境界 - 攻击型：生命+3% 攻击+12% 吸血+3%，化魔期起：暴击+1% 爆伤+5%
 export const moRealms = [
-  { id: 1, name: '凡人', minExp: 0, hpBonus: 0, attackBonus: 0, defenseBonus: 0, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0 },
-  { id: 2, name: '凝煞期', minExp: 4500, hpBonus: 2, attackBonus: 8, defenseBonus: 0, lifestealBonus: 2, healBonus: 0, healReceivedBonus: 0 },
-  { id: 3, name: '魔童期', minExp: 18000, hpBonus: 4, attackBonus: 16, defenseBonus: 0, lifestealBonus: 4, healBonus: 0, healReceivedBonus: 0 },
-  { id: 4, name: '魔丹期', minExp: 75000, hpBonus: 6, attackBonus: 24, defenseBonus: 0, lifestealBonus: 6, healBonus: 0, healReceivedBonus: 0 },
-  { id: 5, name: '魔婴期', minExp: 300000, hpBonus: 8, attackBonus: 32, defenseBonus: 0, lifestealBonus: 8, healBonus: 0, healReceivedBonus: 0 },
-  { id: 6, name: '化魔期', minExp: 1050000, hpBonus: 10, attackBonus: 40, defenseBonus: 0, lifestealBonus: 10, healBonus: 0, healReceivedBonus: 0 },
-  { id: 7, name: '炼域期', minExp: 3600000, hpBonus: 12, attackBonus: 48, defenseBonus: 0, lifestealBonus: 12, healBonus: 0, healReceivedBonus: 0 },
-  { id: 8, name: '自在期', minExp: 12000000, hpBonus: 14, attackBonus: 56, defenseBonus: 0, lifestealBonus: 14, healBonus: 0, healReceivedBonus: 0 },
-  { id: 9, name: '真魔期', minExp: 36000000, hpBonus: 16, attackBonus: 64, defenseBonus: 0, lifestealBonus: 16, healBonus: 0, healReceivedBonus: 0 },
-  { id: 10, name: '逆劫期', minExp: 105000000, hpBonus: 18, attackBonus: 72, defenseBonus: 0, lifestealBonus: 18, healBonus: 0, healReceivedBonus: 0 },
-  { id: 11, name: '真魔', minExp: 300000000, hpBonus: 20, attackBonus: 80, defenseBonus: 0, lifestealBonus: 20, healBonus: 0, healReceivedBonus: 0 },
-  { id: 12, name: '玄魔', minExp: 900000000, hpBonus: 22, attackBonus: 88, defenseBonus: 0, lifestealBonus: 22, healBonus: 0, healReceivedBonus: 0 }
+  { id: 1, name: '凡人', minExp: 0, hpBonus: 0, attackBonus: 0, defenseBonus: 0, lifestealBonus: 0, healBonus: 0, healReceivedBonus: 0, critRate: 0, critDamage: 0 },
+  { id: 2, name: '凝煞期', minExp: 4500, hpBonus: 3, attackBonus: 12, defenseBonus: 0, lifestealBonus: 3, healBonus: 0, healReceivedBonus: 0, critRate: 0, critDamage: 0 },
+  { id: 3, name: '魔童期', minExp: 18000, hpBonus: 6, attackBonus: 24, defenseBonus: 0, lifestealBonus: 6, healBonus: 0, healReceivedBonus: 0, critRate: 0, critDamage: 0 },
+  { id: 4, name: '魔丹期', minExp: 75000, hpBonus: 9, attackBonus: 36, defenseBonus: 0, lifestealBonus: 9, healBonus: 0, healReceivedBonus: 0, critRate: 0, critDamage: 0 },
+  { id: 5, name: '魔婴期', minExp: 300000, hpBonus: 12, attackBonus: 48, defenseBonus: 0, lifestealBonus: 12, healBonus: 0, healReceivedBonus: 0, critRate: 0, critDamage: 0 },
+  { id: 6, name: '化魔期', minExp: 1050000, hpBonus: 15, attackBonus: 60, defenseBonus: 0, lifestealBonus: 15, healBonus: 0, healReceivedBonus: 0, critRate: 1, critDamage: 5 },
+  { id: 7, name: '炼域期', minExp: 3600000, hpBonus: 18, attackBonus: 72, defenseBonus: 0, lifestealBonus: 18, healBonus: 0, healReceivedBonus: 0, critRate: 2, critDamage: 10 },
+  { id: 8, name: '自在期', minExp: 12000000, hpBonus: 21, attackBonus: 84, defenseBonus: 0, lifestealBonus: 21, healBonus: 0, healReceivedBonus: 0, critRate: 3, critDamage: 15 },
+  { id: 9, name: '真魔期', minExp: 36000000, hpBonus: 24, attackBonus: 96, defenseBonus: 0, lifestealBonus: 24, healBonus: 0, healReceivedBonus: 0, critRate: 4, critDamage: 20 },
+  { id: 10, name: '逆劫期', minExp: 105000000, hpBonus: 27, attackBonus: 108, defenseBonus: 0, lifestealBonus: 27, healBonus: 0, healReceivedBonus: 0, critRate: 5, critDamage: 25 },
+  { id: 11, name: '真魔', minExp: 300000000, hpBonus: 30, attackBonus: 120, defenseBonus: 0, lifestealBonus: 30, healBonus: 0, healReceivedBonus: 0, critRate: 6, critDamage: 30 },
+  { id: 12, name: '玄魔', minExp: 900000000, hpBonus: 33, attackBonus: 132, defenseBonus: 0, lifestealBonus: 33, healBonus: 0, healReceivedBonus: 0, critRate: 7, critDamage: 35 }
 ]
 
 // 兼容旧代码，默认使用仙修
@@ -460,7 +460,6 @@ export const monsterSkills = [
   { name: '吸血光环', type: 'special', effect: 'drain', value: 10, description: '每次攻击回复10%伤害' },
   { name: '不屈意志', type: 'special', effect: 'revive', value: 30, description: '首次死亡恢复30%血量' },
   // 锁妖塔200层以上专属技能
-  { name: '禁疗', type: 'debuff', effect: 'healBlock', duration: 3, description: '禁止回复生命3回合', towerOnly: true, minFloor: 200 },
   { name: '重伤', type: 'debuff', effect: 'healReduce', value: 60, duration: 3, description: '回复效果减少60%持续3回合', towerOnly: true, minFloor: 200 }
 ]
 
@@ -3558,4 +3557,305 @@ export function getMapDroppableMaterials(mapId) {
 // 根据锁妖塔层数获取可掉落的材料
 export function getTowerDroppableMaterials(towerFloor) {
   return artifactMaterials.filter(m => m.dropTowerFloor && towerFloor >= m.dropTowerFloor)
+}
+
+// ==================== 天赋树系统 ====================
+
+// 天赋树配置
+export const talentConfig = {
+  pointsPerLevel: 25,  // 每25级获得1点天赋点
+  maxPoints: 40        // 最大天赋点数
+}
+
+// 天赋树数据
+export const talentTree = {
+  // 战意 - 攻击向
+  zhanyi: {
+    id: 'zhanyi',
+    name: '战意',
+    icon: '⚔️',
+    description: '提升攻击能力，追求极致伤害',
+    color: '#e74c3c',
+    talents: [
+      {
+        id: 'xixue',
+        name: '嗜血',
+        icon: '🗡️',
+        maxPoints: 5,
+        description: '攻击力提升',
+        effectPerPoint: { attackPercent: 2 },
+        effectDesc: (points) => `攻击+${points * 2}%`
+      },
+      {
+        id: 'zhiming',
+        name: '致命',
+        icon: '🎯',
+        maxPoints: 5,
+        description: '暴击率提升',
+        effectPerPoint: { critRate: 1 },
+        effectDesc: (points) => `暴击+${points}%`
+      },
+      {
+        id: 'huimie',
+        name: '毁灭',
+        icon: '💥',
+        maxPoints: 5,
+        description: '暴击伤害提升',
+        effectPerPoint: { critDamage: 5 },
+        effectDesc: (points) => `爆伤+${points * 5}%`
+      },
+      {
+        id: 'chuanci',
+        name: '穿刺',
+        icon: '🔱',
+        maxPoints: 5,
+        description: '穿透提升',
+        effectPerPoint: { penetration: 2 },
+        effectDesc: (points) => `穿透+${points * 2}%`
+      },
+      {
+        id: 'kuangbao',
+        name: '狂暴',
+        icon: '🔥',
+        maxPoints: 5,
+        description: '技能伤害提升',
+        effectPerPoint: { skillDamage: 4 },
+        effectDesc: (points) => `技能伤害+${points * 4}%`
+      },
+      {
+        id: 'chuxingzhe',
+        name: '处刑者',
+        icon: '💀',
+        maxPoints: 5,
+        description: '对低血量敌人伤害提升',
+        isUltimate: true,
+        requirePoints: 15,  // 需要本分支已投入15点
+        effectPerPoint: { executeDamage: 5 },
+        effectDesc: (points) => `对30%血量以下敌人伤害+${points * 5}%`
+      }
+    ]
+  },
+
+  // 坚韧 - 防御向
+  jianren: {
+    id: 'jianren',
+    name: '坚韧',
+    icon: '🛡️',
+    description: '提升生存能力，坚不可摧',
+    color: '#3498db',
+    talents: [
+      {
+        id: 'tiebi',
+        name: '铁壁',
+        icon: '🏰',
+        maxPoints: 5,
+        description: '防御力提升',
+        effectPerPoint: { defensePercent: 3 },
+        effectDesc: (points) => `防御+${points * 3}%`
+      },
+      {
+        id: 'shengji',
+        name: '生机',
+        icon: '💚',
+        maxPoints: 5,
+        description: '生命值提升',
+        effectPerPoint: { hpPercent: 3 },
+        effectDesc: (points) => `生命+${points * 3}%`
+      },
+      {
+        id: 'gedang',
+        name: '格挡',
+        icon: '🤚',
+        maxPoints: 5,
+        description: '格挡率提升（格挡减少50%伤害）',
+        effectPerPoint: { blockRate: 2 },
+        effectDesc: (points) => `格挡+${points * 2}%`
+      },
+      {
+        id: 'jianding',
+        name: '坚定',
+        icon: '🪨',
+        maxPoints: 5,
+        description: '伤害减免提升',
+        effectPerPoint: { damageReduction: 1 },
+        effectDesc: (points) => `减伤+${points}%`
+      },
+      {
+        id: 'huichun',
+        name: '回春',
+        icon: '🌿',
+        maxPoints: 5,
+        description: '每回合回复生命',
+        effectPerPoint: { hpRegen: 1 },
+        effectDesc: (points) => `每回合回复${points}%最大生命`
+      },
+      {
+        id: 'busizhanshen',
+        name: '不死战神',
+        icon: '👼',
+        maxPoints: 5,
+        description: '受到致命伤害时有概率复活',
+        isUltimate: true,
+        requirePoints: 15,
+        effectPerPoint: { reviveChance: 4 },
+        effectDesc: (points) => `受致命伤时${points * 4}%概率恢复20%生命（每场1次）`
+      }
+    ]
+  },
+
+  // 诡道 - 特殊机制
+  guidao: {
+    id: 'guidao',
+    name: '诡道',
+    icon: '🌙',
+    description: '掌握特殊战斗技巧',
+    color: '#9b59b6',
+    talents: [
+      {
+        id: 'jiqu',
+        name: '汲取',
+        icon: '🩸',
+        maxPoints: 5,
+        description: '吸血效果提升',
+        effectPerPoint: { lifesteal: 2 },
+        effectDesc: (points) => `吸血+${points * 2}%`
+      },
+      {
+        id: 'guimei',
+        name: '鬼魅',
+        icon: '👻',
+        maxPoints: 5,
+        description: '闪避率提升',
+        effectPerPoint: { dodge: 1 },
+        effectDesc: (points) => `闪避+${points}%`
+      },
+      {
+        id: 'jingji',
+        name: '荆棘',
+        icon: '🌵',
+        maxPoints: 5,
+        description: '反伤效果提升',
+        effectPerPoint: { thorns: 3 },
+        effectDesc: (points) => `反伤+${points * 3}%`
+      },
+      {
+        id: 'lengjing',
+        name: '冷静',
+        icon: '❄️',
+        maxPoints: 5,
+        description: '抗暴击提升',
+        effectPerPoint: { critResist: 2 },
+        effectDesc: (points) => `抗暴击+${points * 2}%`
+      },
+      {
+        id: 'jingzhun',
+        name: '精准',
+        icon: '🎪',
+        maxPoints: 5,
+        description: '命中提升',
+        effectPerPoint: { hit: 2 },
+        effectDesc: (points) => `命中+${points * 2}%`
+      },
+      {
+        id: 'anyingtuxi',
+        name: '暗影突袭',
+        icon: '🗡️',
+        maxPoints: 5,
+        description: '闪避后下次攻击必暴击',
+        isUltimate: true,
+        requirePoints: 15,
+        effectPerPoint: { shadowStrikeDamage: 6 },
+        effectDesc: (points) => `闪避后下次攻击必暴击，伤害+${points * 6}%`
+      }
+    ]
+  }
+}
+
+// 获取天赋效果
+export function getTalentEffects(allocatedTalents) {
+  const effects = {
+    // 百分比加成
+    attackPercent: 0,
+    defensePercent: 0,
+    hpPercent: 0,
+    // 直接加成
+    critRate: 0,
+    critDamage: 0,
+    penetration: 0,
+    skillDamage: 0,
+    blockRate: 0,
+    damageReduction: 0,
+    hpRegen: 0,
+    lifesteal: 0,
+    dodge: 0,
+    thorns: 0,
+    critResist: 0,
+    hit: 0,
+    // 特殊效果
+    executeDamage: 0,      // 处刑者：对低血量敌人伤害加成
+    reviveChance: 0,       // 不死战神：复活概率
+    shadowStrikeDamage: 0  // 暗影突袭：闪避后伤害加成
+  }
+
+  if (!allocatedTalents) return effects
+
+  // 遍历所有分支
+  for (const branchId of Object.keys(talentTree)) {
+    const branch = talentTree[branchId]
+    const branchAllocation = allocatedTalents[branchId] || {}
+
+    // 遍历分支中的天赋
+    for (const talent of branch.talents) {
+      const points = branchAllocation[talent.id] || 0
+      if (points > 0) {
+        // 应用效果
+        for (const [key, value] of Object.entries(talent.effectPerPoint)) {
+          effects[key] = (effects[key] || 0) + value * points
+        }
+      }
+    }
+  }
+
+  return effects
+}
+
+// 计算某个分支已投入的点数
+export function getBranchPoints(allocatedTalents, branchId) {
+  if (!allocatedTalents || !allocatedTalents[branchId]) return 0
+  return Object.values(allocatedTalents[branchId]).reduce((sum, points) => sum + points, 0)
+}
+
+// 计算已使用的总天赋点数
+export function getTotalUsedPoints(allocatedTalents) {
+  if (!allocatedTalents) return 0
+  let total = 0
+  for (const branchId of Object.keys(allocatedTalents)) {
+    total += getBranchPoints(allocatedTalents, branchId)
+  }
+  return total
+}
+
+// 检查天赋是否可以加点
+export function canAddTalentPoint(allocatedTalents, branchId, talentId, availablePoints) {
+  const branch = talentTree[branchId]
+  if (!branch) return false
+
+  const talent = branch.talents.find(t => t.id === talentId)
+  if (!talent) return false
+
+  const currentPoints = allocatedTalents?.[branchId]?.[talentId] || 0
+
+  // 检查是否已满
+  if (currentPoints >= talent.maxPoints) return false
+
+  // 检查可用点数
+  if (availablePoints <= 0) return false
+
+  // 检查终极天赋前置条件
+  if (talent.isUltimate) {
+    const branchPoints = getBranchPoints(allocatedTalents, branchId)
+    if (branchPoints < talent.requirePoints) return false
+  }
+
+  return true
 }

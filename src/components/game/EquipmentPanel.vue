@@ -267,7 +267,7 @@
               <span class="stat-name">{{ statNames[stat] || stat }}</span>
               <span class="stat-value" :class="getStatClass(stat)">
                 +{{ formatStat(stat, value) }}
-                <span v-if="selectedItem.enhanceLevel > 0" class="enhanced-value">
+                <span v-if="selectedItem.enhanceLevel > 0 && isEnhanceableStat(stat)" class="enhanced-value">
                   ({{ formatStat(stat, getEnhancedValue(value, selectedItem.enhanceLevel)) }})
                 </span>
               </span>
@@ -320,9 +320,10 @@
             <div v-for="(value, stat) in enhancingItem.stats" :key="stat" class="enhance-stat-row">
               <span class="stat-name">{{ statNames[stat] || stat }}</span>
               <span class="stat-base">{{ formatStat(stat, value) }}</span>
-              <span v-if="enhancingItem.enhanceLevel > 0" class="stat-enhanced">
+              <span v-if="enhancingItem.enhanceLevel > 0 && isEnhanceableStat(stat)" class="stat-enhanced">
                 ({{ formatStat(stat, getEnhancedValue(value, enhancingItem.enhanceLevel)) }})
               </span>
+              <span v-if="!isEnhanceableStat(stat)" class="stat-no-enhance">(不可强化)</span>
             </div>
           </div>
 
@@ -470,7 +471,7 @@
             <span>{{ statNames[stat] || stat }}</span>
             <span :class="getStatClass(stat)">
               +{{ formatStat(stat, value) }}
-              <template v-if="tooltipItem.enhanceLevel > 0">
+              <template v-if="tooltipItem.enhanceLevel > 0 && isEnhanceableStat(stat)">
                 ({{ formatStat(stat, getEnhancedValue(value, tooltipItem.enhanceLevel)) }})
               </template>
             </span>
@@ -935,6 +936,10 @@ export default {
       this.tooltipItem = null
     },
     // 强化相关方法
+    // 判断属性是否可被强化（只有生命、攻击、防御可强化）
+    isEnhanceableStat(stat) {
+      return ['hp', 'attack', 'defense'].includes(stat)
+    },
     getEnhancedValue(baseValue, enhanceLevel) {
       return getEnhancedStatValue(baseValue, enhanceLevel)
     },
@@ -1846,6 +1851,11 @@ export default {
 .enhance-stat-row .stat-enhanced {
   color: #ffd700;
   font-weight: bold;
+}
+
+.enhance-stat-row .stat-no-enhance {
+  color: #666;
+  font-size: 10px;
 }
 
 .enhance-details {

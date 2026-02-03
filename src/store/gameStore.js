@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, MAX_ENHANCE_LEVEL, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook, equipmentSets, artifactMaterials, materialDropRates, getMapDroppableMaterials, getTowerDroppableMaterials, craftArtifact, getArtifactExpForLevel, getCraftedArtifactStats, getMaterialById } from '../data/gameData'
+import { realms, xianRealms, moRealms, maps, equipSlots, generateEquipment, getRandomSkills, skills, getSkillById, getSkillDamage, getPassiveSkillStats, getSkillExpForLevel, rollSkillBookDrop, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhanceDropLevels, getEnhancedStatValue, MAX_ENHANCE_LEVEL, towerConfig, generateTowerFloorMonsters, getPetStats, getPetExpForLevel, generatePetEgg, hatchPetEgg, generateAptitudePill, calculatePetStats, getAptitudeMultiplier, generatePetSkillBook, shouldDropPetSkillBook, openPetSkillBook, equipmentSets, artifactMaterials, materialDropRates, getMapDroppableMaterials, getTowerDroppableMaterials, craftArtifact, getArtifactExpForLevel, getCraftedArtifactStats, getMaterialById, talentConfig, talentTree, getTalentEffects, getBranchPoints, getTotalUsedPoints, canAddTalentPoint } from '../data/gameData'
 import { calculateChecksum, verifyChecksum, validatePlayerData } from '../utils/security'
 
 // 获取网络时间（返回日期字符串 YYYY-MM-DD）
@@ -129,7 +129,10 @@ export const gameState = Vue.observable({
     // 法宝打造系统
     artifactMaterials: {},  // 材料背包 { materialId: count }
     craftedArtifacts: [],   // 打造的法宝列表
-    equippedCraftedArtifact: null  // 当前装备的打造法宝
+    equippedCraftedArtifact: null,  // 当前装备的打造法宝
+    // 天赋系统
+    talents: {},  // 天赋分配 { branchId: { talentId: points } }
+    talentsVersion: 0  // 天赋版本号，用于触发Vue响应式更新
   },
   // 拾取筛选设置
   lootFilter: {
@@ -383,10 +386,13 @@ export function getPlayerStats() {
   const artStats = craftedArtStats?.stats || { attack: 0, defense: 0, hp: 0 }
   const artPassive = craftedArtStats?.passiveEffects || {}
 
-  // 境界百分比加成 + 套装百分比加成 + 被动技能百分比加成 + 打造法宝百分比加成
-  const hpBonus = 1 + (realm.hpBonus || 0) / 100 + (setBonuses.hp || 0) / 100 + (passiveStats.hpPercent || 0) / 100 + (artPassive.hpPercent || 0) / 100 + (artPassive.allPercent || 0) / 100
-  const attackBonus = 1 + (realm.attackBonus || 0) / 100 + (setBonuses.attack || 0) / 100 + (passiveStats.attackPercent || 0) / 100 + (artPassive.attackPercent || 0) / 100 + (artPassive.allPercent || 0) / 100
-  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100 + (setBonuses.defense || 0) / 100 + (passiveStats.defensePercent || 0) / 100 + (artPassive.defensePercent || 0) / 100 + (artPassive.allPercent || 0) / 100
+  // 获取天赋加成
+  const talentEffects = getTalentEffects(p.talents)
+
+  // 境界百分比加成 + 套装百分比加成 + 被动技能百分比加成 + 打造法宝百分比加成 + 天赋百分比加成
+  const hpBonus = 1 + (realm.hpBonus || 0) / 100 + (setBonuses.hp || 0) / 100 + (passiveStats.hpPercent || 0) / 100 + (artPassive.hpPercent || 0) / 100 + (artPassive.allPercent || 0) / 100 + (talentEffects.hpPercent || 0) / 100
+  const attackBonus = 1 + (realm.attackBonus || 0) / 100 + (setBonuses.attack || 0) / 100 + (passiveStats.attackPercent || 0) / 100 + (artPassive.attackPercent || 0) / 100 + (artPassive.allPercent || 0) / 100 + (talentEffects.attackPercent || 0) / 100
+  const defenseBonus = 1 + (realm.defenseBonus || 0) / 100 + (setBonuses.defense || 0) / 100 + (passiveStats.defensePercent || 0) / 100 + (artPassive.defensePercent || 0) / 100 + (artPassive.allPercent || 0) / 100 + (talentEffects.defensePercent || 0) / 100
 
   // 获取临时buff加成
   const buffs = gameState.battle.playerBuffs || {}
@@ -397,30 +403,30 @@ export function getPlayerStats() {
   const baseAttack = Math.floor((p.baseAttack + equipStats.attack + passiveStats.attack + artStats.attack) * attackBonus)
   const baseDefense = Math.floor((p.baseDefense + equipStats.defense + passiveStats.defense + artStats.defense) * defenseBonus)
 
-  // 吸血 = 装备吸血 + 被动技能吸血 + 境界吸血加成 + 套装吸血 + 打造法宝吸血
-  const totalLifesteal = (equipStats.lifesteal || 0) + (passiveStats.lifesteal || 0) + (realm.lifestealBonus || 0) + (setBonuses.lifesteal || 0) + (artPassive.lifesteal || 0)
+  // 吸血 = 装备吸血 + 被动技能吸血 + 境界吸血加成 + 套装吸血 + 打造法宝吸血 + 天赋吸血
+  const totalLifesteal = (equipStats.lifesteal || 0) + (passiveStats.lifesteal || 0) + (realm.lifestealBonus || 0) + (setBonuses.lifesteal || 0) + (artPassive.lifesteal || 0) + (talentEffects.lifesteal || 0)
 
-  // 伤害减免 = 装备减伤 + 被动技能减伤 + 套装减伤 + 打造法宝减伤
-  const totalDamageReduction = (equipStats.damageReduction || 0) + (passiveStats.damageReduction || 0) + (setBonuses.damageReduction || 0) + (artPassive.damageReduction || 0)
+  // 伤害减免 = 装备减伤 + 被动技能减伤 + 套装减伤 + 打造法宝减伤 + 天赋减伤
+  const totalDamageReduction = (equipStats.damageReduction || 0) + (passiveStats.damageReduction || 0) + (setBonuses.damageReduction || 0) + (artPassive.damageReduction || 0) + (talentEffects.damageReduction || 0)
 
-  // 反伤 = 装备反伤 + 被动技能反伤 + 套装反伤 + 打造法宝反伤
-  const totalThorns = (equipStats.thorns || 0) + (passiveStats.thorns || 0) + (setBonuses.thorns || 0) + (artPassive.thorns || 0)
+  // 反伤 = 装备反伤 + 被动技能反伤 + 套装反伤 + 打造法宝反伤 + 天赋反伤
+  const totalThorns = (equipStats.thorns || 0) + (passiveStats.thorns || 0) + (setBonuses.thorns || 0) + (artPassive.thorns || 0) + (talentEffects.thorns || 0)
 
   return {
     maxHp: Math.floor((p.baseHp + equipStats.hp + passiveStats.hp + artStats.hp) * hpBonus),
     attack: Math.floor(baseAttack * (1 + attackBuffPercent / 100)),
     defense: Math.floor(baseDefense * (1 + defenseBuffPercent / 100)),
-    critRate: p.critRate + equipStats.critRate + passiveStats.critRate + critBuffValue + (setBonuses.critRate || 0) + (artPassive.critRate || 0),
-    critResist: p.critResist + equipStats.critResist + passiveStats.critResist,
-    critDamage: p.critDamage + equipStats.critDamage + passiveStats.critDamage + (setBonuses.critDamage || 0) + (artPassive.critDamage || 0),
-    dodge: p.dodge + equipStats.dodge + passiveStats.dodge + (setBonuses.dodge || 0) + (artPassive.dodge || 0),
-    hit: p.hit + equipStats.hit + passiveStats.hit,
-    penetration: p.penetration + equipStats.penetration + passiveStats.penetration + (setBonuses.penetration || 0) + (artPassive.penetration || 0),
-    skillDamage: equipStats.skillDamage + passiveStats.skillDamage,
-    dropRate: equipStats.dropRate,
+    critRate: p.critRate + equipStats.critRate + passiveStats.critRate + critBuffValue + (setBonuses.critRate || 0) + (artPassive.critRate || 0) + (realm.critRate || 0) + (talentEffects.critRate || 0),
+    critResist: p.critResist + equipStats.critResist + passiveStats.critResist + (realm.critResist || 0) + (talentEffects.critResist || 0),
+    critDamage: p.critDamage + equipStats.critDamage + passiveStats.critDamage + (setBonuses.critDamage || 0) + (artPassive.critDamage || 0) + (realm.critDamage || 0) + (talentEffects.critDamage || 0),
+    dodge: p.dodge + equipStats.dodge + passiveStats.dodge + (setBonuses.dodge || 0) + (artPassive.dodge || 0) + (realm.dodge || 0) + (talentEffects.dodge || 0),
+    hit: p.hit + equipStats.hit + passiveStats.hit + (realm.hit || 0) + (talentEffects.hit || 0),
+    penetration: p.penetration + equipStats.penetration + passiveStats.penetration + (setBonuses.penetration || 0) + (artPassive.penetration || 0) + (talentEffects.penetration || 0),
+    skillDamage: equipStats.skillDamage + passiveStats.skillDamage + (talentEffects.skillDamage || 0),
+    dropRate: equipStats.dropRate + (realm.dropRate || 0),
     lifesteal: totalLifesteal,
     damageReduction: totalDamageReduction,
-    hpRegen: passiveStats.hpRegen || 0,
+    hpRegen: (passiveStats.hpRegen || 0) + (talentEffects.hpRegen || 0),
     healBonus: (realm.healBonus || 0) + (artPassive.healBonus || 0),
     healReceivedBonus: (realm.healReceivedBonus || 0) + (artPassive.healReceivedBonus || 0),
     thorns: totalThorns,
@@ -429,7 +435,12 @@ export function getPlayerStats() {
     // 打造法宝特殊效果
     debuffDamageBonus: artPassive.debuffDamageBonus || 0,
     killHealPercent: artPassive.killHealPercent || 0,
-    revivePercent: artPassive.revive || 0
+    revivePercent: artPassive.revive || 0,
+    // 天赋特殊效果
+    blockRate: talentEffects.blockRate || 0,
+    executeDamage: talentEffects.executeDamage || 0,
+    talentReviveChance: talentEffects.reviveChance || 0,
+    shadowStrikeDamage: talentEffects.shadowStrikeDamage || 0
   }
 }
 
@@ -447,14 +458,9 @@ export function calculateDamage(attack, defense, penetration, skillDamage, isCri
   return Math.max(1, Math.floor(finalDamage))
 }
 
-// 计算实际治疗量（考虑禁疗和重伤debuff）
+// 计算实际治疗量（考虑重伤debuff）
 export function calculateEffectiveHeal(healAmount) {
   const debuffs = gameState.battle.playerDebuffs || {}
-
-  // 禁疗：完全阻止治疗
-  if (debuffs.healBlock && debuffs.healBlock.duration > 0) {
-    return 0
-  }
 
   // 重伤：减少治疗效果
   if (debuffs.healReduce && debuffs.healReduce.duration > 0) {
@@ -575,10 +581,10 @@ export function attemptBreakthrough() {
   if (roll < successRate) {
     // 晋升成功
     gameState.player.realmId = nextRealm.id
-    gameState.player.baseHp += 50
-    gameState.player.baseAttack += 15
+    gameState.player.baseHp += 200
+    gameState.player.baseAttack += 30
     gameState.player.baseDefense += 10
-    gameState.player.critDamage += 10
+    gameState.player.critDamage += 5
 
     const typeText = gameState.player.cultivationType === 'mo' ? '魔修' : '仙修'
     addLog(`${typeText}晋升成功！进入【${nextRealm.name}】！`, 'success')
@@ -1736,6 +1742,8 @@ export function startBattle() {
     gameState.battle.chaosStrikeActive = false
     gameState.battle.artifactReviveUsed = false
     gameState.battle.artifactSkillCooldowns = {}
+    gameState.battle.talentReviveUsed = false  // 不死战神天赋
+    gameState.battle.shadowStrikeReady = false  // 暗影突袭天赋
 
     const activePet = getActivePet()
     if (activePet) {
@@ -1789,6 +1797,8 @@ export function startBattle() {
   gameState.battle.chaosStrikeActive = false
   gameState.battle.artifactReviveUsed = false  // 法宝涅槃重生
   gameState.battle.artifactSkillCooldowns = {}  // 法宝主动技能冷却
+  gameState.battle.talentReviveUsed = false  // 不死战神天赋
+  gameState.battle.shadowStrikeReady = false  // 暗影突袭天赋
 
   // 重置宠物血量
   const activePet = getActivePet()
@@ -1841,6 +1851,8 @@ export function startTowerBattle() {
   gameState.battle.chaosStrikeActive = false
   gameState.battle.artifactReviveUsed = false  // 法宝涅槃重生
   gameState.battle.artifactSkillCooldowns = {}  // 法宝主动技能冷却
+  gameState.battle.talentReviveUsed = false  // 不死战神天赋
+  gameState.battle.shadowStrikeReady = false  // 暗影突袭天赋
 
   // 重置宠物血量
   const activePet = getActivePet()
@@ -2093,7 +2105,6 @@ function updatePlayerDebuffs() {
 
 function getPlayerDebuffName(debuffType) {
   const names = {
-    healBlock: '禁疗',
     healReduce: '重伤'
   }
   return names[debuffType] || debuffType
@@ -2241,8 +2252,6 @@ export function battleRound() {
     if (healAmount > 0) {
       gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
       addBattleLog(`💚 生命之源 恢复 ${healAmount} 点生命`, 'heal')
-    } else if (baseHeal > 0) {
-      addBattleLog(`🚫 生命之源被禁疗效果阻止`, 'danger')
     }
   }
 
@@ -2254,8 +2263,6 @@ export function battleRound() {
     if (healAmount > 0) {
       gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
       addBattleLog(`💚 持续回复 ${healAmount} 点生命`, 'heal')
-    } else if (baseHeal > 0) {
-      addBattleLog(`🚫 持续回复被禁疗效果阻止`, 'danger')
     }
   }
 
@@ -2328,8 +2335,6 @@ export function battleRound() {
       if (healAmount > 0) {
         gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
         addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 点生命`, 'heal')
-      } else {
-        addBattleLog(`🚫 【${selectedSkill.name}】被禁疗效果阻止`, 'danger')
       }
       skipAttack = true
     }
@@ -2376,15 +2381,9 @@ export function battleRound() {
     if (selectedSkill.effect === 'healAndRegen') {
       const baseHeal = Math.floor(stats.attack * skillMultiplier)
       const healAmount = calculateEffectiveHeal(baseHeal)
-      if (healAmount > 0) {
-        gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-        gameState.battle.playerBuffs.regen = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
-        addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 生命，获得${selectedSkill.effectDuration}回合回复效果`, 'heal')
-      } else {
-        // 禁疗时仍可获得回复buff，但不会立即治疗
-        gameState.battle.playerBuffs.regen = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
-        addBattleLog(`🚫 【${selectedSkill.name}】立即治疗被阻止，但获得回复效果`, 'danger')
-      }
+      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+      gameState.battle.playerBuffs.regen = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
+      addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 生命，获得${selectedSkill.effectDuration}回合回复效果`, 'heal')
       skipAttack = true
     }
 
@@ -2394,12 +2393,8 @@ export function battleRound() {
       const baseHeal = Math.floor(maxHp * selectedSkill.healPercent / 100)
       const healAmount = calculateEffectiveHeal(baseHeal)
       gameState.battle.playerCurrentHp -= sacrificeHp  // 消耗生命仍会执行
-      if (healAmount > 0) {
-        gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-        addBattleLog(`🌸 【${selectedSkill.name}】消耗 ${sacrificeHp} 生命，恢复 ${healAmount} 生命`, 'heal')
-      } else {
-        addBattleLog(`🚫 【${selectedSkill.name}】消耗 ${sacrificeHp} 生命，但治疗被禁疗效果阻止！`, 'danger')
-      }
+      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+      addBattleLog(`🌸 【${selectedSkill.name}】消耗 ${sacrificeHp} 生命，恢复 ${healAmount} 生命`, 'heal')
       skipAttack = true
     }
 
@@ -2475,8 +2470,6 @@ export function battleRound() {
           if (healAmount > 0) {
             gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
             addBattleLog(`🔮 法宝【${artSkill.name}】：回复 ${healAmount} 点生命`, 'heal')
-          } else {
-            addBattleLog(`🚫 法宝【${artSkill.name}】被禁疗效果阻止`, 'danger')
           }
         }
         else if (artSkill.effect === 'damageStun') {
@@ -2578,7 +2571,9 @@ export function battleRound() {
     if (isGuaranteedHit || playerHitRoll < stats.hit - monsterDodge) {
       const critRoll = Math.random() * 100
       const effectiveCritRate = stats.critRate + extraCritBoost
-      const isCrit = critRoll < effectiveCritRate
+      // 暗影突袭天赋：闪避后必暴击
+      const shadowStrikeActive = gameState.battle.shadowStrikeReady && stats.shadowStrikeDamage > 0
+      const isCrit = shadowStrikeActive || critRoll < effectiveCritRate
 
       // 计算怪物有效防御（考虑buff和defenseDown debuff）
       let monsterEffectiveDefense = targetMonster.buffs.defense ? targetMonster.defense * (1 + targetMonster.buffs.defense / 100) : targetMonster.defense
@@ -2597,6 +2592,13 @@ export function battleRound() {
 
       // 应用技能倍率
       damage = Math.floor(damage * skillMultiplier)
+
+      // 暗影突袭伤害加成
+      if (shadowStrikeActive) {
+        damage = Math.floor(damage * (1 + stats.shadowStrikeDamage / 100))
+        addBattleLog(`🗡️ 暗影突袭！伤害+${stats.shadowStrikeDamage}%`, 'critical')
+        gameState.battle.shadowStrikeReady = false
+      }
 
       // 检查敌人易伤debuff
       if (targetMonster.debuffs && targetMonster.debuffs.vulnerable) {
@@ -2619,6 +2621,13 @@ export function battleRound() {
           const judgmentBonus = stats.debuffDamageBonus / 100
           damage = Math.floor(damage * (1 + judgmentBonus))
         }
+      }
+
+      // 处刑者天赋：对低于30%血量的敌人伤害加成
+      if (stats.executeDamage > 0 && targetMonster.currentHp < targetMonster.hp * 0.3) {
+        const executeBonus = stats.executeDamage / 100
+        damage = Math.floor(damage * (1 + executeBonus))
+        addBattleLog(`💀 处刑者！对低血量敌人伤害+${stats.executeDamage}%`, 'critical')
       }
 
       // 反伤护盾（真实伤害）
@@ -2691,8 +2700,6 @@ export function battleRound() {
         if (healAmount > 0) {
           gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
           addBattleLog(`🩸 吸血 恢复 ${healAmount} 点生命`, 'heal')
-        } else if (baseHeal > 0) {
-          addBattleLog(`🚫 吸血被禁疗效果阻止`, 'danger')
         }
       }
 
@@ -2729,8 +2736,6 @@ export function battleRound() {
             if (killHeal > 0) {
               gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + killHeal)
               addBattleLog(`💀 【死神低语】击杀回复 ${killHeal} 生命`, 'heal')
-            } else if (baseHeal > 0) {
-              addBattleLog(`🚫 【死神低语】被禁疗效果阻止`, 'danger')
             }
           }
 
@@ -3049,8 +3054,6 @@ export function battleRound() {
             if (healAmount > 0) {
               gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
               addBattleLog(`💚 宠物【${activePet.name}】使用【${petUseSkill.name}】，治疗主人 ${healAmount} 点生命`, 'heal')
-            } else {
-              addBattleLog(`🚫 宠物【${activePet.name}】的【${petUseSkill.name}】被禁疗效果阻止`, 'danger')
             }
             skillHandled = true
           }
@@ -3780,6 +3783,12 @@ export function battleRound() {
           monsterDamage = Math.floor(monsterDamage * (1 - Math.min(totalReduction, 90) / 100))
         }
 
+        // 格挡天赋：有概率减少50%伤害
+        if (stats.blockRate > 0 && Math.random() * 100 < stats.blockRate) {
+          monsterDamage = Math.floor(monsterDamage * 0.5)
+          addBattleLog(`🤚 格挡！伤害减半`, 'buff')
+        }
+
         // 护盾吸收伤害
         const shield = gameState.battle.playerBuffs.shield
         if (shield && shield.value > 0) {
@@ -3861,6 +3870,13 @@ export function battleRound() {
             const reviveHp = Math.floor(stats.maxHp * stats.revivePercent / 100)
             gameState.battle.playerCurrentHp = reviveHp
             addBattleLog(`🔮 【涅槃重生】触发！复活并恢复 ${reviveHp} 点生命 (${stats.revivePercent}%)`, 'success')
+          }
+          // 不死战神天赋：有概率复活
+          else if (stats.talentReviveChance > 0 && !gameState.battle.talentReviveUsed && Math.random() * 100 < stats.talentReviveChance) {
+            gameState.battle.talentReviveUsed = true
+            const reviveHp = Math.floor(stats.maxHp * 0.2)
+            gameState.battle.playerCurrentHp = reviveHp
+            addBattleLog(`👼 【不死战神】触发！复活并恢复 ${reviveHp} 点生命 (20%)`, 'success')
           } else {
             gameState.battle.playerCurrentHp = 0
             addBattleLog(`你被击败了...`, 'danger')
@@ -3878,6 +3894,11 @@ export function battleRound() {
         }
       } else {
         addBattleLog(`💨 闪避了 ${getMonsterNameWithStatus(monster)} 的攻击！`, 'success')
+        // 暗影突袭天赋：闪避后下次攻击必暴击
+        if (stats.shadowStrikeDamage > 0) {
+          gameState.battle.shadowStrikeReady = true
+          addBattleLog(`🗡️ 暗影突袭就绪！下次攻击必定暴击`, 'buff')
+        }
       }
     } // end attackPet else
   } // end monster loop
@@ -4141,6 +4162,10 @@ export function loadGame() {
       if (!data.player.aptitudePills) {
         data.player.aptitudePills = []
       }
+      // 天赋系统兼容
+      if (!data.player.talents) {
+        data.player.talents = {}
+      }
       // 修炼类型兼容（旧存档默认仙修，如果已经有境界则保持仙修）
       if (!data.player.cultivationType) {
         // 如果已经突破过境界，设为仙修（保持兼容）
@@ -4336,6 +4361,10 @@ export function importSave(encryptedData) {
     }
     if (!data.player.aptitudePills) {
       data.player.aptitudePills = []
+    }
+    // 天赋系统兼容
+    if (!data.player.talents) {
+      data.player.talents = {}
     }
     // 迁移背包中的宠物蛋和资质丹到新存储
     if (data.player.inventory) {
@@ -4812,3 +4841,70 @@ export function checkTowerMaterialDrop(towerFloor) {
   }
   return null
 }
+
+// ==================== 天赋系统 ====================
+
+// 获取可用天赋点数（每25级获得1点）
+export function getAvailableTalentPoints() {
+  const totalPoints = Math.floor(gameState.player.level / talentConfig.pointsPerLevel)
+  const usedPoints = getTotalUsedPoints(gameState.player.talents)
+  return Math.max(0, totalPoints - usedPoints)
+}
+
+// 获取总天赋点数
+export function getTotalTalentPoints() {
+  return Math.floor(gameState.player.level / talentConfig.pointsPerLevel)
+}
+
+// 分配天赋点
+export function allocateTalentPoint(branchId, talentId) {
+  const availablePoints = getAvailableTalentPoints()
+
+  if (!canAddTalentPoint(gameState.player.talents, branchId, talentId, availablePoints)) {
+    return { success: false, message: '无法加点' }
+  }
+
+  // 初始化天赋存储（使用 Vue.set 确保响应式）
+  if (!gameState.player.talents) {
+    Vue.set(gameState.player, 'talents', {})
+  }
+  if (!gameState.player.talents[branchId]) {
+    Vue.set(gameState.player.talents, branchId, {})
+  }
+  if (!gameState.player.talents[branchId][talentId]) {
+    Vue.set(gameState.player.talents[branchId], talentId, 0)
+  }
+
+  // 使用 Vue.set 更新点数
+  Vue.set(gameState.player.talents[branchId], talentId, gameState.player.talents[branchId][talentId] + 1)
+
+  // 递增版本号触发响应式更新
+  gameState.player.talentsVersion++
+
+  const branch = talentTree[branchId]
+  const talent = branch.talents.find(t => t.id === talentId)
+
+  autoSave()
+  return {
+    success: true,
+    message: `【${talent.name}】+1 (${gameState.player.talents[branchId][talentId]}/${talent.maxPoints})`
+  }
+}
+
+// 重置天赋（免费）
+export function resetTalents() {
+  Vue.set(gameState.player, 'talents', {})
+  // 递增版本号触发响应式更新
+  gameState.player.talentsVersion++
+  autoSave()
+  addLog('天赋已重置', 'success')
+  return { success: true, message: '天赋已重置' }
+}
+
+// 获取天赋分配状态
+export function getTalentAllocation() {
+  return gameState.player.talents || {}
+}
+
+// 导出天赋树数据供组件使用
+export { talentTree, talentConfig }

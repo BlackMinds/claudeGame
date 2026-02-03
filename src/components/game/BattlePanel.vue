@@ -560,6 +560,8 @@ export default {
       return gameState.battle.playerCurrentHp
     },
     maxHp() {
+      // 引用 talentsVersion 以建立 Vue 响应式依赖
+      const _ = gameState.player.talentsVersion
       return getPlayerStats().maxHp
     },
     battleLog() {
@@ -634,6 +636,8 @@ export default {
     },
     // 玩家属性
     playerStats() {
+      // 引用 talentsVersion 以建立 Vue 响应式依赖
+      const _ = gameState.player.talentsVersion
       return getPlayerStats()
     },
     // 玩家buff
@@ -930,14 +934,12 @@ export default {
         slow: '减速',
         curse: '诅咒',
         defenseDown: '破甲',
-        healBlock: '禁疗',
         healReduce: '重伤'
       }
       return names[key] || key
     },
     getPlayerDebuffIcon(key) {
       const icons = {
-        healBlock: '🚫',
         healReduce: '💔'
       }
       return icons[key] || '😵'
