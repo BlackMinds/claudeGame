@@ -111,6 +111,11 @@
                   {{ getBuffIcon(key) }}
                 </span>
               </div>
+              <div class="player-debuffs" v-if="hasPlayerDebuffs">
+                <span v-for="(debuff, key) in playerDebuffs" :key="key" class="debuff-icon" :title="getDebuffName(key) + ' (' + debuff.duration + '回合)'">
+                  {{ getPlayerDebuffIcon(key) }}
+                </span>
+              </div>
               <div class="hp-bar-wrap">
                 <div class="hp-bar player" :style="{ width: playerHpPercent + '%' }"></div>
               </div>
@@ -286,6 +291,12 @@
         <div class="buffs-title">当前效果</div>
         <div v-for="(buff, key) in playerBuffs" :key="key" class="buff-item buff">
           {{ getBuffName(key) }}: {{ formatBuffValue(buff) }}
+        </div>
+      </div>
+      <div class="tooltip-debuffs" v-if="hasPlayerDebuffs">
+        <div class="debuffs-title">负面效果</div>
+        <div v-for="(debuff, key) in playerDebuffs" :key="key" class="buff-item debuff">
+          {{ getDebuffName(key) }}: {{ formatDebuffValue(debuff) }}
         </div>
       </div>
     </div>
@@ -632,6 +643,13 @@ export default {
     hasPlayerBuffs() {
       return this.playerBuffs && Object.keys(this.playerBuffs).length > 0
     },
+    // 玩家debuff
+    playerDebuffs() {
+      return gameState.battle.playerDebuffs || {}
+    },
+    hasPlayerDebuffs() {
+      return this.playerDebuffs && Object.keys(this.playerDebuffs).length > 0
+    },
     // 玩家装备的主动技能
     equippedActiveSkills() {
       return this.player.equippedActiveSkills || []
@@ -911,9 +929,18 @@ export default {
         burn: '灼烧',
         slow: '减速',
         curse: '诅咒',
-        defenseDown: '破甲'
+        defenseDown: '破甲',
+        healBlock: '禁疗',
+        healReduce: '重伤'
       }
       return names[key] || key
+    },
+    getPlayerDebuffIcon(key) {
+      const icons = {
+        healBlock: '🚫',
+        healReduce: '💔'
+      }
+      return icons[key] || '😵'
     },
     formatBuffValue(buff) {
       // buff 可能是数值或对象
@@ -1260,8 +1287,8 @@ export default {
   padding: 10px;
   overflow-y: auto;
   font-size: 0.8em;
-  height: 450px;
-  max-height: 450px;
+  height: 550px;
+  max-height: 550px;
 }
 
 .log-line {
@@ -1662,6 +1689,41 @@ export default {
   font-size: 0.8em;
 }
 
+/* 玩家 debuff 图标 */
+.player-debuffs {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+
+.debuff-icon {
+  font-size: 0.8em;
+  animation: pulse-debuff 1s ease-in-out infinite;
+}
+
+@keyframes pulse-debuff {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* tooltip debuff 样式 */
+.tooltip-debuffs {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #444;
+}
+
+.tooltip-debuffs .debuffs-title {
+  color: #e74c3c;
+  font-size: 0.85em;
+  margin-bottom: 5px;
+}
+
+.buff-item.debuff {
+  color: #e74c3c;
+}
+
 /* 玩家属性提示框 */
 .player-tooltip {
   position: fixed;
@@ -1862,8 +1924,8 @@ export default {
   }
 
   .battle-log {
-    height: 300px;
-    max-height: 300px;
+    height: 380px;
+    max-height: 380px;
     font-size: 0.75em;
     padding: 8px;
   }
@@ -1933,8 +1995,8 @@ export default {
   }
 
   .battle-log {
-    height: 250px;
-    max-height: 250px;
+    height: 320px;
+    max-height: 320px;
     font-size: 0.7em;
     padding: 6px;
   }

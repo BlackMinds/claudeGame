@@ -189,6 +189,9 @@
           <button :class="{ active: guideTab === 'tower' }" @click="guideTab = 'tower'">锁妖塔</button>
           <button :class="{ active: guideTab === 'pets' }" @click="guideTab = 'pets'">宠物</button>
           <button :class="{ active: guideTab === 'petSkills' }" @click="guideTab = 'petSkills'">宠物技能</button>
+          <button :class="{ active: guideTab === 'artifacts' }" @click="guideTab = 'artifacts'">法宝</button>
+          <button :class="{ active: guideTab === 'materials' }" @click="guideTab = 'materials'">材料</button>
+          <button :class="{ active: guideTab === 'realms' }" @click="guideTab = 'realms'">境界</button>
         </div>
 
         <div class="guide-content">
@@ -214,6 +217,7 @@
             <div class="tower-info">
               <p class="tower-tip">锁妖塔需要10级才能进入，每层3只怪物</p>
             </div>
+            <h4 class="section-title">层数奖励</h4>
             <div class="tower-drops">
               <div class="drop-item">
                 <span class="drop-floor">10层</span>
@@ -246,6 +250,21 @@
               <div class="drop-item">
                 <span class="drop-floor">300/400层</span>
                 <span class="drop-reward">高级宠物技能书（开出全档位技能）</span>
+              </div>
+              <div class="drop-item">
+                <span class="drop-floor">400层+</span>
+                <span class="drop-reward">超级材料（混沌精华、鸿蒙之气）</span>
+              </div>
+            </div>
+            <h4 class="section-title">特殊机制</h4>
+            <div class="tower-special">
+              <div class="special-item">
+                <span class="special-floor">200层+</span>
+                <span class="special-desc">怪物可能使用<span class="debuff-text">禁疗</span>（禁止回复生命3回合）</span>
+              </div>
+              <div class="special-item">
+                <span class="special-floor">200层+</span>
+                <span class="special-desc">怪物可能使用<span class="debuff-text">重伤</span>（回复效果减少60%持续3回合）</span>
               </div>
             </div>
           </div>
@@ -288,6 +307,105 @@
                   <div class="skill-info-desc">{{ skill.description }}</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- 法宝 -->
+          <div v-if="guideTab === 'artifacts'" class="guide-section">
+            <h4 class="section-title">法宝品质</h4>
+            <div class="artifact-qualities">
+              <div v-for="(quality, key) in artifactQualitiesData" :key="key" class="quality-item">
+                <div class="quality-header" :style="{ color: quality.color }">
+                  {{ quality.name }}
+                </div>
+                <div class="quality-stats">
+                  <span>等级上限: {{ quality.maxLevel }}</span>
+                  <span>成长率: {{ quality.growthRate }}</span>
+                  <span>被动槽: {{ quality.passiveSlots }}</span>
+                  <span>主动槽: {{ quality.activeSlots }}</span>
+                </div>
+              </div>
+            </div>
+            <h4 class="section-title">品质需求</h4>
+            <div class="quality-requirements">
+              <div class="req-item"><span class="req-quality" style="color:#ffffff">凡品</span>：任意材料可出</div>
+              <div class="req-item"><span class="req-quality" style="color:#2ecc71">灵品</span>：需要至少1个中级材料</div>
+              <div class="req-item"><span class="req-quality" style="color:#9b59b6">仙品</span>：需要至少1个高级材料</div>
+              <div class="req-item"><span class="req-quality" style="color:#e67e22">神品</span>：需要至少1个超级材料</div>
+            </div>
+            <h4 class="section-title">升级经验</h4>
+            <div class="artifact-exp-info">
+              <p>公式: 200 × 等级 × (1 + 等级 × 0.2)</p>
+              <div class="exp-examples">
+                <span>1级: 240</span>
+                <span>10级: 6,000</span>
+                <span>50级: 110,000</span>
+                <span>100级: 420,000</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 材料 -->
+          <div v-if="guideTab === 'materials'" class="guide-section">
+            <h4 class="section-title">材料掉落地点</h4>
+            <div class="materials-list">
+              <div v-for="mat in materialsData" :key="mat.id" class="material-item">
+                <div class="material-header">
+                  <span class="material-icon">{{ mat.icon }}</span>
+                  <span class="material-name" :style="{ color: getMaterialColor(mat.grade) }">{{ mat.name }}</span>
+                  <span class="material-grade" :style="{ color: getMaterialColor(mat.grade) }">{{ getMaterialGradeName(mat.grade) }}</span>
+                </div>
+                <div class="material-drop">
+                  <span v-if="mat.dropMaps">地图 {{ mat.dropMaps.join('、') }}</span>
+                  <span v-if="mat.dropTowerFloor">锁妖塔 {{ mat.dropTowerFloor }}层+</span>
+                </div>
+              </div>
+            </div>
+            <h4 class="section-title">掉落概率</h4>
+            <div class="drop-rates">
+              <div class="rate-item"><span class="rate-grade" style="color:#2ecc71">低级材料</span>：15%</div>
+              <div class="rate-item"><span class="rate-grade" style="color:#3498db">中级材料</span>：8%</div>
+              <div class="rate-item"><span class="rate-grade" style="color:#9b59b6">高级材料</span>：3%</div>
+              <div class="rate-item"><span class="rate-grade" style="color:#e67e22">超级材料</span>：0.5%</div>
+            </div>
+          </div>
+
+          <!-- 境界 -->
+          <div v-if="guideTab === 'realms'" class="guide-section">
+            <h4 class="section-title">修炼道路</h4>
+            <div class="cultivation-paths">
+              <div class="path-item xian-path">
+                <div class="path-header">仙修（平衡型）</div>
+                <div class="path-stats">
+                  <span>生命 +5%/级</span>
+                  <span>攻击 +5%/级</span>
+                  <span>防御 +5%/级</span>
+                </div>
+                <div class="path-desc">通过悟道与积累，将自身法则融入天地大道</div>
+              </div>
+              <div class="path-item mo-path">
+                <div class="path-header">魔修（攻击型）</div>
+                <div class="path-stats">
+                  <span>生命 +2%/级</span>
+                  <span>攻击 +8%/级</span>
+                  <span>吸血 +2%/级</span>
+                </div>
+                <div class="path-desc">通过掠夺与极端情绪，以自身意志取代天地法则</div>
+              </div>
+            </div>
+            <h4 class="section-title">境界列表（仙修）</h4>
+            <div class="realms-list">
+              <div v-for="(realm, index) in realmsData" :key="index" class="realm-item">
+                <span class="realm-name">{{ realm.name }}</span>
+                <span class="realm-level">Lv.{{ realm.level }}</span>
+                <span class="realm-exp">修为: {{ realm.minExp }}</span>
+              </div>
+            </div>
+            <h4 class="section-title">突破机制</h4>
+            <div class="breakthrough-info">
+              <p>修为达到下一境界要求后可尝试突破</p>
+              <p>成功率 = 基础30% + 溢出修为加成（上限95%）</p>
+              <p class="warning-text">失败损失20%修为</p>
             </div>
           </div>
         </div>
@@ -391,7 +509,7 @@
 
 <script>
 import { gameState, getCurrentRealm, getNextRealm, saveGame, loadGame, resetGame, exportSave, importSave, getActivePet, updateLootFilter, getMaxPassiveSlots, addTestEquipment, toggleExpMultiplier, getExpMultiplier, useRedeemCode, isMeditationUnlocked, getBreakthroughSuccessRate, attemptBreakthrough, getCultivationType, setCultivationType, needsChooseCultivationType } from '../../store/gameStore'
-import { equipmentSets, petTypes, skills, getSkillById } from '../../data/gameData'
+import { equipmentSets, petTypes, skills, getSkillById, craftedArtifactQualities, artifactMaterials, materialGrades, xianRealms } from '../../data/gameData'
 import SkillPanel from './SkillPanel.vue'
 import PetPanel from './PetPanel.vue'
 import ArtifactCraftPanel from './ArtifactCraftPanel.vue'
@@ -521,6 +639,15 @@ export default {
     learnableSkillsData() {
       // 可学习技能ID范围：301-327
       return skills.filter(s => s.id >= 301 && s.id <= 327).sort((a, b) => a.tier - b.tier)
+    },
+    artifactQualitiesData() {
+      return craftedArtifactQualities
+    },
+    materialsData() {
+      return artifactMaterials
+    },
+    realmsData() {
+      return xianRealms
     }
   },
   methods: {
@@ -727,6 +854,24 @@ export default {
       if (skill.cooldown === 0) return 'passive'
       if (skill.cooldown && skill.cooldown > 0) return 'active'
       return ''
+    },
+    getMaterialColor(grade) {
+      const colors = {
+        low: '#2ecc71',
+        mid: '#3498db',
+        high: '#9b59b6',
+        super: '#e67e22'
+      }
+      return colors[grade] || '#ffffff'
+    },
+    getMaterialGradeName(grade) {
+      const names = {
+        low: '低级',
+        mid: '中级',
+        high: '高级',
+        super: '超级'
+      }
+      return names[grade] || '未知'
     }
   }
 }
@@ -1930,6 +2075,270 @@ export default {
 .skill-info-desc {
   color: #aaa;
   font-size: 0.85em;
+}
+
+/* 图鉴通用样式 */
+.section-title {
+  color: #ffd700;
+  font-size: 1em;
+  margin: 15px 0 10px 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #3a3a5a;
+}
+
+.section-title:first-child {
+  margin-top: 0;
+}
+
+/* 锁妖塔特殊机制 */
+.tower-special {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.special-item {
+  display: flex;
+  gap: 15px;
+  padding: 10px;
+  background: #2a1a1a;
+  border-radius: 6px;
+  border-left: 3px solid #e74c3c;
+}
+
+.special-floor {
+  color: #e74c3c;
+  font-weight: bold;
+  min-width: 80px;
+}
+
+.special-desc {
+  color: #ccc;
+  font-size: 0.9em;
+}
+
+.debuff-text {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+/* 法宝品质样式 */
+.artifact-qualities {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quality-item {
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #3a3a5a;
+}
+
+.quality-header {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 8px;
+}
+
+.quality-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+.quality-requirements {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.req-item {
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border-radius: 6px;
+  font-size: 0.9em;
+  color: #ccc;
+}
+
+.req-quality {
+  font-weight: bold;
+}
+
+.artifact-exp-info {
+  background: #1a1a2e;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.artifact-exp-info p {
+  margin: 0 0 10px 0;
+  color: #87ceeb;
+}
+
+.exp-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+/* 材料样式 */
+.materials-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.material-item {
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid #3a3a5a;
+}
+
+.material-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.material-icon {
+  font-size: 1.2em;
+}
+
+.material-name {
+  font-weight: bold;
+}
+
+.material-grade {
+  margin-left: auto;
+  font-size: 0.8em;
+}
+
+.material-drop {
+  color: #888;
+  font-size: 0.85em;
+}
+
+.drop-rates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.rate-item {
+  background: #1a1a2e;
+  padding: 8px 15px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  color: #ccc;
+}
+
+.rate-grade {
+  font-weight: bold;
+}
+
+/* 境界样式 */
+.cultivation-paths {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.path-item {
+  background: #1a1a2e;
+  border-radius: 10px;
+  padding: 15px;
+  border: 2px solid #3a3a5a;
+}
+
+.path-item.xian-path {
+  border-color: #3498db;
+}
+
+.path-item.mo-path {
+  border-color: #e74c3c;
+}
+
+.path-header {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.xian-path .path-header {
+  color: #3498db;
+}
+
+.mo-path .path-header {
+  color: #e74c3c;
+}
+
+.path-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+  color: #2ecc71;
+  font-size: 0.9em;
+}
+
+.path-desc {
+  color: #888;
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.realms-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.realm-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+
+.realm-name {
+  color: #ffd700;
+}
+
+.realm-level {
+  color: #2ecc71;
+}
+
+.realm-exp {
+  color: #888;
+}
+
+.breakthrough-info {
+  background: #1a1a2e;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.breakthrough-info p {
+  margin: 5px 0;
+  color: #ccc;
+  font-size: 0.9em;
+}
+
+.breakthrough-info .warning-text {
+  color: #e74c3c;
 }
 
 /* 移动端适配 */

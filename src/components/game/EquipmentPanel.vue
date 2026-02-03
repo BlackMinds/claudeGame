@@ -485,7 +485,7 @@
 </template>
 
 <script>
-import { equipSlots, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhancedStatValue, getArtifactExpForLevel } from '../../data/gameData'
+import { equipSlots, skillRarityConfig, getEnhanceSuccessRate, getEnhanceCost, getEnhancedStatValue, getArtifactExpForLevel, MAX_ENHANCE_LEVEL } from '../../data/gameData'
 import { gameState, equipItem, unequipItem, discardItem, useSkillBook, autoSave, enhanceEquipment, enhanceItem, getEnhancedStats, getLootFilter, updateLootFilter, getInventoryLimit } from '../../store/gameStore'
 
 export default {
@@ -510,8 +510,20 @@ export default {
         { key: 'ring', name: '戒指' },
         { key: 'necklace', name: '项链' },
         { key: 'boots', name: '鞋子' },
+        { key: 'artifact', name: '法宝' },
         { key: 'set', name: '套装' },
-        { key: 'skillBook', name: '技能书' }
+        { key: 'set_xuanwu', name: '玄武' },
+        { key: 'set_zhuque', name: '朱雀' },
+        { key: 'set_qinglong', name: '青龙' },
+        { key: 'set_baihu', name: '白虎' },
+        { key: 'set_qilin', name: '麒麟' },
+        { key: 'set_hundun', name: '混沌' },
+        { key: 'set_tiebi', name: '铁壁' },
+        { key: 'set_xixue', name: '嗜血' },
+        { key: 'set_baoji', name: '暴击' },
+        { key: 'skillBook', name: '技能书' },
+        { key: 'enhanced', name: '已强化' },
+        { key: 'unenhanced', name: '未强化' }
       ],
       qualityFilters: [
         { key: 'all', name: '全部', color: '#888' },
@@ -576,6 +588,16 @@ export default {
           result = result.filter(item => item.type === 'skillBook')
         } else if (this.currentFilter === 'set') {
           result = result.filter(item => item.setId)
+        } else if (this.currentFilter.startsWith('set_')) {
+          // 具体套装筛选
+          const setId = this.currentFilter.replace('set_', '')
+          result = result.filter(item => item.setId === setId)
+        } else if (this.currentFilter === 'enhanced') {
+          result = result.filter(item => item.enhanceLevel && item.enhanceLevel > 0)
+        } else if (this.currentFilter === 'unenhanced') {
+          result = result.filter(item => item.slotType && (!item.enhanceLevel || item.enhanceLevel === 0))
+        } else if (this.currentFilter === 'artifact') {
+          result = result.filter(item => item.slotType === 'artifact' || item.type === 'craftedArtifact')
         } else {
           result = result.filter(item => item.slotType === this.currentFilter)
         }
@@ -634,7 +656,7 @@ export default {
     },
     canEnhance() {
       if (!this.enhancingItem) return false
-      if ((this.enhancingItem.enhanceLevel || 0) >= 10) return false
+      if ((this.enhancingItem.enhanceLevel || 0) >= MAX_ENHANCE_LEVEL) return false
       return this.canAffordEnhance
     },
     lootFilter() {
@@ -654,6 +676,20 @@ export default {
       }
       if (filterKey === 'set') {
         return this.inventory.filter(item => item.setId).length
+      }
+      if (filterKey.startsWith('set_')) {
+        // 具体套装计数
+        const setId = filterKey.replace('set_', '')
+        return this.inventory.filter(item => item.setId === setId).length
+      }
+      if (filterKey === 'enhanced') {
+        return this.inventory.filter(item => item.enhanceLevel && item.enhanceLevel > 0).length
+      }
+      if (filterKey === 'unenhanced') {
+        return this.inventory.filter(item => item.slotType && (!item.enhanceLevel || item.enhanceLevel === 0)).length
+      }
+      if (filterKey === 'artifact') {
+        return this.inventory.filter(item => item.slotType === 'artifact' || item.type === 'craftedArtifact').length
       }
       return this.inventory.filter(item => item.slotType === filterKey).length
     },
@@ -918,7 +954,7 @@ export default {
     },
     getEnhanceButtonText() {
       if (!this.enhancingItem) return '强化'
-      if ((this.enhancingItem.enhanceLevel || 0) >= 10) return '已满级'
+      if ((this.enhancingItem.enhanceLevel || 0) >= MAX_ENHANCE_LEVEL) return '已满级'
       if (!this.canAffordEnhance) return '灵石不足'
       return `强化 (${this.getEnhanceCostValue()} 灵石)`
     },

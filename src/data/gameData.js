@@ -438,17 +438,17 @@ export const equipmentSets = {
 
 // 怪物技能库
 export const monsterSkills = [
-  // 攻击类技能
-  { name: '凶猛撕咬', type: 'attack', multiplier: 1.5, description: '造成150%伤害' },
-  { name: '致命一击', type: 'attack', multiplier: 2.0, description: '造成200%伤害' },
-  { name: '狂暴冲撞', type: 'attack', multiplier: 1.8, description: '造成180%伤害' },
-  { name: '毒液喷射', type: 'attack', multiplier: 1.3, description: '造成130%伤害' },
-  { name: '寒冰吐息', type: 'attack', multiplier: 1.6, description: '造成160%伤害' },
-  { name: '烈焰灼烧', type: 'attack', multiplier: 1.7, description: '造成170%伤害' },
-  { name: '雷霆轰击', type: 'attack', multiplier: 1.9, description: '造成190%伤害' },
-  { name: '暗影突袭', type: 'attack', multiplier: 2.2, description: '造成220%伤害' },
-  { name: '死亡凝视', type: 'attack', multiplier: 2.5, description: '造成250%伤害' },
-  { name: '毁灭之息', type: 'attack', multiplier: 3.0, description: '造成300%伤害' },
+  // 攻击类技能（已加强）
+  { name: '凶猛撕咬', type: 'attack', multiplier: 2.0, description: '造成200%伤害' },
+  { name: '致命一击', type: 'attack', multiplier: 2.8, description: '造成280%伤害' },
+  { name: '狂暴冲撞', type: 'attack', multiplier: 2.5, description: '造成250%伤害' },
+  { name: '毒液喷射', type: 'attack', multiplier: 1.8, description: '造成180%伤害' },
+  { name: '寒冰吐息', type: 'attack', multiplier: 2.2, description: '造成220%伤害' },
+  { name: '烈焰灼烧', type: 'attack', multiplier: 2.4, description: '造成240%伤害' },
+  { name: '雷霆轰击', type: 'attack', multiplier: 2.6, description: '造成260%伤害' },
+  { name: '暗影突袭', type: 'attack', multiplier: 3.0, description: '造成300%伤害' },
+  { name: '死亡凝视', type: 'attack', multiplier: 3.5, description: '造成350%伤害' },
+  { name: '毁灭之息', type: 'attack', multiplier: 4.0, description: '造成400%伤害' },
   // 增益类技能
   { name: '狂暴', type: 'buff', stat: 'attack', value: 20, description: '攻击力+20%' },
   { name: '铁壁', type: 'buff', stat: 'defense', value: 30, description: '防御力+30%' },
@@ -456,15 +456,26 @@ export const monsterSkills = [
   { name: '疾风', type: 'buff', stat: 'dodge', value: 10, description: '闪避+10%' },
   { name: '精准', type: 'buff', stat: 'critRate', value: 15, description: '暴击+15%' },
   // 特殊技能
-  { name: '反伤护盾', type: 'special', effect: 'reflect', value: 10, description: '反弹10%伤害' },
+  // { name: '反伤护盾', type: 'special', effect: 'reflect', value: 10, description: '反弹10%伤害' },  // 暂时注释，太变态
   { name: '吸血光环', type: 'special', effect: 'drain', value: 10, description: '每次攻击回复10%伤害' },
-  { name: '不屈意志', type: 'special', effect: 'revive', value: 30, description: '首次死亡恢复30%血量' }
+  { name: '不屈意志', type: 'special', effect: 'revive', value: 30, description: '首次死亡恢复30%血量' },
+  // 锁妖塔200层以上专属技能
+  { name: '禁疗', type: 'debuff', effect: 'healBlock', duration: 3, description: '禁止回复生命3回合', towerOnly: true, minFloor: 200 },
+  { name: '重伤', type: 'debuff', effect: 'healReduce', value: 60, duration: 3, description: '回复效果减少60%持续3回合', towerOnly: true, minFloor: 200 }
 ]
 
-// 根据等级获取随机技能
-export function getRandomSkills(level) {
+// 根据等级获取随机技能（towerFloor为锁妖塔层数，用于判断是否可用锁妖塔专属技能）
+export function getRandomSkills(level, towerFloor = 0) {
   const skillCount = Math.min(5, 1 + Math.floor(level / 12)) // 1-12级1个，13-24级2个，以此类推
-  const availableSkills = [...monsterSkills]
+
+  // 过滤可用技能：排除锁妖塔专属技能（除非在锁妖塔且达到所需层数）
+  const availableSkills = monsterSkills.filter(skill => {
+    if (skill.towerOnly) {
+      return towerFloor >= (skill.minFloor || 0)
+    }
+    return true
+  }).map(s => ({ ...s }))
+
   const selectedSkills = []
 
   // 高等级怪物有更高几率获得强力技能
@@ -687,7 +698,7 @@ export function generateTowerFloorMonsters(floor) {
       gold: Math.floor((15 + floor * 5) * difficultyMult),
       dropRate: Math.min(30, 10 + floor * 0.5), // 锁妖塔掉落率更高
       currentHp: Math.floor(baseHp * difficultyMult),
-      skills: getRandomSkills(monsterLevel),
+      skills: getRandomSkills(monsterLevel, floor), // 传递层数以启用锁妖塔专属技能
       buffs: {},
       debuffs: {},
       reviveUsed: false
@@ -2825,25 +2836,25 @@ export function getAptitudeMultiplier(aptitude) {
   return 0.5 + aptitude * 0.05
 }
 
-// 计算宠物某一级的属性（基于初始属性+等级成长）
+// 计算宠物某一级的属性（基于初始属性+等级成长）- 已加强
 export function calculatePetStats(level, quality, aptitude) {
   const qualityData = petQualityConfig[quality]
   const qualityMult = qualityData.statMultiplier
   const aptMult = getAptitudeMultiplier(aptitude)
 
-  // 等级成长加成（每10级额外+40%成长率）
-  const levelBonus = 1 + Math.floor(level / 10) * 0.4
+  // 等级成长加成（每10级额外+50%成长率）- 加强：40% → 50%
+  const levelBonus = 1 + Math.floor(level / 10) * 0.5
 
-  // 基础成长值（平衡调整）
-  // 宠物基础每级: HP+18, 攻击+7, 防御+5
-  const hpGrowth = 18 * aptMult * qualityMult * levelBonus
-  const atkGrowth = 7 * aptMult * qualityMult * levelBonus
-  const defGrowth = 5 * aptMult * qualityMult * levelBonus
+  // 基础成长值（已加强）
+  // 宠物基础每级: HP+32, 攻击+10, 防御+7（原：18/7/5）
+  const hpGrowth = 32 * aptMult * qualityMult * levelBonus
+  const atkGrowth = 10 * aptMult * qualityMult * levelBonus
+  const defGrowth = 7 * aptMult * qualityMult * levelBonus
 
-  // 初始属性 + 等级成长 + 等级指数成长
-  const baseHp = Math.floor(360 + level * hpGrowth + Math.pow(level, 1.4) * aptMult * 2.2)
-  const baseAttack = Math.floor(36 + level * atkGrowth + Math.pow(level, 1.3) * aptMult * 1.1)
-  const baseDefense = Math.floor(22 + level * defGrowth + Math.pow(level, 1.2) * aptMult * 0.7)
+  // 初始属性 + 等级成长 + 等级指数成长（指数系数加强）
+  const baseHp = Math.floor(500 + level * hpGrowth + Math.pow(level, 1.5) * aptMult * 4.0)
+  const baseAttack = Math.floor(45 + level * atkGrowth + Math.pow(level, 1.4) * aptMult * 1.5)
+  const baseDefense = Math.floor(28 + level * defGrowth + Math.pow(level, 1.3) * aptMult * 1.0)
 
   // 暴击和闪避随等级成长
   const critRate = Math.floor(8 + level * 0.15 * aptMult)
@@ -3092,8 +3103,8 @@ export function generateAptitudePill(towerFloor) {
       type: 'aptitudePill',
       name: '高级资质丹',
       tier: 2,
-      minBoost: 0.01,
-      maxBoost: 0.05,
+      minBoost: 0.10,
+      maxBoost: 0.20,
       maxAptitude: 10, // 最高培养到10
       color: '#9b59b6'
     }
@@ -3127,8 +3138,8 @@ export function hatchPetEgg(petEgg) {
 }
 
 // ========== 宠物技能书系统 ==========
-// 可学习技能ID范围：301-324
-const petLearnableSkillIds = Array.from({ length: 24 }, (_, i) => 301 + i)
+// 可学习技能ID范围：301-327（含高级档位被动技能325-327）
+const petLearnableSkillIds = Array.from({ length: 27 }, (_, i) => 301 + i)
 
 // 宠物技能书掉落层数配置
 const petSkillBookDropFloors = {
@@ -3265,14 +3276,14 @@ export const materialDropRates = {
   super: 0.5  // 超级材料 0.5%
 }
 
-// 法宝品质配置（根据投入材料决定）
+// 法宝品质配置（根据投入材料决定）- 成长率已削弱
 export const craftedArtifactQualities = {
   common: {
     name: '凡品',
     color: '#ffffff',
     minWeight: 0,      // 最低材料权重
     maxLevel: 30,
-    growthRate: 1.0,
+    growthRate: 0.5,   // 削弱：1.0 → 0.5
     passiveSlots: 1,
     activeSlots: 0
   },
@@ -3281,7 +3292,7 @@ export const craftedArtifactQualities = {
     color: '#2ecc71',
     minWeight: 3,      // 需要至少1个中级材料
     maxLevel: 50,
-    growthRate: 1.5,
+    growthRate: 0.8,   // 削弱：1.5 → 0.8
     passiveSlots: 1,
     activeSlots: 1
   },
@@ -3290,7 +3301,7 @@ export const craftedArtifactQualities = {
     color: '#9b59b6',
     minWeight: 9,      // 需要至少1个高级材料
     maxLevel: 80,
-    growthRate: 2.0,
+    growthRate: 1.2,   // 削弱：2.0 → 1.2
     passiveSlots: 2,
     activeSlots: 0
   },
@@ -3299,7 +3310,7 @@ export const craftedArtifactQualities = {
     color: '#e67e22',
     minWeight: 27,     // 需要至少1个超级材料
     maxLevel: 100,
-    growthRate: 3.0,
+    growthRate: 1.8,   // 削弱：3.0 → 1.8
     passiveSlots: 2,
     activeSlots: 1
   }
@@ -3503,9 +3514,11 @@ export function craftArtifact(materials, artifactName = null) {
   }
 }
 
-// 计算法宝升级所需经验
+// 计算法宝升级所需经验（已提高难度）
 export function getArtifactExpForLevel(level) {
-  return Math.floor(100 * level * (1 + level * 0.1))
+  // 原公式: 100 * level * (1 + level * 0.1)
+  // 新公式: 更陡峭的曲线，高等级需要更多经验
+  return Math.floor(200 * level * (1 + level * 0.2))
 }
 
 // 计算法宝当前属性（含等级加成）

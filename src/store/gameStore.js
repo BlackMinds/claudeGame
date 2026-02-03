@@ -254,13 +254,20 @@ export function getEquipmentStats() {
     lifesteal: 0
   }
 
+  // 只有这三个属性参与强化加成
+  const enhanceableStats = ['hp', 'attack', 'defense']
+
   for (const equip of Object.values(gameState.player.equipment)) {
     if (equip && equip.stats) {
       const enhanceLevel = equip.enhanceLevel || 0
       for (const [stat, value] of Object.entries(equip.stats)) {
         if (stats.hasOwnProperty(stat)) {
-          // 应用强化加成
-          stats[stat] += getEnhancedStatValue(value, enhanceLevel)
+          // 只对 hp, attack, defense 应用强化加成，其他属性使用原始值
+          if (enhanceableStats.includes(stat)) {
+            stats[stat] += getEnhancedStatValue(value, enhanceLevel)
+          } else {
+            stats[stat] += value
+          }
         }
       }
     }
@@ -438,6 +445,24 @@ export function calculateDamage(attack, defense, penetration, skillDamage, isCri
   }
 
   return Math.max(1, Math.floor(finalDamage))
+}
+
+// 计算实际治疗量（考虑禁疗和重伤debuff）
+export function calculateEffectiveHeal(healAmount) {
+  const debuffs = gameState.battle.playerDebuffs || {}
+
+  // 禁疗：完全阻止治疗
+  if (debuffs.healBlock && debuffs.healBlock.duration > 0) {
+    return 0
+  }
+
+  // 重伤：减少治疗效果
+  if (debuffs.healReduce && debuffs.healReduce.duration > 0) {
+    const reduction = debuffs.healReduce.value || 60
+    return Math.floor(healAmount * (1 - reduction / 100))
+  }
+
+  return healAmount
 }
 
 // 最高等级
@@ -870,12 +895,24 @@ export function getEnhancedStats(item) {
 
   const enhanceLevel = item.enhanceLevel || 0
   const enhancedStats = {}
+  // 只有这三个属性参与强化加成
+  const enhanceableStats = ['hp', 'attack', 'defense']
 
   for (const [stat, value] of Object.entries(item.stats)) {
-    enhancedStats[stat] = {
-      base: value,
-      enhanced: getEnhancedStatValue(value, enhanceLevel),
-      bonus: enhanceLevel > 0 ? getEnhancedStatValue(value, enhanceLevel) - value : 0
+    if (enhanceableStats.includes(stat)) {
+      // hp, attack, defense 应用强化加成
+      enhancedStats[stat] = {
+        base: value,
+        enhanced: getEnhancedStatValue(value, enhanceLevel),
+        bonus: enhanceLevel > 0 ? getEnhancedStatValue(value, enhanceLevel) - value : 0
+      }
+    } else {
+      // 其他属性不参与强化，保持原值
+      enhancedStats[stat] = {
+        base: value,
+        enhanced: value,
+        bonus: 0
+      }
     }
   }
 
@@ -1693,6 +1730,7 @@ export function startBattle() {
     gameState.battle.petSkillCooldowns = {}
     gameState.battle.petBuffs = {}
     gameState.battle.playerBuffs = {}
+    gameState.battle.playerDebuffs = {}  // 玩家负面效果
     gameState.battle.roundCount = 0
     gameState.battle.fatalReflectUsed = false
     gameState.battle.chaosStrikeActive = false
@@ -1745,6 +1783,7 @@ export function startBattle() {
   gameState.battle.petSkillCooldowns = {}
   gameState.battle.petBuffs = {}
   gameState.battle.playerBuffs = {}
+  gameState.battle.playerDebuffs = {}  // 玩家负面效果
   gameState.battle.roundCount = 0
   gameState.battle.fatalReflectUsed = false
   gameState.battle.chaosStrikeActive = false
@@ -1796,6 +1835,7 @@ export function startTowerBattle() {
   gameState.battle.petSkillCooldowns = {}
   gameState.battle.petBuffs = {}
   gameState.battle.playerBuffs = {}
+  gameState.battle.playerDebuffs = {}  // 玩家负面效果
   gameState.battle.roundCount = 0
   gameState.battle.fatalReflectUsed = false
   gameState.battle.chaosStrikeActive = false
@@ -2035,6 +2075,30 @@ function getBuffName(buffType) {
   return names[buffType] || buffType
 }
 
+// 更新玩家debuff持续时间
+function updatePlayerDebuffs() {
+  const debuffs = gameState.battle.playerDebuffs
+  if (!debuffs) return
+
+  for (const debuffName of Object.keys(debuffs)) {
+    if (debuffs[debuffName].duration > 0) {
+      debuffs[debuffName].duration--
+      if (debuffs[debuffName].duration <= 0) {
+        Vue.delete(debuffs, debuffName)
+        addBattleLog(`⏱️ 【${getPlayerDebuffName(debuffName)}】效果结束`, 'info')
+      }
+    }
+  }
+}
+
+function getPlayerDebuffName(debuffType) {
+  const names = {
+    healBlock: '禁疗',
+    healReduce: '重伤'
+  }
+  return names[debuffType] || debuffType
+}
+
 // 更新怪物debuff持续时间
 function updateMonsterDebuffs() {
   const monsters = gameState.battle.currentMonsters
@@ -2154,6 +2218,7 @@ export function battleRound() {
 
   updateCooldowns()
   updatePlayerBuffs()
+  updatePlayerDebuffs()  // 更新玩家负面效果
   updateMonsterDebuffs()
 
   const stats = getPlayerStats()
@@ -2171,17 +2236,27 @@ export function battleRound() {
 
   // 生命回复（每回合 - 被动技能）
   if (playerAlive && stats.hpRegen > 0 && gameState.battle.playerCurrentHp < maxHp) {
-    const healAmount = Math.floor(maxHp * stats.hpRegen / 100)
-    gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-    addBattleLog(`💚 生命之源 恢复 ${healAmount} 点生命`, 'heal')
+    const baseHeal = Math.floor(maxHp * stats.hpRegen / 100)
+    const healAmount = calculateEffectiveHeal(baseHeal)
+    if (healAmount > 0) {
+      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+      addBattleLog(`💚 生命之源 恢复 ${healAmount} 点生命`, 'heal')
+    } else if (baseHeal > 0) {
+      addBattleLog(`🚫 生命之源被禁疗效果阻止`, 'danger')
+    }
   }
 
   // 回复buff（圣光治愈等技能）
   const regenBuff = gameState.battle.playerBuffs.regen
   if (playerAlive && regenBuff && regenBuff.duration > 0 && gameState.battle.playerCurrentHp < maxHp) {
-    const healAmount = Math.floor(maxHp * regenBuff.value / 100)
-    gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-    addBattleLog(`💚 持续回复 ${healAmount} 点生命`, 'heal')
+    const baseHeal = Math.floor(maxHp * regenBuff.value / 100)
+    const healAmount = calculateEffectiveHeal(baseHeal)
+    if (healAmount > 0) {
+      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+      addBattleLog(`💚 持续回复 ${healAmount} 点生命`, 'heal')
+    } else if (baseHeal > 0) {
+      addBattleLog(`🚫 持续回复被禁疗效果阻止`, 'danger')
+    }
   }
 
   let result = null
@@ -2248,9 +2323,14 @@ export function battleRound() {
 
     // 治愈技能（基于攻击力）
     if (selectedSkill.effect === 'heal') {
-      const healAmount = Math.floor(stats.attack * skillMultiplier)
-      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-      addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 点生命`, 'heal')
+      const baseHeal = Math.floor(stats.attack * skillMultiplier)
+      const healAmount = calculateEffectiveHeal(baseHeal)
+      if (healAmount > 0) {
+        gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+        addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 点生命`, 'heal')
+      } else {
+        addBattleLog(`🚫 【${selectedSkill.name}】被禁疗效果阻止`, 'danger')
+      }
       skipAttack = true
     }
 
@@ -2294,20 +2374,32 @@ export function battleRound() {
 
     // 圣光治愈（治疗+持续回复）
     if (selectedSkill.effect === 'healAndRegen') {
-      const healAmount = Math.floor(stats.attack * skillMultiplier)
-      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-      gameState.battle.playerBuffs.regen = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
-      addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 生命，获得${selectedSkill.effectDuration}回合回复效果`, 'heal')
+      const baseHeal = Math.floor(stats.attack * skillMultiplier)
+      const healAmount = calculateEffectiveHeal(baseHeal)
+      if (healAmount > 0) {
+        gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+        gameState.battle.playerBuffs.regen = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
+        addBattleLog(`💚 【${selectedSkill.name}】恢复 ${healAmount} 生命，获得${selectedSkill.effectDuration}回合回复效果`, 'heal')
+      } else {
+        // 禁疗时仍可获得回复buff，但不会立即治疗
+        gameState.battle.playerBuffs.regen = { value: selectedSkill.effectValue, duration: selectedSkill.effectDuration }
+        addBattleLog(`🚫 【${selectedSkill.name}】立即治疗被阻止，但获得回复效果`, 'danger')
+      }
       skipAttack = true
     }
 
     // 生命绽放（牺牲当前生命换最大生命百分比恢复）
     if (selectedSkill.effect === 'lifeBloom') {
       const sacrificeHp = Math.floor(gameState.battle.playerCurrentHp * selectedSkill.sacrificePercent / 100)
-      const healAmount = Math.floor(maxHp * selectedSkill.healPercent / 100)
-      gameState.battle.playerCurrentHp -= sacrificeHp
-      gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
-      addBattleLog(`🌸 【${selectedSkill.name}】消耗 ${sacrificeHp} 生命，恢复 ${healAmount} 生命`, 'heal')
+      const baseHeal = Math.floor(maxHp * selectedSkill.healPercent / 100)
+      const healAmount = calculateEffectiveHeal(baseHeal)
+      gameState.battle.playerCurrentHp -= sacrificeHp  // 消耗生命仍会执行
+      if (healAmount > 0) {
+        gameState.battle.playerCurrentHp = Math.min(maxHp, gameState.battle.playerCurrentHp + healAmount)
+        addBattleLog(`🌸 【${selectedSkill.name}】消耗 ${sacrificeHp} 生命，恢复 ${healAmount} 生命`, 'heal')
+      } else {
+        addBattleLog(`🚫 【${selectedSkill.name}】消耗 ${sacrificeHp} 生命，但治疗被禁疗效果阻止！`, 'danger')
+      }
       skipAttack = true
     }
 
@@ -2378,9 +2470,14 @@ export function battleRound() {
         }
         else if (artSkill.effect === 'heal') {
           // 灵气疗伤：回复生命
-          const healAmount = Math.floor(stats.maxHp * skillValue / 100)
-          gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
-          addBattleLog(`🔮 法宝【${artSkill.name}】：回复 ${healAmount} 点生命`, 'heal')
+          const baseHeal = Math.floor(stats.maxHp * skillValue / 100)
+          const healAmount = calculateEffectiveHeal(baseHeal)
+          if (healAmount > 0) {
+            gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
+            addBattleLog(`🔮 法宝【${artSkill.name}】：回复 ${healAmount} 点生命`, 'heal')
+          } else {
+            addBattleLog(`🚫 法宝【${artSkill.name}】被禁疗效果阻止`, 'danger')
+          }
         }
         else if (artSkill.effect === 'damageStun') {
           // 雷霆一击：对第一个敌人造成伤害并眩晕
@@ -2589,9 +2686,14 @@ export function battleRound() {
 
       // 吸血效果
       if (lifestealPercent > 0) {
-        const healAmount = Math.floor(damage * lifestealPercent / 100)
-        gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
-        addBattleLog(`🩸 吸血 恢复 ${healAmount} 点生命`, 'heal')
+        const baseHeal = Math.floor(damage * lifestealPercent / 100)
+        const healAmount = calculateEffectiveHeal(baseHeal)
+        if (healAmount > 0) {
+          gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
+          addBattleLog(`🩸 吸血 恢复 ${healAmount} 点生命`, 'heal')
+        } else if (baseHeal > 0) {
+          addBattleLog(`🚫 吸血被禁疗效果阻止`, 'danger')
+        }
       }
 
       if (selectedSkill) {
@@ -2622,9 +2724,14 @@ export function battleRound() {
 
           // 死神低语：击杀回血（法宝被动技能）
           if (stats.killHealPercent > 0) {
-            const killHeal = Math.floor(stats.maxHp * stats.killHealPercent / 100)
-            gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + killHeal)
-            addBattleLog(`💀 【死神低语】击杀回复 ${killHeal} 生命`, 'heal')
+            const baseHeal = Math.floor(stats.maxHp * stats.killHealPercent / 100)
+            const killHeal = calculateEffectiveHeal(baseHeal)
+            if (killHeal > 0) {
+              gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + killHeal)
+              addBattleLog(`💀 【死神低语】击杀回复 ${killHeal} 生命`, 'heal')
+            } else if (baseHeal > 0) {
+              addBattleLog(`🚫 【死神低语】被禁疗效果阻止`, 'danger')
+            }
           }
 
           // 奖励（应用经验和金币倍率）
@@ -2937,9 +3044,14 @@ export function battleRound() {
 
           // 治疗主人
           if (skillEffect === 'healOwner') {
-            const healAmount = Math.floor(stats.maxHp * petUseSkill.effectValue / 100)
-            gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
-            addBattleLog(`💚 宠物【${activePet.name}】使用【${petUseSkill.name}】，治疗主人 ${healAmount} 点生命`, 'heal')
+            const baseHeal = Math.floor(stats.maxHp * petUseSkill.effectValue / 100)
+            const healAmount = calculateEffectiveHeal(baseHeal)
+            if (healAmount > 0) {
+              gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
+              addBattleLog(`💚 宠物【${activePet.name}】使用【${petUseSkill.name}】，治疗主人 ${healAmount} 点生命`, 'heal')
+            } else {
+              addBattleLog(`🚫 宠物【${activePet.name}】的【${petUseSkill.name}】被禁疗效果阻止`, 'danger')
+            }
             skillHandled = true
           }
           // 主人闪避buff
@@ -3243,12 +3355,14 @@ export function battleRound() {
             addBattleLog(`⚖️ 宠物【${activePet.name}】使用【${petUseSkill.name}】，${getMonsterNameWithStatus(petTarget)} 受到的伤害+${petUseSkill.effectValue}%`, 'debuff')
             skillHandled = true
           }
-          // 治疗净化（治疗主人+清除debuff）
+          // 治疗净化（清除debuff+治疗主人）
           else if (skillEffect === 'healAndPurify') {
+            // 先清除负面效果
+            gameState.battle.playerDebuffs = {}
+            // 然后治疗（因为debuff已清除，所以可以正常治疗）
             const healAmount = Math.floor(stats.maxHp * petUseSkill.healValue / 100)
             gameState.battle.playerCurrentHp = Math.min(stats.maxHp, gameState.battle.playerCurrentHp + healAmount)
-            gameState.battle.playerDebuffs = {}
-            addBattleLog(`✨ 宠物【${activePet.name}】使用【${petUseSkill.name}】，治疗主人 ${healAmount} 并净化负面效果`, 'heal')
+            addBattleLog(`✨ 宠物【${activePet.name}】使用【${petUseSkill.name}】，净化负面效果并治疗主人 ${healAmount}`, 'heal')
             skillHandled = true
           }
           // 群体魅惑
@@ -3471,10 +3585,27 @@ export function battleRound() {
     if (monster.skills.length > 0 && Math.random() < 0.3) { // 30%几率使用技能
       const attackSkills = monster.skills.filter(s => s.type === 'attack')
       const buffSkills = monster.skills.filter(s => s.type === 'buff')
+      const debuffSkills = monster.skills.filter(s => s.type === 'debuff')
 
       if (attackSkills.length > 0 && Math.random() < 0.6) {
         monsterUseSkill = attackSkills[Math.floor(Math.random() * attackSkills.length)]
         skillDamageMultiplier = monsterUseSkill.multiplier
+      } else if (debuffSkills.length > 0 && Math.random() < 0.5) {
+        // 50%几率使用debuff技能（对玩家施加负面效果）
+        monsterUseSkill = debuffSkills[Math.floor(Math.random() * debuffSkills.length)]
+        // 应用debuff到玩家
+        if (!gameState.battle.playerDebuffs) {
+          gameState.battle.playerDebuffs = {}
+        }
+        const debuffEffect = monsterUseSkill.effect
+        const debuffDuration = monsterUseSkill.duration || 3
+        const debuffValue = monsterUseSkill.value || 0
+        gameState.battle.playerDebuffs[debuffEffect] = {
+          value: debuffValue,
+          duration: debuffDuration
+        }
+        addBattleLog(`😈 ${getMonsterNameWithStatus(monster)} 使用【${monsterUseSkill.name}】！${monsterUseSkill.description}`, 'danger')
+        continue // debuff技能不攻击
       } else if (buffSkills.length > 0) {
         monsterUseSkill = buffSkills[Math.floor(Math.random() * buffSkills.length)]
         // 应用buff
